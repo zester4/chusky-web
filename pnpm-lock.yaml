@@ -198,6 +198,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.5
         version: 19.2.5(@types/react@19.2.18)
+      lightningcss-win32-x64-msvc:
+        specifier: 1.32.0
+        version: 1.32.0
       postcss:
         specifier: ^8.5
         version: 8.5.26
@@ -6680,8 +6683,7 @@ snapshots:
   lightningcss-win32-arm64-msvc@1.33.0:
     optional: true
 
-  lightningcss-win32-x64-msvc@1.32.0:
-    optional: true
+  lightningcss-win32-x64-msvc@1.32.0: {}
 
   lightningcss-win32-x64-msvc@1.33.0:
     optional: true
