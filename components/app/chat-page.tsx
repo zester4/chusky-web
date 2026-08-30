@@ -5,8 +5,9 @@ import {
   ArrowUp,
   ArrowUpRight,
   Bot,
-  Check,
   CheckCircle2,
+  Check,
+  Copy,
   FileText,
   History,
   LoaderCircle,
@@ -21,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { MarkdownMessage } from "./markdown-message";
 
 type Message = {
   role: "user" | "assistant";
@@ -44,19 +46,15 @@ const suggestions = [
 
 export function ChatPage() {
   const [thread, setThread] = useState<Thread>();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      text: "Hi Morgan. I’m ready to help you connect your tools, investigate a question, or move a task forward. What are we working on?",
-      time: "Now",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [account, setAccount] = useState<AccountOverview>();
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [showContext, setShowContext] = useState(true);
   const [controller, setController] = useState<AbortController>();
+  const [activeMessageIndex, setActiveMessageIndex] = useState<number>();
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number>();
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,6 +82,17 @@ export function ChatPage() {
 
   const updateLastAssistant = (update: Partial<Message>) => {
     setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, ...update } : item));
+  };
+
+  const copyMessage = async (index: number, text: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageIndex(index);
+      window.setTimeout(() => setCopiedMessageIndex((current) => current === index ? undefined : current), 1600);
+    } catch {
+      // Clipboard access can be unavailable in an embedded or insecure context.
+    }
   };
 
   const decideApproval = async (approvalId: string, decision: "approve" | "deny") => {
@@ -173,14 +182,19 @@ export function ChatPage() {
 
             <div className="space-y-6">
               {messages.map((item, index) => (
-                <div key={`${item.role}-${index}`} className={item.role === "user" ? "ml-auto max-w-2xl" : "flex gap-4"}>
+                <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto max-w-[90%] sm:max-w-2xl" : "group relative flex gap-2.5 sm:gap-4"} onClick={() => setActiveMessageIndex(index)}>
                   {item.role === "assistant" && <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] text-background">C</div>}
-                  <div className={item.role === "user" ? "rounded-xl border border-foreground/20 bg-foreground px-3 py-2.5 text-xs leading-5 text-background shadow-sm" : "min-w-0 rounded-xl border border-foreground/10 bg-background px-3 py-2.5 shadow-sm"}>
+                  <div className={item.role === "user" ? "relative min-w-0 rounded-xl border border-foreground/20 bg-foreground px-3 py-2.5 text-xs leading-5 text-background shadow-sm" : "relative min-w-0 rounded-xl border border-foreground/10 bg-background px-3 py-2.5 shadow-sm"}>
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2.5"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
-                    {item.pending && !item.text ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> {item.tool ? `Using ${item.tool.replaceAll("_", " ").toLowerCase()}…` : "Thinking through your request…"}</p> : <p className={item.role === "assistant" ? "max-w-2xl text-sm leading-7" : ""}>{item.text}</p>}
+                    {item.pending && !item.text ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> {item.tool ? `Using ${item.tool.replaceAll("_", " ").toLowerCase()}…` : "Thinking through your request…"}</p> : item.role === "assistant" ? <MarkdownMessage content={item.text} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p>}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}
                     {item.tool && <p className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground"><Zap size={12} /> {item.tool.replaceAll("_", " ").toLowerCase()}</p>}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
+                    {item.text ? <div className={`absolute -bottom-4 right-2 z-10 flex items-center gap-1 rounded-md border border-foreground/10 bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
+                      <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex min-h-11 min-w-11 items-center justify-center rounded px-2 hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>
+                        {copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}
+                      </button>
+                    </div> : null}
                   </div>
                 </div>
               ))}
