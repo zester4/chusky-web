@@ -70,6 +70,8 @@ loading, offline, and empty states when a resource has no saved data.
   linked, first-party dashboard requests resolve to the Telegram owner session,
   so chat, memory, approvals, reminders, channels, devices, and deliveries are
   the same private workspace.
+- Email-verification links now return to `/verify-email/success`, a dedicated
+  confirmation page that appears only after Better Auth has accepted the token.
 
 ### Verification for this update
 

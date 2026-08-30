@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, ShieldChe
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
-type AuthVariant = "sign-in" | "sign-up" | "forgot-password" | "reset-password" | "verify-email";
+type AuthVariant = "sign-in" | "sign-up" | "forgot-password" | "reset-password" | "verify-email" | "email-verified";
 
 const copy: Record<AuthVariant, { eyebrow: string; title: string; description: string }> = {
   "sign-in": { eyebrow: "Welcome back", title: "Continue with Chusky.", description: "Pick up where you left off. Your connected apps, private scratchpad, and persistent workspace are waiting." },
@@ -14,6 +14,7 @@ const copy: Record<AuthVariant, { eyebrow: string; title: string; description: s
   "forgot-password": { eyebrow: "Account recovery", title: "Find your way back.", description: "Enter your email and we’ll help you securely reset your password." },
   "reset-password": { eyebrow: "New password", title: "Make it yours again.", description: "Choose a strong password for your Chusky account. You’ll use it the next time you sign in." },
   "verify-email": { eyebrow: "One last step", title: "Check your inbox.", description: "Verify your email to finish setting up your Chusky workspace and keep your account secure." },
+  "email-verified": { eyebrow: "You’re all set", title: "Email verified.", description: "Your Chusky account is active and ready to use." },
 };
 
 function Field({ label, id, type = "text", placeholder, autoComplete, required = true }: { label: string; id: string; type?: string; placeholder?: string; autoComplete?: string; required?: boolean }) {
@@ -89,7 +90,7 @@ function SignInCard() {
 function SignUpCard() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(""); const values = new FormData(event.currentTarget); const result = await authClient.signUp.email({ name: String(values.get("name") ?? ""), email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/verify-email` }); setBusy(false); if (result.error) setMessage(result.error.message || "We couldn’t create your account. Please try again."); else window.location.assign("/verify-email"); };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(""); const values = new FormData(event.currentTarget); const result = await authClient.signUp.email({ name: String(values.get("name") ?? ""), email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/verify-email/success` }); setBusy(false); if (result.error) setMessage(result.error.message || "We couldn’t create your account. Please try again."); else window.location.assign("/verify-email"); };
   return <AuthCard title="Create your account" description="Start with the essentials. You can connect apps later."><form onSubmit={submit} className="space-y-5"><Field label="Name" id="name" autoComplete="name" placeholder="Morgan Lee" /><Field label="Email address" id="email" type="email" autoComplete="email" placeholder="you@example.com" /><Field label="Password" id="password" type="password" autoComplete="new-password" placeholder="At least 12 characters" /><label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground"><input type="checkbox" required className="mt-0.5 h-4 w-4 accent-foreground" /> I agree to the Chusky terms and understand that account access is protected by email verification.</label><SubmitButton>{busy ? "Creating account…" : "Create account"}</SubmitButton><p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">{message}</p></form><p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <Link href="/sign-in" className="text-foreground underline underline-offset-4">Sign in</Link></p></AuthCard>;
 }
 
@@ -107,12 +108,16 @@ function ResetPasswordCard() {
 
 function VerifyEmailCard() {
   const [resent, setResent] = useState(false);
-  return <AuthCard title="Verify your email" description="We sent a verification link to your inbox. Open it to activate your Chusky account."><div className="flex gap-3 border border-foreground/10 bg-foreground/[0.03] p-4 text-sm leading-relaxed"><ShieldCheck size={19} className="mt-0.5 shrink-0" /><p>Verification links expire. If you didn’t request this account, you can safely ignore the message.</p></div><button type="button" onClick={async () => { const email = window.prompt("Enter your Chusky email"); if (!email) return; await authClient.sendVerificationEmail({ email, callbackURL: `${window.location.origin}/app` }); setResent(true); }} className="mt-6 w-full text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">{resent ? "A new verification link is on its way" : "Resend verification email"}</button><Button asChild variant="outline" className="mt-5 h-11 w-full rounded-full"><Link href="/sign-in">Return to sign in</Link></Button></AuthCard>;
+  return <AuthCard title="Verify your email" description="We sent a verification link to your inbox. Open it to activate your Chusky account."><div className="flex gap-3 border border-foreground/10 bg-foreground/[0.03] p-4 text-sm leading-relaxed"><ShieldCheck size={19} className="mt-0.5 shrink-0" /><p>Verification links expire. If you didn’t request this account, you can safely ignore the message.</p></div><button type="button" onClick={async () => { const email = window.prompt("Enter your Chusky email"); if (!email) return; await authClient.sendVerificationEmail({ email, callbackURL: `${window.location.origin}/verify-email/success` }); setResent(true); }} className="mt-6 w-full text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">{resent ? "A new verification link is on its way" : "Resend verification email"}</button><Button asChild variant="outline" className="mt-5 h-11 w-full rounded-full"><Link href="/sign-in">Return to sign in</Link></Button></AuthCard>;
+}
+
+function EmailVerifiedCard() {
+  return <AuthCard title="Your email is verified" description="Your Chusky account is ready. Sign in to open your dashboard and link your Telegram workspace when you’re ready."><div className="flex gap-3 border border-emerald-200 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-950"><ShieldCheck size={19} className="mt-0.5 shrink-0" /><p>Email verification succeeded. You can now sign in securely.</p></div><Button asChild className="mt-6 h-11 w-full rounded-full"><Link href="/sign-in">Continue to sign in <ArrowRight size={15} /></Link></Button></AuthCard>;
 }
 
 export function AuthPage({ variant }: { variant: AuthVariant }) {
   const content = copy[variant];
-  const card = variant === "sign-in" ? <SignInCard /> : variant === "sign-up" ? <SignUpCard /> : variant === "forgot-password" ? <ForgotPasswordCard /> : variant === "reset-password" ? <ResetPasswordCard /> : <VerifyEmailCard />;
+  const card = variant === "sign-in" ? <SignInCard /> : variant === "sign-up" ? <SignUpCard /> : variant === "forgot-password" ? <ForgotPasswordCard /> : variant === "reset-password" ? <ResetPasswordCard /> : variant === "email-verified" ? <EmailVerifiedCard /> : <VerifyEmailCard />;
   return (
     <main className="min-h-screen overflow-x-hidden bg-background noise-overlay">
       <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-6 py-6 lg:px-12">
