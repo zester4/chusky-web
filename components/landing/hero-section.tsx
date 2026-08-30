@@ -55,7 +55,7 @@ export function HeroSection() {
         ))}
       </div>
       
-      <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-24 sm:px-6 sm:py-28 lg:px-12 lg:py-40">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-20 sm:px-6 sm:py-28 lg:px-12 lg:py-40">
         {/* Eyebrow */}
         <div 
           className={`mb-8 transition-all duration-700 ${
@@ -120,7 +120,7 @@ export function HeroSection() {
           >
             <Button 
               size="lg" 
-              className="h-11 rounded-full bg-foreground px-5 text-sm text-background group hover:bg-foreground/90"
+            className="h-10 rounded-full bg-foreground px-4 text-xs text-background group hover:bg-foreground/90 sm:h-11 sm:px-5 sm:text-sm"
             >
               Start free trial
               <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
@@ -128,7 +128,7 @@ export function HeroSection() {
             <Button 
               size="lg" 
               variant="outline" 
-              className="h-11 rounded-full border-foreground/20 px-5 text-sm hover:bg-foreground/5"
+            className="h-10 rounded-full border-foreground/20 px-4 text-xs hover:bg-foreground/5 sm:h-11 sm:px-5 sm:text-sm"
             >
               Watch demo
             </Button>

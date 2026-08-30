@@ -205,8 +205,8 @@ export function ChatPage() {
   };
 
   return (
-    <div className="-mx-3 -my-6 flex min-h-[calc(100vh-3.5rem)] flex-col bg-[#f7f7f4] sm:-mx-5 sm:-my-7 lg:-mx-7 lg:-my-8">
-      <header className="flex min-h-12 items-center justify-between border-b border-foreground/10 bg-background px-3 sm:px-5 lg:px-6">
+    <div className="-mx-2.5 -my-4 flex min-h-[calc(100vh-3rem)] min-w-0 flex-col bg-[#f7f7f4] sm:-mx-4 sm:-my-6 lg:-mx-7 lg:-my-8">
+      <header className="flex min-h-11 items-center justify-between gap-2 border-b border-foreground/10 bg-background px-2.5 sm:min-h-12 sm:px-4 lg:px-6">
         <button type="button" onClick={toggleVoiceInput} disabled={!thread || Boolean(controller)} className={`fixed bottom-24 right-4 z-30 rounded-full border bg-background p-3 shadow-sm disabled:opacity-40 ${listening ? "text-rose-700" : "text-muted-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"}><Mic size={16} /></button>
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Bot size={14} /></div>
@@ -220,10 +220,10 @@ export function ChatPage() {
 
       <div className={showContext ? "grid flex-1 xl:grid-cols-[minmax(0,1fr)_280px]" : "flex-1"}>
         <div className="flex min-w-0 flex-col">
-          <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-3 py-6 sm:px-6 sm:py-7 lg:px-8">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Agent workspace</p><p className="mt-1.5 text-[11px] text-muted-foreground">Ask naturally. Chusky streams progress and keeps durable run state.</p></div><span className="flex max-w-52 items-center gap-2 truncate rounded-full border border-foreground/10 bg-background px-2.5 py-1.5 text-[11px]"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> <span className="truncate">{account?.model || "Agent model"}</span></span></div>
+          <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-2.5 py-4 sm:px-5 sm:py-6 lg:px-8">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 sm:mb-6 sm:gap-3"><div className="min-w-0"><p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Agent workspace</p><p className="mt-1.5 text-[11px] text-muted-foreground">Ask naturally. Chusky streams progress and keeps durable run state.</p></div><span className="flex max-w-full items-center gap-2 truncate rounded-full border border-foreground/10 bg-background px-2.5 py-1.5 text-[10px]"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> <span className="truncate">{account?.model || "Agent model"}</span></span></div>
 
-            <div className="space-y-6">
+            <div className="space-y-5 sm:space-y-6">
               {messages.map((item, index) => (
                 <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto max-w-[90%] sm:max-w-2xl" : "group relative flex gap-2.5 sm:gap-4"} onClick={() => setActiveMessageIndex(index)}>
                   {item.role === "assistant" && <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] text-background">C</div>}
@@ -234,7 +234,7 @@ export function ChatPage() {
                     {item.tool && <p className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground"><Zap size={12} /> {item.tool.replaceAll("_", " ").toLowerCase()}</p>}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-4 right-2 z-10 flex items-center gap-1 rounded-md border border-foreground/10 bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
-                      <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex min-h-11 min-w-11 items-center justify-center rounded px-2 hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>
+                      <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex min-h-8 min-w-8 items-center justify-center rounded px-1.5 hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>
                         {copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}
                       </button>
                       {item.role === "assistant" && <button type="button" onClick={() => speakMessage(index, item.text)} className="flex min-h-11 min-w-11 items-center justify-center rounded px-2 hover:bg-foreground/5 hover:text-foreground" aria-label={speaking === index ? "Stop speaking" : "Read message aloud"}><Mic size={12} /></button>}

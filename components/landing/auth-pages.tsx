@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+import { InputDialog } from "@/components/app/input-dialog";
 
 type AuthVariant = "sign-in" | "sign-up" | "forgot-password" | "reset-password" | "verify-email" | "email-verified";
 
@@ -45,7 +46,7 @@ function Field({ label, id, type = "text", placeholder, autoComplete, required =
 
 function AuthCard({ children, title, description }: { children: ReactNode; title: string; description?: string }) {
   return (
-    <div className="border border-foreground/10 bg-background p-5 shadow-sm sm:p-6">
+    <div className="border border-foreground/10 bg-background p-4 shadow-sm sm:p-6">
       <div className="mb-7">
         <h2 className="font-display text-2xl">{title}</h2>
         {description && <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{description}</p>}
@@ -108,7 +109,8 @@ function ResetPasswordCard() {
 
 function VerifyEmailCard() {
   const [resent, setResent] = useState(false);
-  return <AuthCard title="Verify your email" description="We sent a verification link to your inbox. Open it to activate your Chusky account."><div className="flex gap-3 border border-foreground/10 bg-foreground/[0.03] p-4 text-sm leading-relaxed"><ShieldCheck size={19} className="mt-0.5 shrink-0" /><p>Verification links expire. If you didn’t request this account, you can safely ignore the message.</p></div><button type="button" onClick={async () => { const email = window.prompt("Enter your Chusky email"); if (!email) return; await authClient.sendVerificationEmail({ email, callbackURL: `${window.location.origin}/verify-email/success` }); setResent(true); }} className="mt-6 w-full text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">{resent ? "A new verification link is on its way" : "Resend verification email"}</button><Button asChild variant="outline" className="mt-5 h-11 w-full rounded-full"><Link href="/sign-in">Return to sign in</Link></Button></AuthCard>;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  return <><AuthCard title="Verify your email" description="We sent a verification link to your inbox. Open it to activate your Chusky account."><div className="flex gap-3 border border-foreground/10 bg-foreground/[0.03] p-4 text-sm leading-relaxed"><ShieldCheck size={19} className="mt-0.5 shrink-0" /><p>Verification links expire. If you didn’t request this account, you can safely ignore the message.</p></div><button type="button" onClick={() => setDialogOpen(true)} className="mt-6 w-full text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">{resent ? "A new verification link is on its way" : "Resend verification email"}</button><Button asChild variant="outline" className="mt-5 h-11 w-full rounded-full"><Link href="/sign-in">Return to sign in</Link></Button></AuthCard><InputDialog open={dialogOpen} onOpenChange={setDialogOpen} title="Resend verification email" description="Enter the email address used for your Chusky account." label="Email address" placeholder="you@example.com" submitLabel="Send link" onSubmit={async (email) => { await authClient.sendVerificationEmail({ email, callbackURL: `${window.location.origin}/verify-email/success` }); setResent(true); }} /></>;
 }
 
 function EmailVerifiedCard() {
@@ -120,10 +122,10 @@ export function AuthPage({ variant }: { variant: AuthVariant }) {
   const card = variant === "sign-in" ? <SignInCard /> : variant === "sign-up" ? <SignUpCard /> : variant === "forgot-password" ? <ForgotPasswordCard /> : variant === "reset-password" ? <ResetPasswordCard /> : variant === "email-verified" ? <EmailVerifiedCard /> : <VerifyEmailCard />;
   return (
     <main className="min-h-screen overflow-x-hidden bg-background noise-overlay">
-      <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-4 py-4 sm:px-6 sm:py-5 lg:px-10">
+      <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-3 py-3 sm:px-6 sm:py-5 lg:px-10">
         <header className="flex items-center justify-between"><Link href="/" className="font-display text-2xl tracking-tight">chusky<span className="text-muted-foreground">.</span></Link><Link href="/" className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft size={14} /> Back to website</Link></header>
-        <div className="grid flex-1 items-center gap-8 py-10 sm:py-12 lg:grid-cols-[1fr_420px] lg:gap-16 lg:py-16">
-          <div className="max-w-2xl"><span className="mb-6 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground"><span className="h-px w-6 bg-foreground/30" />{content.eyebrow}</span><h1 className="font-display text-5xl leading-[0.9] tracking-tight sm:text-6xl md:text-7xl">{content.title}</h1><p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">{content.description}</p><div className="mt-8 hidden gap-6 border-t border-foreground/10 pt-5 text-[11px] text-muted-foreground sm:flex"><span className="flex items-center gap-2"><Check size={13} /> Persistent context</span><span className="flex items-center gap-2"><Check size={13} /> Human approvals</span></div></div>
+        <div className="grid flex-1 items-center gap-6 py-8 sm:gap-8 sm:py-12 lg:grid-cols-[1fr_420px] lg:gap-16 lg:py-16">
+          <div className="max-w-2xl"><span className="mb-5 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-6"><span className="h-px w-6 bg-foreground/30" />{content.eyebrow}</span><h1 className="font-display text-4xl leading-[0.92] tracking-tight sm:text-6xl md:text-7xl">{content.title}</h1><p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg">{content.description}</p><div className="mt-6 hidden gap-6 border-t border-foreground/10 pt-5 text-[11px] text-muted-foreground sm:flex"><span className="flex items-center gap-2"><Check size={13} /> Persistent context</span><span className="flex items-center gap-2"><Check size={13} /> Human approvals</span></div></div>
           <div>{card}</div>
         </div>
         <footer className="flex flex-col gap-2 border-t border-foreground/10 pt-5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span>Private by default · Built for your work</span><span>© Chusky AI</span></footer>

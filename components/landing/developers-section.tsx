@@ -107,32 +107,32 @@ export function DevelopersSection() {
   }, []);
 
   return (
-    <section id="developers" ref={sectionRef} className="relative py-24 lg:py-32 overflow-hidden">
+    <section id="developers" ref={sectionRef} className="relative overflow-hidden py-16 sm:py-20 lg:py-32">
       <style dangerouslySetInnerHTML={{ __html: codeAnimationStyles }} />
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
+        <div className="grid items-start gap-10 sm:gap-14 lg:grid-cols-2 lg:gap-24">
           {/* Left: Content */}
           <div
             className={`transition-all duration-700 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
           >
-            <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
+            <span className="mb-5 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-6 sm:text-sm">
               <span className="w-8 h-px bg-foreground/30" />
               For developers
             </span>
-            <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
+            <h2 className="mb-6 text-4xl font-display tracking-tight sm:mb-8 lg:text-6xl">
               Built by devs.
               <br />
               <span className="text-muted-foreground">For devs.</span>
             </h2>
-            <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
+            <p className="mb-8 text-base leading-relaxed text-muted-foreground sm:mb-12 sm:text-xl">
               A thoughtfully designed SDK that gets out of your way. 
               Ship faster with intuitive APIs and exceptional documentation.
             </p>
             
             {/* Features */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
               {features.map((feature, index) => (
                 <div
                   key={feature.title}
@@ -162,7 +162,7 @@ export function DevelopersSection() {
                     key={example.label}
                     type="button"
                     onClick={() => setActiveTab(idx)}
-                    className={`px-6 py-4 text-sm font-mono transition-colors relative ${
+                    className={`px-3 py-3 text-xs font-mono transition-colors relative sm:px-5 sm:py-4 sm:text-sm ${
                       activeTab === idx
                         ? "text-foreground"
                         : "text-muted-foreground hover:text-foreground"
@@ -178,7 +178,7 @@ export function DevelopersSection() {
                 <button
                   type="button"
                   onClick={handleCopy}
-                  className="px-4 py-4 text-muted-foreground hover:text-foreground transition-colors"
+                  className="px-3 py-3 text-muted-foreground transition-colors hover:text-foreground sm:px-4 sm:py-4"
                   aria-label="Copy code"
                 >
                   {copied ? (
@@ -190,7 +190,7 @@ export function DevelopersSection() {
               </div>
               
               {/* Code content */}
-              <div className="p-8 font-mono text-sm bg-foreground/[0.01] min-h-[220px]">
+              <div className="min-h-[200px] overflow-x-auto bg-foreground/[0.01] p-4 font-mono text-[11px] sm:min-h-[220px] sm:p-6 sm:text-sm">
                 <pre className="text-foreground/80">
                   {codeExamples[activeTab].code.split('\n').map((line, lineIndex) => (
                     <div 
@@ -218,7 +218,7 @@ export function DevelopersSection() {
             </div>
             
             {/* Links */}
-            <div className="mt-6 flex items-center gap-6 text-sm">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs sm:mt-6 sm:gap-6 sm:text-sm">
               <a href="#" className="text-foreground hover:underline underline-offset-4">
                 Read the docs
               </a>

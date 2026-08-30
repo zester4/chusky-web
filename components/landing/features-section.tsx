@@ -299,16 +299,16 @@ function FeatureCard({ feature, index }: { feature: typeof features[0]; index: n
       }`}
       style={{ transitionDelay: `${index * 100}ms` }}
     >
-      <div className="flex flex-col gap-6 border-b border-foreground/10 py-8 sm:py-10 lg:flex-row lg:gap-12 lg:py-14">
+      <div className="flex flex-col gap-4 border-b border-foreground/10 py-6 sm:gap-6 sm:py-10 lg:flex-row lg:gap-12 lg:py-14">
         {/* Number */}
         <div className="shrink-0">
           <span className="font-mono text-sm text-muted-foreground">{feature.number}</span>
         </div>
         
         {/* Content */}
-        <div className="grid flex-1 items-center gap-6 lg:grid-cols-2 lg:gap-10">
+        <div className="grid min-w-0 flex-1 items-center gap-5 lg:grid-cols-2 lg:gap-10">
           <div>
-            <h3 className="mb-3 font-display text-2xl transition-transform duration-500 group-hover:translate-x-2 sm:text-3xl">
+            <h3 className="mb-2 font-display text-2xl transition-transform duration-500 group-hover:translate-x-2 sm:mb-3 sm:text-3xl">
               {feature.title}
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -318,7 +318,7 @@ function FeatureCard({ feature, index }: { feature: typeof features[0]; index: n
           
           {/* Visual */}
           <div className="flex justify-center lg:justify-end">
-            <div className="h-32 w-40 text-foreground sm:h-36 sm:w-44">
+            <div className="h-28 w-36 text-foreground sm:h-36 sm:w-44">
               <AnimatedVisual type={feature.visual} />
             </div>
           </div>

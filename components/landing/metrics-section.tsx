@@ -99,7 +99,7 @@ export function MetricsSection() {
   }, []);
 
   return (
-    <section id="studio" ref={sectionRef} className="relative border-y border-foreground/10 py-16 sm:py-20 lg:py-24">
+    <section id="studio" ref={sectionRef} className="relative border-y border-foreground/10 py-14 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         {/* Header */}
         <div className="mb-10 flex flex-col gap-5 sm:mb-14 lg:mb-16 lg:flex-row lg:items-end lg:justify-between">
@@ -133,7 +133,7 @@ export function MetricsSection() {
           {metrics.map((metric, index) => (
             <div
               key={metric.label}
-              className={`bg-background p-5 transition-all duration-700 sm:p-7 lg:p-9 ${
+              className={`bg-background p-4 transition-all duration-700 sm:p-6 lg:p-9 ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
               }`}
               style={{ transitionDelay: `${index * 100}ms` }}

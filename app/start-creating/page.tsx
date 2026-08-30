@@ -38,21 +38,21 @@ export default function StartCreatingPage() {
         title={<>Make work<br /><span className="text-muted-foreground">move faster.</span></>}
         description="Chusky is the AI agent that brings your apps, tools, and workflows together. Start in Telegram, then keep going wherever you work."
       />
-      <section className="py-24 lg:py-32">
-        <div className="max-w-6xl mx-auto px-6 lg:px-12">
-          <div className="grid md:grid-cols-3 gap-px bg-foreground/10">
+      <section className="py-14 sm:py-20 lg:py-32">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
+          <div className="grid gap-px bg-foreground/10 md:grid-cols-3">
             {startingPoints.map(({ icon: Icon, title, description, href }) => (
-              <Link key={title} href={href} className="group bg-background p-8 lg:p-10 min-h-64 border border-transparent hover:border-foreground transition-colors">
-                <Icon className="w-6 h-6 mb-12" aria-hidden="true" />
-                <h2 className="font-display text-3xl mb-4">{title}</h2>
-                <p className="text-muted-foreground leading-relaxed mb-8">{description}</p>
+              <Link key={title} href={href} className="group min-h-52 border border-transparent bg-background p-5 transition-colors hover:border-foreground sm:min-h-64 sm:p-8 lg:p-10">
+                <Icon className="mb-8 h-5 w-5 sm:mb-12 sm:h-6 sm:w-6" aria-hidden="true" />
+                <h2 className="mb-3 font-display text-2xl sm:mb-4 sm:text-3xl">{title}</h2>
+                <p className="mb-6 text-sm leading-relaxed text-muted-foreground sm:mb-8">{description}</p>
                 <span className="inline-flex items-center gap-2 text-sm font-medium">
                   Learn more <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </span>
               </Link>
             ))}
           </div>
-          <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mt-10 flex flex-col items-stretch justify-center gap-2.5 sm:mt-16 sm:flex-row sm:items-center sm:gap-4">
             <Button asChild className="rounded-full bg-foreground text-background hover:bg-foreground/90 h-11 px-5 text-sm">
               <Link href="/sign-in">I already have an account <ArrowRight className="w-4 h-4" /></Link>
             </Button>

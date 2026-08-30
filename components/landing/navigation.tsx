@@ -41,7 +41,7 @@ export function Navigation() {
         }`}
       >
         <div 
-          className={`flex items-center justify-between transition-all duration-500 px-4 sm:px-6 lg:px-7 ${
+          className={`flex items-center justify-between transition-all duration-500 px-3 sm:px-6 lg:px-7 ${
             isScrolled ? "h-12" : "h-16"
           }`}
         >
@@ -81,7 +81,7 @@ export function Navigation() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2"
+            className="flex min-h-9 min-w-9 items-center justify-center md:hidden"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? (
