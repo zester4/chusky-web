@@ -12,6 +12,21 @@ export type RunStreamEvent =
 export type Task = { id: string; status: string; title: string; objective: string; checkpoint?: string; nextAction?: string; result?: string; error?: string; createdAt: string; updatedAt: string };
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
 export type Approval = { id: string; toolSlug: string; args: Record<string, unknown>; expiresAt: string };
+export type HealthSnapshot = { ok: boolean; status: "operational" | "degraded"; persistence: "redis" | "memory"; checks: Record<string, string>; channels: Record<string, boolean>; monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string; message?: string } | null } };
+export type AccountOverview = {
+  model: string; voiceReplies: boolean;
+  approvals: Array<{ id: string; toolSlug: string; request: string; status: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
+  channels: Array<{ provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
+  reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
+  jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string }>;
+  memory: Array<{ id: string; category: string; key: string; value: string; confidence: number; updatedAt: string }>;
+  scratchpad: Array<{ key: string; content: string; updatedAt: string }>;
+  triggers: string[];
+  devices: Array<{ name: string; createdAt: string; lastSeenAt: string }>;
+  workspace: { sandboxId: string; name: string; lastKnownState?: string; createdAt: string; updatedAt: string; ptySessions: number; lastUrl?: string } | null;
+  webhooks: Array<{ id: string; url: string; createdAt: string }>;
+  deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string }>;
+};
 
 const apiBaseURL = (process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:8080").replace(/\/+$/, "");
 
@@ -62,4 +77,6 @@ export const chuskyApi = {
     decide: (approvalId: string, decision: "approve" | "deny") => request<Run>(`/approvals/${encodeURIComponent(approvalId)}`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ decision }) }),
   },
   usage: { get: () => request<Usage>("/usage") },
+  health: { get: () => request<HealthSnapshot>("/ops/health") },
+  account: { get: () => request<AccountOverview>("/account/overview") },
 };

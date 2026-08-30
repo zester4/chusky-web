@@ -38,6 +38,31 @@ chusky.connect({
 
 // Deployed to 12 regions`,
   },
+  {
+    number: "IV",
+    title: "Keep context close",
+    description: "Chusky keeps your private history, explicit memories, reminders, and scratchpad scoped to your account—not mixed into shared channel conversations.",
+    code: `session = chusky.session(user)
+session.memory.search("launch plan")
+session.scratchpad.read("next")`,
+  },
+  {
+    number: "V",
+    title: "Approve the important parts",
+    description: "When work would send, publish, delete, or change something externally, Chusky pauses and asks you to approve the exact action.",
+    code: `approval = chusky.approval.pending()
+approval.review({ exact: true })
+approval.resume("approve")`,
+  },
+  {
+    number: "VI",
+    title: "Deliver where you are",
+    description: "One agent can respond through Telegram, CLI, Slack, WhatsApp, or iMessage—with durable delivery, retries, and provider-aware formatting.",
+    code: `chusky.deliver({
+  channels: ['telegram', 'sendblue'],
+  durable: true
+})`,
+  },
 ];
 
 export function HowItWorksSection() {
@@ -189,6 +214,23 @@ export function HowItWorksSection() {
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-xs font-mono text-background/40">Ready</span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-20 border-t border-background/10 pt-10 lg:mt-28 lg:pt-12">
+          <div className="grid gap-8 lg:grid-cols-[1fr_2fr] lg:items-start">
+            <div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-background/40">The Chusky loop</span>
+              <h3 className="mt-4 max-w-sm text-3xl font-display tracking-tight lg:text-4xl">Useful work, with a safe way back in.</h3>
+            </div>
+            <div className="grid gap-px border border-background/10 bg-background/10 sm:grid-cols-2 lg:grid-cols-4">
+              {["Verify the channel", "Run the agent", "Pause for approval", "Deliver and recover"].map((item, index) => (
+                <div key={item} className="bg-foreground p-5">
+                  <span className="font-mono text-[10px] text-background/35">0{index + 1}</span>
+                  <p className="mt-8 text-sm leading-relaxed text-background/70">{item}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

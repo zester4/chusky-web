@@ -27,6 +27,30 @@ const features = [
     description: "Bank-grade encryption, SOC 2 compliance, and granular access controls. Your data stays yours.",
     visual: "security",
   },
+  {
+    number: "05",
+    title: "Every channel, one agent",
+    description: "Move between Telegram, CLI, Slack, WhatsApp, and Sendblue without splitting your agent’s core behavior. Each provider gets the right formatting, permissions, and delivery path.",
+    visual: "ai",
+  },
+  {
+    number: "06",
+    title: "Durable by default",
+    description: "Reminders, recurring jobs, long-running tasks, triggers, and outbound messages survive retries and restarts with Redis and workflow-backed state.",
+    visual: "deploy",
+  },
+  {
+    number: "07",
+    title: "Human control where it matters",
+    description: "Risky actions pause for exact, one-time approval. The request, arguments, owner, expiry, and result stay bound together from review to execution.",
+    visual: "security",
+  },
+  {
+    number: "08",
+    title: "Media that goes further",
+    description: "Send images, audio, documents, and generated artifacts through the right model path. R2 keeps files durable while providers receive safe HTTPS media URLs.",
+    visual: "collab",
+  },
 ];
 
 function DeployVisual() {
@@ -348,6 +372,15 @@ export function FeaturesSection() {
         <div>
           {features.map((feature, index) => (
             <FeatureCard key={feature.number} feature={feature} index={index} />
+          ))}
+        </div>
+
+        <div className="mt-16 grid gap-4 border-t border-foreground/10 pt-8 sm:grid-cols-3 lg:mt-24">
+          {[{ label: "Context", value: "Private sessions, memories, and scratchpad" }, { label: "Control", value: "Approvals before external side effects" }, { label: "Continuity", value: "Redis state, retries, and durable workflows" }].map((item) => (
+            <div key={item.label} className="border border-foreground/10 p-5">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{item.label}</span>
+              <p className="mt-4 text-sm leading-relaxed">{item.value}</p>
+            </div>
           ))}
         </div>
       </div>

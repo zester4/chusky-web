@@ -6,6 +6,8 @@ import { ArrowUpRight, Bot, Check, CheckCircle2, ChevronDown, Clock3, Code2, Fil
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ChatPage as BackendChatPage } from "./chat-page";
 import { BackendConversationsPage, BackendDashboardPage, BackendTasksPage } from "./backend-pages";
+import { OperationsDashboard } from "./operations-dashboard";
+import { AccountDataPage } from "./account-pages";
 
 const conversations = [{ title: "Prepare the launch report", preview: "I found 4 sources and drafted the summary…", time: "2m ago", tools: ["Gmail", "Notion"] }, { title: "Review open GitHub issues", preview: "There are 12 issues that need your attention.", time: "Yesterday", tools: ["GitHub"] }, { title: "Plan my week", preview: "Here’s a focused schedule based on your priorities.", time: "Yesterday", tools: ["Calendar"] }, { title: "Research competitor pricing", preview: "I compared 8 plans across the market.", time: "Aug 25", tools: ["Web"] }];
 const apps = [{ name: "GitHub", desc: "Repositories, issues, pull requests", icon: "◉", connected: true }, { name: "Gmail", desc: "Search, draft, and organize email", icon: "✉", connected: true }, { name: "Notion", desc: "Pages, databases, and workspaces", icon: "N", connected: true }, { name: "Slack", desc: "Messages, channels, and search", icon: "#", connected: false }, { name: "Linear", desc: "Issues, projects, and cycles", icon: "◒", connected: false }, { name: "Google Calendar", desc: "Events and scheduling", icon: "▣", connected: false }];
@@ -17,10 +19,10 @@ function TableRow({ children }: { children: ReactNode }) { return <div className
 export function AppPage({ section }: { section: string }) {
   if (section === "chat") return <BackendChatPage/>;
   if (section === "conversations") return <BackendConversationsPage/>;
-  if (section === "approvals") return <ApprovalsPage/>;
-  if (section === "apps") return <AppsPage/>;
+  if (["approvals", "apps", "reminders", "jobs", "memory", "scratchpad", "triggers", "workspace", "devices", "settings"].includes(section)) return <AccountDataPage kind={section as "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings"} />;
   if (section === "tasks") return <BackendTasksPage/>;
-  if (["reminders", "jobs", "memory", "scratchpad", "triggers", "workspace", "devices", "settings"].includes(section)) return <UtilityPage section={section}/>;
+  if (section === "operations") return <OperationsDashboard />;
+  if (section === "delivery") return <OperationsDashboard deliveryOnly />;
   return <BackendDashboardPage/>;
 }
 

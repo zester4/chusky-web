@@ -90,6 +90,9 @@ Open [http://localhost:3010/app](http://localhost:3010/app).
 If port 3000 is free, `pnpm dev` can be used and the dashboard will be at
 `http://localhost:3000/app`.
 
+From the repository root, `npm run dashboard` starts the same Next.js app in
+one command. Operations is at `/app/operations`; Delivery is at `/app/delivery`.
+
 ## Verification completed
 
 - Production build completed successfully with `pnpm run build`.
@@ -168,7 +171,9 @@ Set these variables in the backend `.env`:
 BETTER_AUTH_ENABLED=true
 BETTER_AUTH_SECRET=<a unique value with at least 32 characters>
 BETTER_AUTH_URL=http://localhost:8080
-BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3010
+# Include the port used by your frontend. Next.js defaults to 3000; use 3010
+# only when you start it with `pnpm dev -- -p 3010`.
+BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000,http://localhost:3010
 BETTER_AUTH_DATABASE=./data/better-auth.sqlite
 BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true
 ```
@@ -204,15 +209,33 @@ exposing `CHUSKY_API_KEY` in the browser:
   empty, offline, and retry states.
 - `chusky-web/components/app/app-pages.tsx` — routes Overview, Chat,
   Conversations, and Tasks to the backend-connected page components.
+- `chusky-web/components/app/operations-dashboard.tsx` — live Operations and
+  Delivery pages for Redis/QStash/Sendblue readiness, enabled channels,
+  workflow/provider/delivery failure counters, and the latest runtime incident.
+- `chusky-web/components/app/app-shell.tsx` — adds `/app/operations` and
+  `/app/delivery` to the authenticated workspace navigation.
+- `src/sdkApi.ts` — exposes the authenticated `GET /v1/ops/health` diagnostics
+  endpoint without returning provider secrets.
+- `src/index.ts` — expands public `/health` with Redis, QStash, Sendblue,
+  channel, and failure-monitoring status.
+- `src/monitoring.ts` — records structured workflow, delivery, provider, and
+  Redis failures for the live dashboard and logs.
+- `chusky-web/components/app/account-pages.tsx` — replaces demo-only account
+  pages with real persisted approvals, channels, reminders, jobs, memories,
+  scratchpad notes, triggers, devices, workspace state, settings, and webhook
+  data, including truthful empty/offline states and approval decisions.
+- `src/store.ts` — refuses in-memory persistence in production or webhook mode;
+  Redis must be configured and reachable.
+- `src/cli/setup.ts` — makes `chusky doctor` print remote provider checks and
+  runtime failure counts.
 - `src/sdkApi.ts` — accepts the Better Auth session for first-party web
   requests, maps the auth user to an isolated `web` project namespace, and
-  continues to support project-key SDK clients.
+  continues to support project-key SDK clients. It also exposes the scoped
+  `GET /v1/account/overview` resource used by the account pages.
 - `src/index.ts` — mounts `/v1` when Better Auth is enabled in both local
   polling and hosted webhook modes.
 
-The remaining dashboard sections (approvals, connected apps, reminders, jobs,
-memory, scratchpad, triggers, workspace, devices, and settings) still need
-dedicated frontend adapters for their corresponding private or future API
-resources. The public `/v1` approval, files, webhook, and audit endpoints are
-available in the backend contract but are not yet surfaced by the browser
-client.
+The public `/v1` files, webhook, and audit endpoints are available in the
+backend contract but are not yet surfaced by the browser client. Runtime
+failure counters are process-local for now; durable workflow state and the
+Redis fail-closed startup guard remain authoritative.
