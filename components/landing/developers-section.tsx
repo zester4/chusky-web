@@ -17,7 +17,7 @@ pnpm add @chusky/sdk`,
     code: `import { Chusky } from '@chusky/sdk'
 
 const chusky = new Chusky({
-  apiKey: process.env.CHUSKY_KEY
+  apiKey: process.env.CHUSKY_API_KEY
 })`,
   },
   {

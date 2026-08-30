@@ -257,7 +257,8 @@ unchanged and auth routes return no authenticated service behavior.
 ## Backend-connected pages
 
 The first-party dashboard now uses the authenticated Chusky `/v1` API without
-exposing `CHUSKY_API_KEY` in the browser:
+exposing the private Oracle `CHUSKY_PROJECT_KEY` or any scoped developer
+`CHUSKY_API_KEY` in the browser:
 
 - `chusky-web/lib/chusky-api.ts` — typed, credentialed client for threads,
   streamed runs, tasks, and usage; it handles NDJSON streaming, idempotency
