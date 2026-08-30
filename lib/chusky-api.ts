@@ -31,6 +31,9 @@ export type AccountOverview = {
   deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
 export type TelegramLinkCode = { code: string; expiresAt: string };
+export type Model = { id: string; name: string };
+export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string };
+export type Trigger = { id: string; slug: string; status: string; config: Record<string, unknown> };
 
 // Browser requests stay on the frontend origin and are proxied by Next.js to
 // Chusky. This keeps Better Auth's session cookie first-party on Vercel.
@@ -111,5 +114,17 @@ export const chuskyApi = {
   account: {
     get: () => request<AccountOverview>("/account/overview"),
     createTelegramLink: () => request<TelegramLinkCode>("/account/telegram-link", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    models: () => request<Page<Model>>("/account/models"),
+    updatePreferences: (input: { model?: string; voiceReplies?: boolean }) => request<{ model: string; voiceReplies: boolean }>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+  },
+  apps: {
+    list: () => request<Page<Toolkit>>("/apps"),
+    connect: (toolkit: string) => request<{ toolkit: string; url: string }>(`/apps/${encodeURIComponent(toolkit)}/connect`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+  },
+  triggers: {
+    list: () => request<Page<Trigger>>("/triggers"),
+    create: (slug: string, triggerConfig: Record<string, unknown> = {}) => request<Trigger>("/triggers", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ slug, triggerConfig }) }),
+    setEnabled: (id: string, enabled: boolean) => request<unknown>(`/triggers/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ enabled }) }),
+    remove: (id: string) => request<void>(`/triggers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
 };
