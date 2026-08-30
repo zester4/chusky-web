@@ -1,6 +1,8 @@
 export type Page<T> = { data: T[]; nextCursor?: string };
 export type Thread = { id: string; externalId?: string; metadata: Record<string, unknown>; createdAt: string; updatedAt: string };
-export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; output?: string; approvalId?: string; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
+export type UploadedFile = { id: string; name: string; contentType: string; size: number; status: "pending" | "available" | "rejected"; createdAt: number; downloadUrl?: string; expiresAt?: string };
+export type UploadIntent = UploadedFile & { uploadUrl: string; expiresAt: string };
+export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; output?: string; approvalId?: string; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
 export type RunStreamEvent =
   | { type: "run.started"; run: Run }
   | { type: "run.delta"; runId: string; text: string }
@@ -50,14 +52,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const idempotency = () => crypto.randomUUID();
 
+function putUpload(url: string, file: File, onProgress?: (progress: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (event) => { if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100)); };
+    xhr.onerror = () => reject(new Error("The upload could not reach object storage. Check the R2 CORS configuration and try again."));
+    xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Object storage returned HTTP ${xhr.status}.`));
+    xhr.send(file);
+  });
+}
+
 export const chuskyApi = {
   threads: {
     list: () => request<Page<Thread>>("/threads"),
     create: (metadata: Record<string, unknown> = {}) => request<Thread>("/threads", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ metadata }) }),
   },
   runs: {
-    async *stream(threadId: string, input: string, signal?: AbortSignal): AsyncIterable<RunStreamEvent> {
-      const response = await fetch(`${apiBaseURL}/v1/threads/${encodeURIComponent(threadId)}/runs/stream`, { method: "POST", credentials: "include", signal, headers: { Accept: "application/x-ndjson", "Content-Type": "application/json", "Idempotency-Key": idempotency() }, body: JSON.stringify({ input }) });
+    async *stream(threadId: string, input: string, attachments: string[] = [], signal?: AbortSignal): AsyncIterable<RunStreamEvent> {
+      const response = await fetch(`${apiBaseURL}/v1/threads/${encodeURIComponent(threadId)}/runs/stream`, { method: "POST", credentials: "include", signal, headers: { Accept: "application/x-ndjson", "Content-Type": "application/json", "Idempotency-Key": idempotency() }, body: JSON.stringify({ input, attachments }) });
       if (!response.ok) {
         const body = await response.json().catch(() => undefined) as { error?: { message?: string; code?: string } } | undefined;
         throw new ChuskyApiError(response.status, body?.error?.message || `Chusky returned HTTP ${response.status}`, body?.error?.code);
@@ -73,6 +87,16 @@ export const chuskyApi = {
         }
         if (pending.trim()) yield JSON.parse(pending.trim()) as RunStreamEvent;
       } finally { reader.releaseLock(); }
+    },
+  },
+  files: {
+    create: (file: File) => request<UploadIntent>("/files", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ name: file.name, contentType: file.type, size: file.size }) }),
+    complete: (fileId: string) => request<UploadedFile>(`/files/${encodeURIComponent(fileId)}/complete`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    remove: (fileId: string) => request<void>(`/files/${encodeURIComponent(fileId)}`, { method: "DELETE" }),
+    async upload(file: File, onProgress?: (progress: number) => void): Promise<UploadedFile> {
+      const intent = await this.create(file);
+      await putUpload(intent.uploadUrl, file, onProgress);
+      return this.complete(intent.id);
     },
   },
   tasks: { list: () => request<Page<Task>>("/tasks") },

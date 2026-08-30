@@ -14,6 +14,65 @@ The frontend was pushed separately from the parent agent repository:
 
 The parent `tg-agent` repository changes were not included in that push.
 
+## Latest implementation update — live dashboard and verified chat uploads
+
+The dashboard is no longer a local-data prototype. Its existing sidebar pages
+load authenticated, account-scoped data from Chusky's `/v1` API and use clear
+loading, offline, and empty states when a resource has no saved data.
+
+### Live sidebar and dashboard data
+
+- `components/app/app-shell.tsx` now shows the signed-in user, live health,
+  Redis persistence status, verified channel count, and the real number of
+  pending approvals. The **New conversation** control opens `/app/chat`.
+- `components/app/account-pages.tsx` powers Approvals, Channels, Reminders,
+  Jobs, Memory, Scratchpad, Triggers, Workspace, Devices, and Settings from
+  `GET /v1/account/overview`.
+- `components/app/backend-pages.tsx` powers Overview, Conversations, and Tasks
+  from the authenticated threads, usage, and task APIs.
+- `components/app/operations-dashboard.tsx` powers Operations and Delivery
+  from live health, failure counters, enabled-channel state, and recent
+  delivery records.
+- The chat context intentionally shows only channels that Chusky has actually
+  verified. It does not invent Composio OAuth connections such as GitHub or
+  Gmail when the backend has not exposed them.
+
+### Chat design and attachments
+
+- `components/app/chat-page.tsx` has bordered, rounded message bubbles, a
+  rounded composer, and an upward-arrow send button.
+- The attachment button supports JPEG, PNG, WebP, PDF, plain text, MP3, OGG,
+  WAV, and MP4 files up to 25 MB each, with progress, remove, success, and
+  failure states. A run can include up to five verified attachments.
+- `lib/chusky-api.ts` implements the browser flow: create an authenticated file
+  intent, PUT to its temporary R2 upload URL, call the completion endpoint, and
+  pass only resulting file IDs to the stream endpoint. The browser never sees
+  an R2 object key.
+- The parent backend changes in `src/sdkApi.ts`, `src/store.ts`, and
+  `src/lib/storage/r2.ts` validate account ownership and R2 verification before
+  reading an attachment. Images are supplied as image input, audio is
+  transcribed, documents are supplied as files, and MP4s are supplied through a
+  short-lived signed URL. Attachment names—not raw content—are retained in
+  thread history.
+
+### Required production configuration
+
+- Vercel needs `CHUSKY_API_ORIGIN=https://chusky.selithub.shop` so its same-
+  origin `/api/auth/*` and `/v1/*` rewrites reach the Oracle backend.
+- The Cloudflare R2 bucket needs a CORS rule permitting `PUT` with the
+  `Content-Type` header from `https://chusky-web.vercel.app` and, once DNS is
+  live, `https://agent.selithub.shop`. Add `http://localhost:3000` only for
+  local development.
+- The dashboard is a Better Auth account; Telegram is a separate channel
+  identity today. A one-time dashboard-to-Telegram account-link flow must be
+  implemented before a web login should be expected to show the same Telegram
+  history, memory, reminders, or channels.
+
+### Verification for this update
+
+- `npm.cmd run typecheck` and the focused SDK test passed in the backend.
+- `pnpm.cmd run build` and `pnpm.cmd exec tsc --noEmit` passed in `chusky-web`.
+
 ## What was completed
 
 ### Public website
@@ -31,8 +90,9 @@ The existing public pages remain available:
 ### Product dashboard
 
 The new authenticated-product-style shell and pages were added under `/app`.
-The current implementation uses local demo data and client-side interactions so
-the complete interface can be explored before the backend is connected.
+The authenticated dashboard is connected to Chusky's first-party `/v1` API.
+It presents only persisted account data or an explicit loading, unavailable, or
+empty state; it does not fill resource pages with demo records.
 
 - `/app` — dashboard overview, activity, quick actions, and system status
 - `/app/chat` — chat workspace for interacting with Chusky
