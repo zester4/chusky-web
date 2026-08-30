@@ -13,6 +13,7 @@ import {
   History,
   LoaderCircle,
   MoreHorizontal,
+  Mic,
   Paperclip,
   PanelRight,
   ShieldCheck,
@@ -58,6 +59,8 @@ export function ChatPage() {
   const [controller, setController] = useState<AbortController>();
   const [activeMessageIndex, setActiveMessageIndex] = useState<number>();
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number>();
+  const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState<number>();
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +110,31 @@ export function ChatPage() {
     } catch {
       // Clipboard access can be unavailable in an embedded or insecure context.
     }
+  };
+
+  const toggleVoiceInput = () => {
+    const Recognition = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+    if (!Recognition) return;
+    if (listening) { setListening(false); return; }
+    const recognition = new Recognition();
+    recognition.lang = navigator.language || "en-US";
+    recognition.interimResults = false;
+    recognition.onresult = (event: any) => setInput((current) => `${current}${current ? " " : ""}${event.results[0][0].transcript}`);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    setListening(true);
+    recognition.start();
+  };
+
+  const speakMessage = (index: number, text: string) => {
+    if (!("speechSynthesis" in window) || !text) return;
+    if (speaking === index) { window.speechSynthesis.cancel(); setSpeaking(undefined); return; }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
+    utterance.onend = () => setSpeaking(undefined);
+    utterance.onerror = () => setSpeaking(undefined);
+    setSpeaking(index);
+    window.speechSynthesis.speak(utterance);
   };
 
   const decideApproval = async (approvalId: string, decision: "approve" | "deny") => {
@@ -179,6 +207,7 @@ export function ChatPage() {
   return (
     <div className="-mx-3 -my-6 flex min-h-[calc(100vh-3.5rem)] flex-col bg-[#f7f7f4] sm:-mx-5 sm:-my-7 lg:-mx-7 lg:-my-8">
       <header className="flex min-h-12 items-center justify-between border-b border-foreground/10 bg-background px-3 sm:px-5 lg:px-6">
+        <button type="button" onClick={toggleVoiceInput} disabled={!thread || Boolean(controller)} className={`fixed bottom-24 right-4 z-30 rounded-full border bg-background p-3 shadow-sm disabled:opacity-40 ${listening ? "text-rose-700" : "text-muted-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"}><Mic size={16} /></button>
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Bot size={14} /></div>
           <div className="min-w-0">
@@ -208,6 +237,7 @@ export function ChatPage() {
                       <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex min-h-11 min-w-11 items-center justify-center rounded px-2 hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>
                         {copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}
                       </button>
+                      {item.role === "assistant" && <button type="button" onClick={() => speakMessage(index, item.text)} className="flex min-h-11 min-w-11 items-center justify-center rounded px-2 hover:bg-foreground/5 hover:text-foreground" aria-label={speaking === index ? "Stop speaking" : "Read message aloud"}><Mic size={12} /></button>}
                     </div> : null}
                   </div>
                 </div>
