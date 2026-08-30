@@ -93,7 +93,7 @@ export function HowItWorksSection() {
     <section
       id="how-it-works"
       ref={sectionRef}
-      className="relative py-24 lg:py-32 bg-foreground text-background overflow-hidden"
+      className="relative overflow-hidden bg-foreground py-16 text-background sm:py-20 lg:py-24"
     >
       {/* Diagonal lines pattern */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
@@ -108,15 +108,15 @@ export function HowItWorksSection() {
         }} />
       </div>
 
-      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         {/* Header */}
-        <div className="mb-16 lg:mb-24">
-          <span className="inline-flex items-center gap-3 text-sm font-mono text-background/50 mb-6">
-            <span className="w-8 h-px bg-background/30" />
+        <div className="mb-10 sm:mb-14 lg:mb-16">
+          <span className="mb-4 inline-flex items-center gap-3 text-xs font-mono text-background/50 sm:mb-5 sm:text-sm">
+            <span className="h-px w-6 bg-background/30 sm:w-8" />
             Process
           </span>
           <h2
-            className={`text-4xl lg:text-6xl font-display tracking-tight transition-all duration-700 ${
+            className={`text-3xl font-display tracking-tight transition-all duration-700 sm:text-4xl lg:text-5xl ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
@@ -127,7 +127,7 @@ export function HowItWorksSection() {
         </div>
 
         {/* Main content */}
-        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
+        <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
           {/* Steps */}
           <div className="space-y-0">
             {steps.map((step, index) => (
@@ -135,17 +135,17 @@ export function HowItWorksSection() {
                 key={step.number}
                 type="button"
                 onClick={() => setActiveStep(index)}
-                className={`w-full text-left py-8 border-b border-background/10 transition-all duration-500 group ${
+                className={`w-full border-b border-background/10 py-5 text-left transition-all duration-500 group sm:py-6 ${
                   activeStep === index ? "opacity-100" : "opacity-40 hover:opacity-70"
                 }`}
               >
-                <div className="flex items-start gap-6">
-                  <span className="font-display text-3xl text-background/30">{step.number}</span>
+                <div className="flex items-start gap-4">
+                  <span className="font-display text-2xl text-background/30">{step.number}</span>
                   <div className="flex-1">
-                    <h3 className="text-2xl lg:text-3xl font-display mb-3 group-hover:translate-x-2 transition-transform duration-300">
+                    <h3 className="mb-2 font-display text-xl transition-transform duration-300 group-hover:translate-x-2 sm:text-2xl">
                       {step.title}
                     </h3>
-                    <p className="text-background/60 leading-relaxed">
+                    <p className="text-sm leading-relaxed text-background/60">
                       {step.description}
                     </p>
                     
@@ -168,9 +168,9 @@ export function HowItWorksSection() {
 
           {/* Code display */}
           <div className="lg:sticky lg:top-32 self-start">
-            <div className="border border-background/10 overflow-hidden">
+            <div className="overflow-hidden border border-background/10">
               {/* Window header */}
-              <div className="px-6 py-4 border-b border-background/10 flex items-center justify-between">
+              <div className="flex items-center justify-between border-b border-background/10 px-4 py-3 sm:px-5">
                 <div className="flex gap-2">
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                   <div className="w-3 h-3 rounded-full bg-background/20" />
@@ -180,7 +180,7 @@ export function HowItWorksSection() {
               </div>
 
               {/* Code content */}
-              <div className="p-8 font-mono text-sm min-h-[280px]">
+              <div className="min-h-[240px] overflow-x-auto p-5 font-mono text-xs sm:min-h-[260px] sm:p-6 sm:text-sm">
                 <pre className="text-background/70">
                   {steps[activeStep].code.split('\n').map((line, lineIndex) => (
                     <div 
@@ -210,7 +210,7 @@ export function HowItWorksSection() {
               </div>
 
               {/* Status */}
-              <div className="px-6 py-4 border-t border-background/10 flex items-center gap-3">
+              <div className="flex items-center gap-3 border-t border-background/10 px-4 py-3 sm:px-5">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-xs font-mono text-background/40">Ready</span>
               </div>
@@ -218,17 +218,17 @@ export function HowItWorksSection() {
           </div>
         </div>
 
-        <div className="mt-20 border-t border-background/10 pt-10 lg:mt-28 lg:pt-12">
-          <div className="grid gap-8 lg:grid-cols-[1fr_2fr] lg:items-start">
+        <div className="mt-14 border-t border-background/10 pt-7 sm:mt-16 sm:pt-9 lg:mt-20">
+          <div className="grid gap-6 lg:grid-cols-[1fr_2fr] lg:items-start">
             <div>
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-background/40">The Chusky loop</span>
-              <h3 className="mt-4 max-w-sm text-3xl font-display tracking-tight lg:text-4xl">Useful work, with a safe way back in.</h3>
+              <h3 className="mt-3 max-w-sm text-2xl font-display tracking-tight sm:text-3xl">Useful work, with a safe way back in.</h3>
             </div>
             <div className="grid gap-px border border-background/10 bg-background/10 sm:grid-cols-2 lg:grid-cols-4">
               {["Verify the channel", "Run the agent", "Pause for approval", "Deliver and recover"].map((item, index) => (
                 <div key={item} className="bg-foreground p-5">
                   <span className="font-mono text-[10px] text-background/35">0{index + 1}</span>
-                  <p className="mt-8 text-sm leading-relaxed text-background/70">{item}</p>
+                  <p className="mt-6 text-xs leading-relaxed text-background/70">{item}</p>
                 </div>
               ))}
             </div>

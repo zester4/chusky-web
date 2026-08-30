@@ -38,7 +38,7 @@ function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffi
   }, [end, hasAnimated]);
 
   return (
-    <div ref={ref} className="text-6xl lg:text-8xl font-display tracking-tight">
+    <div ref={ref} className="font-display text-4xl tracking-tight sm:text-5xl lg:text-6xl">
       {prefix}{count.toLocaleString()}{suffix}
     </div>
   );
@@ -99,17 +99,17 @@ export function MetricsSection() {
   }, []);
 
   return (
-    <section id="studio" ref={sectionRef} className="relative py-24 lg:py-32 border-y border-foreground/10">
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+    <section id="studio" ref={sectionRef} className="relative border-y border-foreground/10 py-16 sm:py-20 lg:py-24">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-16 lg:mb-24">
+        <div className="mb-10 flex flex-col gap-5 sm:mb-14 lg:mb-16 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-              <span className="w-8 h-px bg-foreground/30" />
+            <span className="mb-4 inline-flex items-center gap-2 font-mono text-xs text-muted-foreground sm:mb-5 sm:gap-3 sm:text-sm">
+              <span className="h-px w-6 bg-foreground/30 sm:w-8" />
               Live metrics
             </span>
             <h2
-              className={`text-4xl lg:text-6xl font-display tracking-tight transition-all duration-700 ${
+              className={`font-display text-3xl tracking-tight transition-all duration-700 sm:text-4xl lg:text-6xl ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
             >
@@ -118,9 +118,9 @@ export function MetricsSection() {
               can measure.
             </h2>
           </div>
-          <div className="flex items-center gap-4 font-mono text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground sm:gap-4 sm:text-sm">
+            <span className="flex items-center gap-1.5 sm:gap-2">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500 sm:h-2 sm:w-2" />
               Live
             </span>
             <span className="text-foreground/30">|</span>
@@ -133,7 +133,7 @@ export function MetricsSection() {
           {metrics.map((metric, index) => (
             <div
               key={metric.label}
-              className={`bg-background p-8 lg:p-12 transition-all duration-700 ${
+              className={`bg-background p-5 transition-all duration-700 sm:p-7 lg:p-9 ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
               }`}
               style={{ transitionDelay: `${index * 100}ms` }}
@@ -143,7 +143,7 @@ export function MetricsSection() {
                 suffix={metric.suffix} 
                 prefix={metric.prefix}
               />
-              <div className="mt-4 text-lg text-muted-foreground">{metric.label}</div>
+              <div className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">{metric.label}</div>
             </div>
           ))}
         </div>

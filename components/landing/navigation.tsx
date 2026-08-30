@@ -36,13 +36,13 @@ export function Navigation() {
       <nav 
         className={`mx-auto transition-all duration-500 ${
           isScrolled || isMobileMenuOpen
-            ? "bg-background/80 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-lg max-w-[1200px]"
+            ? "bg-background/80 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-lg max-w-[1200px]"
             : "bg-transparent max-w-[1400px]"
         }`}
       >
         <div 
-          className={`flex items-center justify-between transition-all duration-500 px-6 lg:px-8 ${
-            isScrolled ? "h-14" : "h-20"
+          className={`flex items-center justify-between transition-all duration-500 px-4 sm:px-6 lg:px-7 ${
+            isScrolled ? "h-12" : "h-16"
           }`}
         >
           {/* Logo */}
@@ -52,7 +52,7 @@ export function Navigation() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-12">
+          <div className="hidden md:flex items-center gap-8 lg:gap-10">
             {navLinks.map((link) => (
               <a
                 key={link.name}
@@ -66,7 +66,7 @@ export function Navigation() {
           </div>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             <Link href="/sign-in" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
               Sign in
             </Link>
@@ -103,15 +103,15 @@ export function Navigation() {
         }`}
         style={{ top: 0 }}
       >
-        <div className="flex flex-col h-full px-8 pt-28 pb-8">
+          <div className="flex h-full flex-col px-5 pt-24 pb-6 sm:px-8 sm:pt-28 sm:pb-8">
           {/* Navigation Links */}
-          <div className="flex-1 flex flex-col justify-center gap-8">
+          <div className="flex flex-1 flex-col justify-center gap-6">
             {navLinks.map((link, i) => (
               <a
                 key={link.name}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`text-5xl font-display text-foreground hover:text-muted-foreground transition-all duration-500 ${
+                className={`text-4xl font-display text-foreground hover:text-muted-foreground transition-all duration-500 sm:text-5xl ${
                   isMobileMenuOpen 
                     ? "opacity-100 translate-y-0" 
                     : "opacity-0 translate-y-4"
@@ -133,13 +133,13 @@ export function Navigation() {
           >
             <Button 
               variant="outline" 
-              className="flex-1 rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
+              className="h-12 flex-1 rounded-full text-sm"
+              asChild
             >
-              Sign in
+              <Link href="/sign-in" onClick={() => setIsMobileMenuOpen(false)}>Sign in</Link>
             </Button>
             <Button asChild
-              className="flex-1 bg-foreground text-background rounded-full h-14 text-base"
+              className="h-12 flex-1 rounded-full bg-foreground text-sm text-background"
             >
               <Link href="/sign-up" onClick={() => setIsMobileMenuOpen(false)}>Sign up</Link>
             </Button>

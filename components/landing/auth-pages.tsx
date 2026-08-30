@@ -45,10 +45,10 @@ function Field({ label, id, type = "text", placeholder, autoComplete, required =
 
 function AuthCard({ children, title, description }: { children: ReactNode; title: string; description?: string }) {
   return (
-    <div className="border border-foreground/10 bg-background p-6 shadow-sm sm:p-8">
+    <div className="border border-foreground/10 bg-background p-5 shadow-sm sm:p-6">
       <div className="mb-7">
-        <h2 className="font-display text-3xl">{title}</h2>
-        {description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>}
+        <h2 className="font-display text-2xl">{title}</h2>
+        {description && <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{description}</p>}
       </div>
       {children}
     </div>
@@ -120,10 +120,10 @@ export function AuthPage({ variant }: { variant: AuthVariant }) {
   const card = variant === "sign-in" ? <SignInCard /> : variant === "sign-up" ? <SignUpCard /> : variant === "forgot-password" ? <ForgotPasswordCard /> : variant === "reset-password" ? <ResetPasswordCard /> : variant === "email-verified" ? <EmailVerifiedCard /> : <VerifyEmailCard />;
   return (
     <main className="min-h-screen overflow-x-hidden bg-background noise-overlay">
-      <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-6 py-6 lg:px-12">
+      <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-4 py-4 sm:px-6 sm:py-5 lg:px-10">
         <header className="flex items-center justify-between"><Link href="/" className="font-display text-2xl tracking-tight">chusky<span className="text-muted-foreground">.</span></Link><Link href="/" className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft size={14} /> Back to website</Link></header>
-        <div className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1fr_460px] lg:gap-24 lg:py-20">
-          <div className="max-w-2xl"><span className="mb-8 inline-flex items-center gap-3 text-sm font-mono text-muted-foreground"><span className="h-px w-8 bg-foreground/30" />{content.eyebrow}</span><h1 className="font-display text-6xl leading-[0.9] tracking-tight md:text-8xl">{content.title}</h1><p className="mt-8 max-w-xl text-lg leading-relaxed text-muted-foreground">{content.description}</p><div className="mt-12 hidden gap-8 border-t border-foreground/10 pt-6 text-xs text-muted-foreground sm:flex"><span className="flex items-center gap-2"><Check size={14} /> Persistent context</span><span className="flex items-center gap-2"><Check size={14} /> Human approvals</span></div></div>
+        <div className="grid flex-1 items-center gap-8 py-10 sm:py-12 lg:grid-cols-[1fr_420px] lg:gap-16 lg:py-16">
+          <div className="max-w-2xl"><span className="mb-6 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground"><span className="h-px w-6 bg-foreground/30" />{content.eyebrow}</span><h1 className="font-display text-5xl leading-[0.9] tracking-tight sm:text-6xl md:text-7xl">{content.title}</h1><p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">{content.description}</p><div className="mt-8 hidden gap-6 border-t border-foreground/10 pt-5 text-[11px] text-muted-foreground sm:flex"><span className="flex items-center gap-2"><Check size={13} /> Persistent context</span><span className="flex items-center gap-2"><Check size={13} /> Human approvals</span></div></div>
           <div>{card}</div>
         </div>
         <footer className="flex flex-col gap-2 border-t border-foreground/10 pt-5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span>Private by default · Built for your work</span><span>© Chusky AI</span></footer>

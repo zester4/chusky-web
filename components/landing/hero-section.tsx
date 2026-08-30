@@ -23,9 +23,9 @@ export function HeroSection() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
+    <section className="relative flex min-h-[680px] flex-col justify-center overflow-hidden lg:min-h-screen">
       {/* Animated sphere background */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[600px] h-[600px] lg:w-[800px] lg:h-[800px] opacity-40 pointer-events-none">
+      <div className="pointer-events-none absolute right-[-12rem] top-1/2 h-[420px] w-[420px] -translate-y-1/2 opacity-30 sm:right-[-8rem] sm:h-[520px] sm:w-[520px] lg:right-0 lg:h-[800px] lg:w-[800px] lg:opacity-40">
         <AnimatedSphere />
       </div>
       
@@ -55,23 +55,23 @@ export function HeroSection() {
         ))}
       </div>
       
-      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 py-32 lg:py-40">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-24 sm:px-6 sm:py-28 lg:px-12 lg:py-40">
         {/* Eyebrow */}
         <div 
           className={`mb-8 transition-all duration-700 ${
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground">
-            <span className="w-8 h-px bg-foreground/30" />
+          <span className="inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:text-sm">
+            <span className="h-px w-6 bg-foreground/30 sm:w-8" />
             Production-ready Telegram AI agent
           </span>
         </div>
         
         {/* Main headline */}
-        <div className="mb-12">
+        <div className="mb-8 sm:mb-10">
           <h1 
-            className={`text-[clamp(3rem,12vw,10rem)] font-display leading-[0.9] tracking-tight transition-all duration-1000 ${
+            className={`text-[clamp(2.75rem,12vw,8rem)] font-display leading-[0.9] tracking-tight transition-all duration-1000 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
           >
@@ -102,9 +102,9 @@ export function HeroSection() {
         </div>
         
         {/* Description */}
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-end">
+        <div className="grid items-end gap-8 lg:grid-cols-2 lg:gap-20">
           <p 
-            className={`text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-xl transition-all duration-700 delay-200 ${
+            className={`max-w-xl text-base leading-relaxed text-muted-foreground transition-all duration-700 delay-200 sm:text-lg lg:text-xl ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
@@ -120,7 +120,7 @@ export function HeroSection() {
           >
             <Button 
               size="lg" 
-              className="bg-foreground hover:bg-foreground/90 text-background px-8 h-14 text-base rounded-full group"
+              className="h-11 rounded-full bg-foreground px-5 text-sm text-background group hover:bg-foreground/90"
             >
               Start free trial
               <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
@@ -128,7 +128,7 @@ export function HeroSection() {
             <Button 
               size="lg" 
               variant="outline" 
-              className="h-14 px-8 text-base rounded-full border-foreground/20 hover:bg-foreground/5"
+              className="h-11 rounded-full border-foreground/20 px-5 text-sm hover:bg-foreground/5"
             >
               Watch demo
             </Button>
@@ -139,11 +139,11 @@ export function HeroSection() {
       
       {/* Stats marquee - full width outside container */}
       <div 
-        className={`absolute bottom-24 left-0 right-0 transition-all duration-700 delay-500 ${
+        className={`absolute bottom-12 left-0 right-0 transition-all duration-700 delay-500 sm:bottom-16 ${
           isVisible ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="flex gap-16 marquee whitespace-nowrap">
+        <div className="flex gap-10 marquee whitespace-nowrap sm:gap-16">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="flex gap-16">
               {[
@@ -152,11 +152,11 @@ export function HeroSection() {
                 { value: "300%", label: "throughput increase", company: "LINEAR" },
                 { value: "6x", label: "faster to ship", company: "NOTION" },
               ].map((stat) => (
-                <div key={`${stat.company}-${i}`} className="flex items-baseline gap-4">
-                  <span className="text-4xl lg:text-5xl font-display">{stat.value}</span>
-                  <span className="text-sm text-muted-foreground">
+                <div key={`${stat.company}-${i}`} className="flex items-baseline gap-3">
+                  <span className="font-display text-2xl sm:text-4xl lg:text-5xl">{stat.value}</span>
+                  <span className="text-xs text-muted-foreground sm:text-sm">
                     {stat.label}
-                    <span className="block font-mono text-xs mt-1">{stat.company}</span>
+                    <span className="mt-1 block font-mono text-[10px] sm:text-xs">{stat.company}</span>
                   </span>
                 </div>
               ))}

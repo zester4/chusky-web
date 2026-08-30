@@ -44,28 +44,28 @@ export function FooterSection() {
         <AnimatedWave />
       </div>
       
-      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         {/* Main Footer */}
-        <div className="py-16 lg:py-24">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-12 lg:gap-8">
+        <div className="py-12 sm:py-16 lg:py-20">
+          <div className="grid grid-cols-2 gap-8 sm:gap-10 md:grid-cols-6 lg:gap-7">
             {/* Brand Column */}
             <div className="col-span-2">
-              <Link href="/" className="inline-flex items-center gap-2 mb-6">
-                <span className="text-2xl font-display">Chusky</span>
-                <span className="text-xs text-muted-foreground font-mono">TM</span>
+              <Link href="/" className="mb-4 inline-flex items-center gap-2">
+                <span className="font-display text-xl">Chusky</span>
+                <span className="font-mono text-[10px] text-muted-foreground">TM</span>
               </Link>
 
-              <p className="text-muted-foreground leading-relaxed mb-8 max-w-xs">
+              <p className="mb-6 max-w-xs text-xs leading-relaxed text-muted-foreground sm:text-sm">
                 Chusky is a production-ready Telegram AI agent with access to 1,000+ tools via Composio.
               </p>
 
               {/* Social Links */}
-              <div className="flex gap-6">
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {socialLinks.map((link) => (
                   <a
                     key={link.name}
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
+                    className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm group"
                   >
                     {link.name}
                     <ArrowUpRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
@@ -77,13 +77,13 @@ export function FooterSection() {
             {/* Link Columns */}
             {Object.entries(footerLinks).map(([title, links]) => (
               <div key={title}>
-                <h3 className="text-sm font-medium mb-6">{title}</h3>
-                <ul className="space-y-4">
+                <h3 className="mb-4 text-xs font-medium sm:text-sm">{title}</h3>
+                <ul className="space-y-2.5 sm:space-y-3">
                   {links.map((link) => (
                     <li key={link.name}>
                       <a
                         href={link.href}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-2"
+                        className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
                       >
                         {link.name}
                         {"badge" in link && link.badge && (
@@ -102,11 +102,11 @@ export function FooterSection() {
 
         {/* Bottom Bar */}
         <div className="py-8 border-t border-foreground/10 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             2025 Chusky. All rights reserved.
           </p>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-green-500" />
               All systems operational

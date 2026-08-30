@@ -12,29 +12,29 @@ type ProductPageHeroProps = {
 
 export function ProductPageHero({ eyebrow, title, description }: ProductPageHeroProps) {
   return (
-    <section className="relative overflow-hidden border-b border-foreground/10 pt-40 pb-24 lg:pt-48 lg:pb-32">
+    <section className="relative overflow-hidden border-b border-foreground/10 pt-32 pb-16 sm:pt-36 sm:pb-20 lg:pt-40 lg:pb-24">
       <div className="absolute inset-0 pointer-events-none opacity-30">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--foreground)_1px,transparent_1px),linear-gradient(to_bottom,var(--foreground)_1px,transparent_1px)] bg-[size:72px_72px] opacity-[0.04]" />
       </div>
       <div className="relative max-w-[1400px] mx-auto px-6 lg:px-12">
         <div className="max-w-4xl">
-          <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-8">
-            <span className="w-8 h-px bg-foreground/30" />
+          <span className="mb-6 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-7 sm:text-sm">
+            <span className="h-px w-6 bg-foreground/30 sm:w-8" />
             {eyebrow}
           </span>
-          <h1 className="text-6xl md:text-8xl lg:text-[9rem] font-display leading-[0.88] tracking-tight mb-10">
+          <h1 className="mb-7 text-5xl font-display leading-[0.9] tracking-tight sm:text-6xl md:text-7xl lg:mb-8 lg:text-[7rem]">
             {title}
           </h1>
-          <p className="text-xl lg:text-2xl leading-relaxed text-muted-foreground max-w-2xl mb-10">
+          <p className="mb-7 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mb-8 lg:text-xl">
             {description}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button asChild className="rounded-full bg-foreground text-background hover:bg-foreground/90 h-11 px-5 text-sm">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild className="h-10 rounded-full bg-foreground px-4 text-xs text-background hover:bg-foreground/90">
               <Link href="/sign-up">
                 Sign up <ArrowRight className="w-4 h-4" />
               </Link>
             </Button>
-            <Button asChild variant="outline" className="rounded-full h-11 px-5 text-sm">
+            <Button asChild variant="outline" className="h-10 rounded-full px-4 text-xs">
               <Link href="/sign-in">Sign in</Link>
             </Button>
           </div>
