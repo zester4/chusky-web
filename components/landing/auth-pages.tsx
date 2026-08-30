@@ -78,7 +78,7 @@ function SignInCard() {
     event.preventDefault();
     setBusy(true); setMessage("");
     const values = new FormData(event.currentTarget);
-    const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: "/app" });
+    const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/app` });
     setBusy(false);
     if (result.error) setMessage("We couldn’t sign you in. Check your email and password and try again.");
     else window.location.assign("/app");
@@ -89,7 +89,7 @@ function SignInCard() {
 function SignUpCard() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(""); const values = new FormData(event.currentTarget); const result = await authClient.signUp.email({ name: String(values.get("name") ?? ""), email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: "/verify-email" }); setBusy(false); if (result.error) setMessage(result.error.message || "We couldn’t create your account. Please try again."); else window.location.assign("/verify-email"); };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(""); const values = new FormData(event.currentTarget); const result = await authClient.signUp.email({ name: String(values.get("name") ?? ""), email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/verify-email` }); setBusy(false); if (result.error) setMessage(result.error.message || "We couldn’t create your account. Please try again."); else window.location.assign("/verify-email"); };
   return <AuthCard title="Create your account" description="Start with the essentials. You can connect apps later."><form onSubmit={submit} className="space-y-5"><Field label="Name" id="name" autoComplete="name" placeholder="Morgan Lee" /><Field label="Email address" id="email" type="email" autoComplete="email" placeholder="you@example.com" /><Field label="Password" id="password" type="password" autoComplete="new-password" placeholder="At least 12 characters" /><label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground"><input type="checkbox" required className="mt-0.5 h-4 w-4 accent-foreground" /> I agree to the Chusky terms and understand that account access is protected by email verification.</label><SubmitButton>{busy ? "Creating account…" : "Create account"}</SubmitButton><p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">{message}</p></form><p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <Link href="/sign-in" className="text-foreground underline underline-offset-4">Sign in</Link></p></AuthCard>;
 }
 

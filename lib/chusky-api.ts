@@ -28,7 +28,11 @@ export type AccountOverview = {
   deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
 
-const apiBaseURL = (process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:8080").replace(/\/+$/, "");
+// Browser requests stay on the frontend origin and are proxied by Next.js to
+// Chusky. This keeps Better Auth's session cookie first-party on Vercel.
+const apiBaseURL = typeof window === "undefined"
+  ? (process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:8080").replace(/\/+$/, "")
+  : window.location.origin;
 
 export class ChuskyApiError extends Error {
   constructor(public readonly status: number, message: string, public readonly code?: string) { super(message); this.name = "ChuskyApiError"; }
