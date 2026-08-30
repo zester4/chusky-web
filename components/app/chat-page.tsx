@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowUp,
   ArrowUpRight,
@@ -45,6 +46,8 @@ const suggestions = [
 ];
 
 export function ChatPage() {
+  const searchParams = useSearchParams();
+  const requestedThreadId = searchParams.get("thread");
   const [thread, setThread] = useState<Thread>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -63,10 +66,21 @@ export function ChatPage() {
     (async () => {
       try {
         const page = await chuskyApi.threads.list();
-        const current = page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
+        const current = requestedThreadId
+          ? await chuskyApi.threads.get(requestedThreadId)
+          : page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
         if (active) {
           setThread(current);
           setStatus("ready");
+        }
+        const runs = await chuskyApi.threads.runs(current.id);
+        if (active) {
+          const restored: Message[] = [];
+          for (const run of runs.data) {
+            if (run.input || run.attachments?.length) restored.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
+            if (run.output || run.error || run.status === "requires_approval") restored.push({ role: "assistant", text: run.output || run.error?.message || "This run is awaiting approval.", time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false });
+          }
+          setMessages(restored);
         }
         void chuskyApi.account.get().then((next) => { if (active) setAccount(next); }).catch(() => undefined);
       } catch {
@@ -74,7 +88,7 @@ export function ChatPage() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [requestedThreadId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

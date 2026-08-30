@@ -23,11 +23,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [account, setAccount] = useState<AccountOverview>();
   const [health, setHealth] = useState<HealthSnapshot>();
+  const [activityCount, setActivityCount] = useState(0);
   const { data: session } = authClient.useSession();
   useEffect(() => {
     let active = true;
     void Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]).then(([nextAccount, nextHealth]) => { if (active) { setAccount(nextAccount); setHealth(nextHealth); } }).catch(() => undefined);
     return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    let since = Date.now();
+    const poll = async () => { try { const activity = await chuskyApi.activity.get(since); if (!active) return; since = activity.now; setActivityCount(activity.approvals.length + activity.tasks.filter((task) => ["queued", "running", "blocked", "failed"].includes(task.status)).length); } catch { /* Keep navigation usable if activity is temporarily unavailable. */ } };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 5000);
+    return () => { active = false; window.clearInterval(timer); };
   }, []);
   useEffect(() => {
     try { setCollapsed(window.localStorage.getItem("chusky-sidebar-collapsed") === "true"); } catch { /* Storage can be unavailable in private browsing. */ }
@@ -41,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nav = (items: string[][]) => items.map(([label, href, icon]) => (
     <Link key={href} href={href} onClick={() => setOpen(false)} aria-label={label} title={collapsed ? label : undefined} className={cn("flex items-center gap-3 py-2.5 text-sm transition-colors", collapsed ? "px-3 lg:justify-center lg:px-2" : "px-3", pathname === href ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground")}>
       <span className="w-5 shrink-0 text-center font-mono text-sm">{icon}</span><span className={collapsed ? "lg:hidden" : undefined}>{label}</span>
-      {label === "Approvals" && (account?.approvals.length ?? 0) > 0 && <span className={cn("ml-auto rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-black", collapsed && "lg:hidden")}>{account?.approvals.length}</span>}
+      {label === "Approvals" && ((account?.approvals.length ?? 0) + activityCount) > 0 && <span className={cn("ml-auto rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-black", collapsed && "lg:hidden")}>{(account?.approvals.length ?? 0) + activityCount}</span>}
     </Link>
   ));
   return <div className="min-h-screen bg-[#f7f7f4] text-foreground">

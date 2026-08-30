@@ -16,6 +16,7 @@ export type Usage = { messages: number; cost: number; files: { count: number; de
 export type Approval = { id: string; toolSlug: string; args: Record<string, unknown>; expiresAt: string };
 export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; createdAt: string; rotatedAt?: string; revokedAt?: string };
 export type CreatedDeveloperProject = DeveloperProject & { key: string };
+export type Activity = { now: number; approvals: Approval[]; tasks: Task[]; reminders: Array<{ id: string; text: string; createdAt: number }>; jobs: Array<{ id: string; text: string; cron: string; createdAt: number }> };
 export type HealthSnapshot = { ok: boolean; status: "operational" | "degraded"; persistence: "redis" | "memory"; checks: Record<string, string>; channels: Record<string, boolean>; monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string; message?: string } | null } };
 export type AccountOverview = {
   model: string; voiceReplies: boolean;
@@ -75,6 +76,10 @@ export const chuskyApi = {
   threads: {
     list: () => request<Page<Thread>>("/threads"),
     create: (metadata: Record<string, unknown> = {}) => request<Thread>("/threads", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ metadata }) }),
+    get: (threadId: string) => request<Thread>(`/threads/${encodeURIComponent(threadId)}`),
+    runs: (threadId: string) => request<Page<Run>>(`/threads/${encodeURIComponent(threadId)}/runs`),
+    update: (threadId: string, input: { title?: string; archived?: boolean }) => request<Thread>(`/threads/${encodeURIComponent(threadId)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency(), "Content-Type": "application/json" }, body: JSON.stringify(input) }),
+    remove: (threadId: string) => request<void>(`/threads/${encodeURIComponent(threadId)}`, { method: "DELETE" }),
   },
   runs: {
     async *stream(threadId: string, input: string, attachments: string[] = [], signal?: AbortSignal): AsyncIterable<RunStreamEvent> {
@@ -106,12 +111,18 @@ export const chuskyApi = {
       return this.complete(intent.id);
     },
   },
-  tasks: { list: () => request<Page<Task>>("/tasks") },
+  tasks: {
+    list: () => request<Page<Task>>("/tasks"),
+    get: (taskId: string) => request<Task>(`/tasks/${encodeURIComponent(taskId)}`),
+    retry: (taskId: string) => request<Task>(`/tasks/${encodeURIComponent(taskId)}/retry`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    cancel: (taskId: string) => request<Task>(`/tasks/${encodeURIComponent(taskId)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+  },
   approvals: {
     get: (approvalId: string) => request<Approval>(`/approvals/${encodeURIComponent(approvalId)}`),
     decide: (approvalId: string, decision: "approve" | "deny") => request<Run>(`/approvals/${encodeURIComponent(approvalId)}`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ decision }) }),
   },
   usage: { get: () => request<Usage>("/usage") },
+  activity: { get: (since = 0) => request<Activity>(`/activity?since=${since}`) },
   health: { get: () => request<HealthSnapshot>("/ops/health") },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
