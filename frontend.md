@@ -234,9 +234,10 @@ BETTER_AUTH_URL=http://localhost:8080
 # Include the port used by your frontend. Next.js defaults to 3000; use 3010
 # only when you start it with `pnpm dev -- -p 3010`.
 BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000,http://localhost:3010
-# Neon pooled Postgres connection string in production. Do not put it in Vercel:
-# it belongs only on the Oracle backend.
+# Neon pooled Postgres connection string in production. Do not put either URL
+# in Vercel: they belong only on the Oracle backend.
 BETTER_AUTH_DATABASE_URL=postgresql://<role>:<password>@<endpoint>-pooler.<region>.aws.neon.tech/neondb?sslmode=require
+BETTER_AUTH_MIGRATION_DATABASE_URL=postgresql://<role>:<password>@<endpoint>.<region>.aws.neon.tech/neondb?sslmode=require
 # Local-only fallback; production refuses to use SQLite.
 BETTER_AUTH_DATABASE=./data/better-auth.sqlite
 BETTER_AUTH_REQUIRE_EMAIL_VERIFICATION=true
