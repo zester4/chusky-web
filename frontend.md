@@ -276,6 +276,15 @@ exposing the private Oracle `CHUSKY_PROJECT_KEY` or any scoped developer
   workflow/provider/delivery failure counters, and the latest runtime incident.
 - `chusky-web/components/app/app-shell.tsx` — adds `/app/operations` and
   `/app/delivery` to the authenticated workspace navigation.
+- `chusky-web/components/app/developer-api-page.tsx` — lets a signed-in,
+  email-verified user create and manage up to 10 scoped developer credentials
+  at `/app/developer-api`. A `chsk_…` key is shown only immediately after
+  creation or rotation; the Oracle-only `CHUSKY_PROJECT_KEY` is never exposed
+  to the dashboard or browser.
+- `src/sdkApi.ts` — provides Better-Auth-cookie-only `/v1/account/projects`
+  endpoints with owner isolation, verified-email enforcement, scope
+  validation, safe key prefixes, rotation, and revocation. Root-only
+  `/v1/admin/projects` operations still require `CHUSKY_PROJECT_KEY`.
 - `src/sdkApi.ts` — exposes the authenticated `GET /v1/ops/health` diagnostics
   endpoint without returning provider secrets.
 - `src/index.ts` — expands public `/health` with Redis, QStash, Sendblue,
