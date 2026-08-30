@@ -27,8 +27,10 @@ export type AccountOverview = {
   devices: Array<{ name: string; createdAt: string; lastSeenAt: string }>;
   workspace: { sandboxId: string; name: string; lastKnownState?: string; createdAt: string; updatedAt: string; ptySessions: number; lastUrl?: string } | null;
   webhooks: Array<{ id: string; url: string; createdAt: string }>;
+  telegramLink: { linked: boolean };
   deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
+export type TelegramLinkCode = { code: string; expiresAt: string };
 
 // Browser requests stay on the frontend origin and are proxied by Next.js to
 // Chusky. This keeps Better Auth's session cookie first-party on Vercel.
@@ -106,5 +108,8 @@ export const chuskyApi = {
   },
   usage: { get: () => request<Usage>("/usage") },
   health: { get: () => request<HealthSnapshot>("/ops/health") },
-  account: { get: () => request<AccountOverview>("/account/overview") },
+  account: {
+    get: () => request<AccountOverview>("/account/overview"),
+    createTelegramLink: () => request<TelegramLinkCode>("/account/telegram-link", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+  },
 };

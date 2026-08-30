@@ -14,7 +14,7 @@ The frontend was pushed separately from the parent agent repository:
 
 The parent `tg-agent` repository changes were not included in that push.
 
-## Latest implementation update — live dashboard and verified chat uploads
+## Latest implementation update — shared dashboard workspace and verified uploads
 
 The dashboard is no longer a local-data prototype. Its existing sidebar pages
 load authenticated, account-scoped data from Chusky's `/v1` API and use clear
@@ -63,10 +63,13 @@ loading, offline, and empty states when a resource has no saved data.
   `Content-Type` header from `https://chusky-web.vercel.app` and, once DNS is
   live, `https://agent.selithub.shop`. Add `http://localhost:3000` only for
   local development.
-- The dashboard is a Better Auth account; Telegram is a separate channel
-  identity today. A one-time dashboard-to-Telegram account-link flow must be
-  implemented before a web login should be expected to show the same Telegram
-  history, memory, reminders, or channels.
+- **Telegram workspace linking is live:** a signed-in user opens **Settings**,
+  creates a one-time `web_…` code, and sends `/link <code>` from the Telegram
+  account that already uses Chusky. The code expires after 10 minutes, is stored
+  only as a hash, is consumed atomically, and cannot rebind either identity. Once
+  linked, first-party dashboard requests resolve to the Telegram owner session,
+  so chat, memory, approvals, reminders, channels, devices, and deliveries are
+  the same private workspace.
 
 ### Verification for this update
 
@@ -166,22 +169,16 @@ one command. Operations is at `/app/operations`; Delivery is at `/app/delivery`.
 
 ### Backend and authentication integration
 
-- Add real authentication and protected dashboard access.
-- Add a typed API client for the Chusky service.
-- Connect the dashboard to the existing Redis-backed sessions, histories,
-  memories, approvals, reminders, jobs, scratchpad, triggers, and device data.
-- Connect the chat page to the shared Chusky agent/API flow and streaming or
-  polling responses.
-- Replace local approval actions with server-side approval records and the
-  existing one-time, expiring approval rules.
-- Add loading, empty, error, retry, optimistic-update, and unauthorized states
-  for every data-driven page.
+- Add frontend unit/component and end-to-end coverage for sign-in, dashboard
+  linking, chat uploads, approvals, and failure states.
+- Add intentional unlink/recovery UX before allowing a user to change a linked
+  Telegram account; the current production behavior safely refuses rebinding.
 
 ### Product functionality
 
 - Implement create, edit, cancel, delete, and search actions for the relevant
   resources.
-- Add real app connection and OAuth/linking flows for supported integrations.
+- Add real Composio app connection and OAuth flows for supported integrations.
 - Add channel management for Telegram, Slack, WhatsApp, and future channel
   adapters while preserving Chusky account ownership and conversation scope.
 - Add device pairing, token revocation, and last-seen status for CLI devices.
@@ -189,16 +186,13 @@ one command. Operations is at `/app/operations`; Delivery is at `/app/delivery`.
 
 ### Production readiness
 
-- Define and document the frontend/backend API contract.
-- Configure environment variables without committing secrets.
-- Add frontend unit/component tests and end-to-end tests for authentication,
-  chat, approvals, and CRUD flows.
-- Run the complete repository checks, including `npm test`, typecheck, and the
-  backend build, after API integration.
-- Deploy the frontend and configure its production domain, HTTPS, CORS, and
-  backend URL.
-- Add observability, rate-limit handling, accessibility review, and responsive
-  browser testing.
+- Create/configure Neon, put its pooled and direct URLs on Oracle, run
+  `npm run auth:migrate`, and redeploy. Existing SQLite users must be explicitly
+  migrated or create a new account; this is not an automatic migration.
+- Configure R2 CORS, Vercel's `CHUSKY_API_ORIGIN`, and the `agent.selithub.shop`
+  DNS record before relying on browser uploads and the custom dashboard URL.
+- Add production observability, accessibility review, responsive browser testing,
+  and a release smoke test for sign-up → verify email → sign-in → link Telegram.
 
 ## Authentication integration
 
@@ -294,9 +288,11 @@ exposing `CHUSKY_API_KEY` in the browser:
 - `src/cli/setup.ts` — makes `chusky doctor` print remote provider checks and
   runtime failure counts.
 - `src/sdkApi.ts` — accepts the Better Auth session for first-party web
-  requests, maps the auth user to an isolated `web` project namespace, and
-  continues to support project-key SDK clients. It also exposes the scoped
-  `GET /v1/account/overview` resource used by the account pages.
+  requests, safely resolves a linked account to its Telegram owner, and keeps
+  unlinked web workspaces isolated. It exposes the scoped
+  `GET /v1/account/overview` and first-party `POST /v1/account/telegram-link`
+  resources used by the account pages; project-key SDK clients cannot create a
+  dashboard-to-Telegram link.
 - `src/index.ts` — mounts `/v1` when Better Auth is enabled in both local
   polling and hosted webhook modes.
 

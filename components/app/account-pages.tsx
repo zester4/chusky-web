@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, Clock3, ExternalLink, Laptop, LoaderCircle, MessageSquare, RefreshCw, RotateCcw, ShieldCheck, Trash2, Webhook, Zap } from "lucide-react";
-import { chuskyApi, type AccountOverview } from "@/lib/chusky-api";
+import { Check, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, MessageSquare, RefreshCw, RotateCcw, ShieldCheck, Trash2, Webhook, Zap } from "lucide-react";
+import { chuskyApi, type AccountOverview, type TelegramLinkCode } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
 type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings";
@@ -45,7 +45,26 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "triggers") return <Card>{data.triggers.length ? data.triggers.map((id) => <Row key={id} icon={<Webhook size={15} />} title={id} detail="Owned Composio trigger" />) : <Empty>No trigger IDs are currently saved for this account.</Empty>}</Card>;
   if (kind === "devices") return <Card>{data.devices.length ? data.devices.map((item) => <Row key={item.name} icon={<Laptop size={15} />} title={item.name} detail={`Last seen ${date(item.lastSeenAt)}`} meta={`Linked ${date(item.createdAt)}`} status="Active" />) : <Empty>No CLI devices are linked.</Empty>}</Card>;
   if (kind === "workspace") return <Card className="p-6">{data.workspace ? <div className="space-y-4"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center border border-foreground/10"><Laptop size={18} /></span><div><h2 className="text-sm font-medium">{data.workspace.name}</h2><p className="mt-1 text-xs text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-3 text-xs sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No Daytona workspace has been created for this account.</Empty>}</Card>;
-  return <div className="grid gap-6 lg:grid-cols-2"><Card className="p-6"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Runtime preferences</p><div className="mt-5 space-y-4"><Info label="Selected model" value={data.model} /><Info label="Voice replies" value={data.voiceReplies ? "Enabled" : "Disabled"} /><Info label="Connected channels" value={String(data.channels.length)} /></div></Card><Card className="p-6"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
+  return <div className="grid gap-6 lg:grid-cols-2"><Card className="p-6"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Runtime preferences</p><div className="mt-5 space-y-4"><Info label="Selected model" value={data.model} /><Info label="Voice replies" value={data.voiceReplies ? "Enabled" : "Disabled"} /><Info label="Connected channels" value={String(data.channels.length)} /></div></Card><TelegramLink linked={data.telegramLink.linked} /><Card className="p-6"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
+}
+
+function TelegramLink({ linked }: { linked: boolean }) {
+  const [link, setLink] = useState<TelegramLinkCode>();
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string>();
+  const create = async () => {
+    setBusy(true); setError(undefined); setCopied(false);
+    try { setLink(await chuskyApi.account.createTelegramLink()); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create a Telegram link code."); }
+    finally { setBusy(false); }
+  };
+  const copy = async () => {
+    if (!link) return;
+    try { await navigator.clipboard.writeText(`/link ${link.code}`); setCopied(true); }
+    catch { setError("Copy the command manually, then send it in Telegram."); }
+  };
+  return <Card className="p-6"><div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-foreground/10"><Link2 size={16} /></span><div className="min-w-0 flex-1"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Telegram workspace</p><h2 className="mt-2 text-sm font-medium">{linked ? "Linked to Telegram" : "Link your Telegram workspace"}</h2><p className="mt-2 text-xs leading-5 text-muted-foreground">{linked ? "This dashboard now reads and controls the same private Chusky workspace as your Telegram account." : "Generate a one-time code, then send it from the Telegram account that already uses Chusky."}</p>{!linked && <div className="mt-4 space-y-3">{link ? <div className="rounded-lg border border-foreground/10 bg-muted/30 p-3"><div className="flex items-center justify-between gap-3"><code className="min-w-0 break-all text-xs">/link {link.code}</code><Button secondary aria-label="Copy Telegram link command" onClick={() => void copy()}>{copied ? <Check size={14} /> : <Copy size={14} />}</Button></div><p className="mt-2 text-[10px] text-muted-foreground">Send this command in Telegram before {date(link.expiresAt)}. It works once.</p></div> : <Button onClick={() => void create()} disabled={busy}>{busy ? <LoaderCircle size={14} className="animate-spin" /> : <Link2 size={14} />}{busy ? "Creating code" : "Create link code"}</Button>}{error && <p className="text-xs text-amber-700">{error}</p>}</div>}</div></div></Card>;
 }
 
 function Row({ icon, title, detail, meta, status }: { icon: ReactNode; title: string; detail?: string; meta?: string; status?: string }) { return <div className="flex items-start gap-3 border-b border-foreground/10 px-5 py-4 last:border-0"><span className="flex h-8 w-8 shrink-0 items-center justify-center border border-foreground/10 text-muted-foreground">{icon}</span><div className="min-w-0 flex-1"><p className="break-words text-sm font-medium">{title}</p>{detail && <p className="mt-1 break-words text-xs text-muted-foreground">{detail}</p>}{meta && <p className="mt-2 text-[10px] text-muted-foreground">{meta}</p>}</div>{status && <Status tone={status === "failed" ? "amber" : status === "cancelled" ? "gray" : "green"}>{status}</Status>}</div>; }
