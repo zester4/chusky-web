@@ -14,6 +14,8 @@ export type RunStreamEvent =
 export type Task = { id: string; status: string; title: string; objective: string; checkpoint?: string; nextAction?: string; result?: string; error?: string; createdAt: string; updatedAt: string };
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
 export type Approval = { id: string; toolSlug: string; args: Record<string, unknown>; expiresAt: string };
+export type CallRecord = { id: string; provider: "twilio" | "facetime"; direction: "inbound" | "outbound"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; error?: string; createdAt: string; updatedAt: string };
+export type CallApproval = { id: string; toolSlug: "CHUCK_START_PHONE_CALL"; args: { phoneNumber: string; purpose: string }; status: "pending"; expiresAt: string };
 export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; createdAt: string; rotatedAt?: string; revokedAt?: string };
 export type CreatedDeveloperProject = DeveloperProject & { key: string };
 export type Activity = { now: number; approvals: Approval[]; tasks: Task[]; reminders: Array<{ id: string; text: string; createdAt: number }>; jobs: Array<{ id: string; text: string; cron: string; createdAt: number }> };
@@ -129,6 +131,10 @@ export const chuskyApi = {
     createTelegramLink: () => request<TelegramLinkCode>("/account/telegram-link", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     models: () => request<Page<Model>>("/account/models"),
     updatePreferences: (input: { model?: string; voiceReplies?: boolean }) => request<{ model: string; voiceReplies: boolean }>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    calls: {
+      list: () => request<{ available: boolean; data: CallRecord[] }>("/account/calls"),
+      request: (input: { phoneNumber: string; purpose: string }) => request<CallApproval>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    },
     projects: {
       list: () => request<Page<DeveloperProject>>("/account/projects"),
       create: (input: { name: string; scopes?: string[] }) => request<CreatedDeveloperProject>("/account/projects", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),

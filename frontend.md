@@ -113,9 +113,24 @@ empty state; it does not fill resource pages with demo records.
 - `/app/workspace` — workspace information and usage
 - `/app/devices` — connected CLI/device sessions
 - `/app/settings` — account and product settings
+- `/app/calls` — approval-gated Twilio call requests and safe recent-call history
 
 The app shell includes responsive navigation, a mobile menu, page headings,
 status badges, cards, buttons, and a consistent Chusky visual system.
+
+### Calls workspace
+
+- The **Calls** sidebar page uses first-party, Better-Auth-cookie-only account
+  routes. It never receives Twilio credentials, Deepgram credentials, stream
+  tickets, or call audio.
+- A verified web account must first be linked to its Telegram/Chusky workspace.
+  This prevents an unlinked dashboard account from initiating calls in a
+  separate session.
+- The page validates an E.164 destination and purpose, then creates a pending
+  `CHUCK_START_PHONE_CALL` approval. A separate **Approve and call** action
+  executes the exact stored request without asking a model to reinterpret it.
+- Call history is account-scoped and masks phone numbers. Provider errors are
+  reduced to a safe user-facing status; diagnostics remain server-side.
 
 ## Files added or changed
 

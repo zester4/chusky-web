@@ -9,6 +9,7 @@ import { BackendConversationsPage, BackendDashboardPage, BackendTasksPage } from
 import { OperationsDashboard } from "./operations-dashboard";
 import { AccountDataPage } from "./account-pages";
 import { DeveloperApiPage } from "./developer-api-page";
+import { CallsPage } from "./calls-page";
 
 const conversations = [{ title: "Prepare the launch report", preview: "I found 4 sources and drafted the summary…", time: "2m ago", tools: ["Gmail", "Notion"] }, { title: "Review open GitHub issues", preview: "There are 12 issues that need your attention.", time: "Yesterday", tools: ["GitHub"] }, { title: "Plan my week", preview: "Here’s a focused schedule based on your priorities.", time: "Yesterday", tools: ["Calendar"] }, { title: "Research competitor pricing", preview: "I compared 8 plans across the market.", time: "Aug 25", tools: ["Web"] }];
 const apps = [{ name: "GitHub", desc: "Repositories, issues, pull requests", icon: "◉", connected: true }, { name: "Gmail", desc: "Search, draft, and organize email", icon: "✉", connected: true }, { name: "Notion", desc: "Pages, databases, and workspaces", icon: "N", connected: true }, { name: "Slack", desc: "Messages, channels, and search", icon: "#", connected: false }, { name: "Linear", desc: "Issues, projects, and cycles", icon: "◒", connected: false }, { name: "Google Calendar", desc: "Events and scheduling", icon: "▣", connected: false }];
@@ -19,6 +20,7 @@ function TableRow({ children }: { children: ReactNode }) { return <div className
 
 export function AppPage({ section }: { section: string }) {
   if (section === "developer-api") return <DeveloperApiPage />;
+  if (section === "calls") return <CallsPage />;
   if (section === "chat") return <BackendChatPage/>;
   if (section === "conversations") return <BackendConversationsPage/>;
   if (["approvals", "apps", "reminders", "jobs", "memory", "scratchpad", "triggers", "workspace", "devices", "settings"].includes(section)) return <AccountDataPage kind={section as "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings"} />;

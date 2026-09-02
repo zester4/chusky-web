@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 
 const primary = [
   ["Overview", "/app", "⌂"], ["Chat", "/app/chat", "✦"], ["Conversations", "/app/conversations", "◌"],
-  ["Approvals", "/app/approvals", "✓"], ["Connected apps", "/app/apps", "⊞"], ["Tasks", "/app/tasks", "▣"], ["Operations", "/app/operations", "◉"], ["Delivery", "/app/delivery", "↗"],
+  ["Approvals", "/app/approvals", "✓"], ["Calls", "/app/calls", "⌕"], ["Connected apps", "/app/apps", "⊞"], ["Tasks", "/app/tasks", "▣"], ["Operations", "/app/operations", "◉"], ["Delivery", "/app/delivery", "↗"],
 ];
 const work = [["Reminders", "/app/reminders", "◷"], ["Recurring jobs", "/app/jobs", "↻"], ["Memory", "/app/memory", "◇"], ["Scratchpad", "/app/scratchpad", "✎"], ["Triggers", "/app/triggers", "⌁"], ["Workspace", "/app/workspace", "▤"]];
 
