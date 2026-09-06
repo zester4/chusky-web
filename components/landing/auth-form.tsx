@@ -13,7 +13,7 @@ export function SignInForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border border-foreground/10 p-8 lg:p-10 bg-background shadow-sm">
+    <form onSubmit={handleSubmit} className="border border-foreground/10 bg-background p-4 shadow-sm sm:p-6 lg:p-10">
       <div className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium mb-2">Email address</label>
@@ -23,7 +23,7 @@ export function SignInForm() {
             type="email"
             autoComplete="email"
             required
-            className="w-full h-12 border border-foreground/15 bg-transparent px-4 outline-none transition-colors focus:border-foreground focus:ring-2 focus:ring-foreground/20"
+            className="h-11 w-full border border-foreground/15 bg-transparent px-3 text-sm outline-none transition-colors focus:border-foreground focus:ring-2 focus:ring-foreground/20 sm:h-12 sm:px-4"
           />
         </div>
         <div>
@@ -37,7 +37,7 @@ export function SignInForm() {
             type="password"
             autoComplete="current-password"
             required
-            className="w-full h-12 border border-foreground/15 bg-transparent px-4 outline-none transition-colors focus:border-foreground focus:ring-2 focus:ring-foreground/20"
+            className="h-11 w-full border border-foreground/15 bg-transparent px-3 text-sm outline-none transition-colors focus:border-foreground focus:ring-2 focus:ring-foreground/20 sm:h-12 sm:px-4"
           />
         </div>
         <Button type="submit" className="w-full h-11 rounded-full bg-foreground text-background hover:bg-foreground/90 text-sm">

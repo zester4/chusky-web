@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "build": "next build --webpack",
+    "typecheck": "tsc --noEmit",
     "dev": "next dev --webpack",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -40,6 +42,7 @@
     "@react-three/fiber": "9.5.0",
     "@vercel/analytics": "1.3.1",
     "autoprefixer": "^10.4.20",
+    "better-auth": "^1.7.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -51,6 +54,7 @@
     "expo-gl": "latest",
     "geist": "1.7.0",
     "input-otp": "1.4.1",
+    "katex": "^0.18.4",
     "lucide-react": "^0.454.0",
     "next": "16.3.3",
     "next-themes": "^0.4.6",
@@ -58,9 +62,13 @@
     "react-day-picker": "9.8.0",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.60.0",
+    "react-markdown": "^10.1.0",
     "react-native": "latest",
     "react-resizable-panels": "^2.1.7",
     "recharts": "3.10.1",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",

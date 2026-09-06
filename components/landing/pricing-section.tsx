@@ -57,25 +57,25 @@ export function PricingSection() {
   const [isAnnual, setIsAnnual] = useState(true);
 
   return (
-    <section id="pricing" className="relative py-32 lg:py-40 border-t border-foreground/10">
-      <div className="max-w-7xl mx-auto px-6 lg:px-12">
+    <section id="pricing" className="relative border-t border-foreground/10 py-16 sm:py-24 lg:py-40">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-12">
         {/* Header */}
-        <div className="max-w-3xl mb-20">
+        <div className="mb-12 max-w-3xl sm:mb-16 lg:mb-20">
           <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase block mb-6">
             Pricing
           </span>
-          <h2 className="font-display text-5xl md:text-6xl lg:text-7xl tracking-tight text-foreground mb-6">
+          <h2 className="mb-5 font-display text-4xl tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
             Simple, transparent
             <br />
             <span className="text-stroke">pricing</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-xl">
+          <p className="max-w-xl text-sm text-muted-foreground sm:text-lg">
             Start free and scale as you grow. No hidden fees, no surprises.
           </p>
         </div>
 
         {/* Billing Toggle */}
-        <div className="flex items-center gap-4 mb-16">
+        <div className="mb-10 flex flex-wrap items-center gap-3 sm:mb-16 sm:gap-4">
           <span
             className={`text-sm transition-colors ${
               !isAnnual ? "text-foreground" : "text-muted-foreground"
@@ -112,7 +112,7 @@ export function PricingSection() {
           {plans.map((plan, idx) => (
             <div
               key={plan.name}
-              className={`relative p-8 lg:p-12 bg-background ${
+              className={`relative p-5 sm:p-7 lg:p-12 bg-background ${
                 plan.popular ? "md:-my-4 md:py-12 lg:py-16 border-2 border-foreground" : ""
               }`}
             >
@@ -123,7 +123,7 @@ export function PricingSection() {
               )}
 
               {/* Plan Header */}
-              <div className="mb-8">
+              <div className="mb-6 sm:mb-8">
                 <span className="font-mono text-xs text-muted-foreground">
                   {String(idx + 1).padStart(2, "0")}
                 </span>
@@ -132,10 +132,10 @@ export function PricingSection() {
               </div>
 
               {/* Price */}
-              <div className="mb-8 pb-8 border-b border-foreground/10">
+              <div className="mb-6 border-b border-foreground/10 pb-6 sm:mb-8 sm:pb-8">
                 {plan.price.monthly !== null ? (
                   <div className="flex items-baseline gap-2">
-                    <span className="font-display text-5xl lg:text-6xl text-foreground">
+                    <span className="font-display text-4xl text-foreground sm:text-5xl lg:text-6xl">
                       ${isAnnual ? plan.price.annual : plan.price.monthly}
                     </span>
                     <span className="text-muted-foreground">/month</span>
@@ -146,7 +146,7 @@ export function PricingSection() {
               </div>
 
               {/* Features */}
-              <ul className="space-y-4 mb-10">
+              <ul className="mb-8 space-y-3 sm:mb-10 sm:space-y-4">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3">
                     <Check className="w-4 h-4 text-foreground mt-0.5 shrink-0" />
@@ -157,7 +157,7 @@ export function PricingSection() {
 
               {/* CTA */}
               <button
-                className={`w-full py-4 flex items-center justify-center gap-2 text-sm font-medium transition-all group ${
+                className={`flex min-h-10 w-full items-center justify-center gap-2 py-2.5 text-xs font-medium transition-all group sm:py-4 sm:text-sm ${
                   plan.popular
                     ? "bg-foreground text-primary-foreground hover:bg-foreground/90"
                     : "border border-foreground/20 text-foreground hover:border-foreground hover:bg-foreground/5"

@@ -36,42 +36,42 @@ export function InfrastructureSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative py-24 lg:py-32 overflow-hidden">
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+    <section ref={sectionRef} className="relative overflow-hidden py-16 sm:py-20 lg:py-32">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
+        <div className="grid items-center gap-10 sm:gap-14 lg:grid-cols-2 lg:gap-24">
           {/* Left: Content */}
           <div
             className={`transition-all duration-700 ${
               isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-8"
             }`}
           >
-            <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
+            <span className="mb-5 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-6 sm:text-sm">
               <span className="w-8 h-px bg-foreground/30" />
               Infrastructure
             </span>
-            <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
+            <h2 className="mb-6 text-4xl font-display tracking-tight sm:mb-8 lg:text-6xl">
               Global by
               <br />
               default.
             </h2>
-            <p className="text-xl text-muted-foreground leading-relaxed mb-12">
+            <p className="mb-8 text-base leading-relaxed text-muted-foreground sm:mb-12 sm:text-xl">
               Deploy once, run everywhere. Our edge network spans 17 data centers 
               across 6 continents, delivering sub-50ms latency to 99% of the world.
             </p>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-3 gap-3 sm:gap-8">
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">17</div>
-                <div className="text-sm text-muted-foreground">Data centers</div>
+                <div className="mb-1 text-3xl font-display sm:text-4xl lg:text-5xl">17</div>
+                <div className="text-xs text-muted-foreground sm:text-sm">Data centers</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">99.99%</div>
-                <div className="text-sm text-muted-foreground">Uptime SLA</div>
+                <div className="mb-1 text-3xl font-display sm:text-4xl lg:text-5xl">99.99%</div>
+                <div className="text-xs text-muted-foreground sm:text-sm">Uptime SLA</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">&lt;50ms</div>
-                <div className="text-sm text-muted-foreground">Global latency</div>
+                <div className="mb-1 text-3xl font-display sm:text-4xl lg:text-5xl">&lt;50ms</div>
+                <div className="text-xs text-muted-foreground sm:text-sm">Global latency</div>
               </div>
             </div>
           </div>
@@ -84,7 +84,7 @@ export function InfrastructureSection() {
           >
             <div className="border border-foreground/10">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-foreground/10 flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 border-b border-foreground/10 px-3.5 py-3 sm:px-5 sm:py-4">
                 <span className="text-sm font-mono text-muted-foreground">Edge Network</span>
                 <span className="flex items-center gap-2 text-xs font-mono text-green-600">
                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -97,19 +97,19 @@ export function InfrastructureSection() {
                 {locations.map((location, index) => (
                   <div
                     key={location.city}
-                    className={`px-6 py-5 border-b border-foreground/5 last:border-b-0 flex items-center justify-between transition-all duration-300 ${
+                    className={`flex items-center justify-between gap-3 border-b border-foreground/5 px-3.5 py-3.5 transition-all duration-300 last:border-b-0 sm:px-5 sm:py-4 ${
                       activeLocation === index ? "bg-foreground/[0.02]" : ""
                     }`}
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                       <span 
                         className={`w-2 h-2 rounded-full transition-colors duration-300 ${
                           activeLocation === index ? "bg-foreground" : "bg-foreground/20"
                         }`}
                       />
                       <div>
-                        <div className="font-medium">{location.city}</div>
-                        <div className="text-sm text-muted-foreground">{location.region}</div>
+                        <div className="truncate text-sm font-medium">{location.city}</div>
+                        <div className="text-xs text-muted-foreground sm:text-sm">{location.region}</div>
                       </div>
                     </div>
                     <span className="font-mono text-sm text-muted-foreground">{location.latency}</span>

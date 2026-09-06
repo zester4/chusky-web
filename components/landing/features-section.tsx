@@ -27,6 +27,30 @@ const features = [
     description: "Bank-grade encryption, SOC 2 compliance, and granular access controls. Your data stays yours.",
     visual: "security",
   },
+  {
+    number: "05",
+    title: "Every channel, one agent",
+    description: "Move between Telegram, CLI, Slack, WhatsApp, and Sendblue without splitting your agent’s core behavior. Each provider gets the right formatting, permissions, and delivery path.",
+    visual: "ai",
+  },
+  {
+    number: "06",
+    title: "Durable by default",
+    description: "Reminders, recurring jobs, long-running tasks, triggers, and outbound messages survive retries and restarts with Redis and workflow-backed state.",
+    visual: "deploy",
+  },
+  {
+    number: "07",
+    title: "Human control where it matters",
+    description: "Risky actions pause for exact, one-time approval. The request, arguments, owner, expiry, and result stay bound together from review to execution.",
+    visual: "security",
+  },
+  {
+    number: "08",
+    title: "Media that goes further",
+    description: "Send images, audio, documents, and generated artifacts through the right model path. R2 keeps files durable while providers receive safe HTTPS media URLs.",
+    visual: "collab",
+  },
 ];
 
 function DeployVisual() {
@@ -275,26 +299,26 @@ function FeatureCard({ feature, index }: { feature: typeof features[0]; index: n
       }`}
       style={{ transitionDelay: `${index * 100}ms` }}
     >
-      <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 py-12 lg:py-20 border-b border-foreground/10">
+      <div className="flex flex-col gap-4 border-b border-foreground/10 py-6 sm:gap-6 sm:py-10 lg:flex-row lg:gap-12 lg:py-14">
         {/* Number */}
         <div className="shrink-0">
           <span className="font-mono text-sm text-muted-foreground">{feature.number}</span>
         </div>
         
         {/* Content */}
-        <div className="flex-1 grid lg:grid-cols-2 gap-8 items-center">
+        <div className="grid min-w-0 flex-1 items-center gap-5 lg:grid-cols-2 lg:gap-10">
           <div>
-            <h3 className="text-3xl lg:text-4xl font-display mb-4 group-hover:translate-x-2 transition-transform duration-500">
+            <h3 className="mb-2 font-display text-2xl transition-transform duration-500 group-hover:translate-x-2 sm:mb-3 sm:text-3xl">
               {feature.title}
             </h3>
-            <p className="text-lg text-muted-foreground leading-relaxed">
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
               {feature.description}
             </p>
           </div>
           
           {/* Visual */}
           <div className="flex justify-center lg:justify-end">
-            <div className="w-48 h-40 text-foreground">
+            <div className="h-28 w-36 text-foreground sm:h-36 sm:w-44">
               <AnimatedVisual type={feature.visual} />
             </div>
           </div>
@@ -324,17 +348,17 @@ export function FeaturesSection() {
     <section
       id="features"
       ref={sectionRef}
-      className="relative py-24 lg:py-32"
+      className="relative py-16 sm:py-20 lg:py-24"
     >
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         {/* Header */}
-        <div className="mb-16 lg:mb-24">
-          <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-            <span className="w-8 h-px bg-foreground/30" />
+        <div className="mb-10 sm:mb-14 lg:mb-16">
+          <span className="mb-4 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-5 sm:text-sm">
+            <span className="h-px w-6 bg-foreground/30 sm:w-8" />
             Capabilities
           </span>
           <h2
-            className={`text-4xl lg:text-6xl font-display tracking-tight transition-all duration-700 ${
+            className={`text-3xl font-display tracking-tight transition-all duration-700 sm:text-4xl lg:text-5xl ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
@@ -348,6 +372,15 @@ export function FeaturesSection() {
         <div>
           {features.map((feature, index) => (
             <FeatureCard key={feature.number} feature={feature} index={index} />
+          ))}
+        </div>
+
+        <div className="mt-12 grid gap-3 border-t border-foreground/10 pt-6 sm:grid-cols-3 lg:mt-16">
+          {[{ label: "Context", value: "Private sessions, memories, and scratchpad" }, { label: "Control", value: "Approvals before external side effects" }, { label: "Continuity", value: "Redis state, retries, and durable workflows" }].map((item) => (
+            <div key={item.label} className="border border-foreground/10 p-4">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{item.label}</span>
+              <p className="mt-3 text-xs leading-relaxed sm:text-sm">{item.value}</p>
+            </div>
           ))}
         </div>
       </div>
