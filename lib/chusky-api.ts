@@ -78,6 +78,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 const idempotency = () => crypto.randomUUID();
+type PageOptions = { limit?: number; cursor?: string };
+const pageQuery = ({ limit, cursor }: PageOptions = {}) => {
+  const query = new URLSearchParams();
+  if (limit !== undefined) query.set("limit", String(limit));
+  if (cursor) query.set("cursor", cursor);
+  const value = query.toString();
+  return value ? `?${value}` : "";
+};
 
 function putUpload(url: string, file: File, onProgress?: (progress: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -102,10 +110,10 @@ async function requestBytes(path: string): Promise<Blob> {
 
 export const chuskyApi = {
   threads: {
-    list: () => request<Page<Thread>>("/threads"),
+    list: (options: PageOptions = {}) => request<Page<Thread>>(`/threads${pageQuery(options)}`),
     create: (metadata: Record<string, unknown> = {}) => request<Thread>("/threads", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ metadata }) }),
     get: (threadId: string) => request<Thread>(`/threads/${encodeURIComponent(threadId)}`),
-    runs: (threadId: string) => request<Page<Run>>(`/threads/${encodeURIComponent(threadId)}/runs`),
+    runs: (threadId: string, options: PageOptions = {}) => request<Page<Run>>(`/threads/${encodeURIComponent(threadId)}/runs${pageQuery(options)}`),
     update: (threadId: string, input: { title?: string; archived?: boolean }) => request<Thread>(`/threads/${encodeURIComponent(threadId)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency(), "Content-Type": "application/json" }, body: JSON.stringify(input) }),
     remove: (threadId: string) => request<void>(`/threads/${encodeURIComponent(threadId)}`, { method: "DELETE" }),
   },
