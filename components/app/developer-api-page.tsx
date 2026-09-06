@@ -6,7 +6,7 @@ import { chuskyApi, type CreatedDeveloperProject, type DeveloperProject } from "
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 
-const scopes = ["threads:read", "threads:write", "tasks:read", "tasks:write", "approvals:read", "approvals:write", "files:read", "files:write", "webhooks:read", "webhooks:write", "audit-events:read", "usage:read"];
+const scopes = ["threads:read", "threads:write", "runs:read", "runs:write", "tasks:read", "tasks:write", "approvals:read", "approvals:write", "files:read", "files:write", "tools:read", "skills:read", "artifacts:read", "artifacts:write", "videos:read", "videos:write", "workers:read", "workers:write", "channels:read", "deliveries:read", "reminders:read", "reminders:write", "jobs:read", "jobs:write", "memory:read", "memory:write", "scratchpad:read", "scratchpad:write", "webhooks:read", "webhooks:write", "audit-events:read", "usage:read"];
 const formatDate = (value: string) => new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
 
 function ScopePicker({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {

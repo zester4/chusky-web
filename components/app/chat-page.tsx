@@ -23,7 +23,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type DurationBudget, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
 import { MarkdownMessage } from "./markdown-message";
 
 type Message = {
@@ -32,12 +32,13 @@ type Message = {
   time?: string;
   pending?: boolean;
   tool?: string;
-  attachments?: Array<{ id: string; name: string; contentType: string; size: number }>;
+  activity?: string[];
+  attachments?: Array<{ id: string; name: string; contentType: string; size: number; downloadUrl?: string }>;
   approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean };
 };
 
 type PendingAttachment = { localId: string; id?: string; name: string; contentType: string; size: number; progress: number; status: "uploading" | "ready" | "error"; error?: string };
-const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain", "audio/mpeg", "audio/ogg", "audio/wav", "video/mp4"]);
+const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/markdown", "application/zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "audio/mpeg", "audio/ogg", "audio/wav", "video/mp4", "video/webm"]);
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 const suggestions = [
@@ -54,6 +55,9 @@ export function ChatPage() {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [account, setAccount] = useState<AccountOverview>();
+  const [models, setModels] = useState<Model[]>([]);
+  const [runModel, setRunModel] = useState("");
+  const [runDuration, setRunDuration] = useState<DurationBudget>("30m");
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [showContext, setShowContext] = useState(true);
   const [controller, setController] = useState<AbortController>();
@@ -81,11 +85,12 @@ export function ChatPage() {
           const restored: Message[] = [];
           for (const run of runs.data) {
             if (run.input || run.attachments?.length) restored.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
-            if (run.output || run.error || run.status === "requires_approval") restored.push({ role: "assistant", text: run.output || run.error?.message || "This run is awaiting approval.", time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false });
+            if (run.output || run.error || run.status === "requires_approval") restored.push({ role: "assistant", text: run.output || run.error?.message || "This run is awaiting approval.", time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, activity: run.events?.map((event) => event.text || event.type.replace(/^run\./, "").replaceAll("_", " ")) });
           }
           setMessages(restored);
         }
-        void chuskyApi.account.get().then((next) => { if (active) setAccount(next); }).catch(() => undefined);
+        void chuskyApi.account.get().then((next) => { if (active) { setAccount(next); setRunModel(next.model); } }).catch(() => undefined);
+        void chuskyApi.account.models().then((next) => { if (active) setModels(next.data); }).catch(() => undefined);
       } catch {
         if (active) setStatus("offline");
       }
@@ -99,6 +104,9 @@ export function ChatPage() {
 
   const updateLastAssistant = (update: Partial<Message>) => {
     setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, ...update } : item));
+  };
+  const addActivity = (entry: string) => {
+    setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, activity: [...(item.activity || []), entry] } : item));
   };
 
   const copyMessage = async (index: number, text: string) => {
@@ -155,7 +163,7 @@ export function ChatPage() {
     const rejected = candidates.filter((file) => !ACCEPTED_TYPES.has(file.type) || file.size > MAX_FILE_BYTES || file.size < 1);
     const valid = candidates.filter((file) => !rejected.includes(file));
     const uploadEntries = valid.map((file) => ({ localId: crypto.randomUUID(), name: file.name, contentType: file.type, size: file.size, progress: 0, status: "uploading" as const }));
-    setAttachments((current) => [...current, ...rejected.map((file) => ({ localId: crypto.randomUUID(), name: file.name, contentType: file.type || "unknown", size: file.size, progress: 0, status: "error" as const, error: "Use an image, PDF, text, audio, or MP4 file up to 25 MB." })), ...uploadEntries]);
+    setAttachments((current) => [...current, ...rejected.map((file) => ({ localId: crypto.randomUUID(), name: file.name, contentType: file.type || "unknown", size: file.size, progress: 0, status: "error" as const, error: "Use a supported image, document, archive, audio, or video up to 25 MB." })), ...uploadEntries]);
     await Promise.all(valid.map(async (file, index) => {
       const localId = uploadEntries[index].localId;
       try {
@@ -183,18 +191,27 @@ export function ChatPage() {
     setAttachments([]);
     setMessages((current) => [...current, { role: "user", text: text || "Attached file(s)", time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size }) => ({ id, name, contentType, size })) }, { role: "assistant", text: "", pending: true }]);
     try {
-      for await (const event of chuskyApi.runs.stream(thread.id, text, readyAttachments.map((item) => item.id), abort.signal)) {
+      for await (const event of chuskyApi.runs.stream(thread.id, text, readyAttachments.map((item) => item.id), abort.signal, { model: runModel || undefined, budget: { duration: runDuration } })) {
         const typed = event as RunStreamEvent;
-        if (typed.type === "run.delta") {
+        if (typed.type === "run.started" || typed.type === "run.queued") {
+          addActivity(typed.type === "run.queued" ? "Run queued for durable execution" : "Run started");
+        } else if (typed.type === "run.delta") {
           setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: false } : item));
         } else if (typed.type === "run.tool_started") {
+          addActivity(`Using ${typed.toolSlug.replaceAll("_", " ").toLowerCase()}`);
           updateLastAssistant({ pending: true, tool: typed.toolSlug });
         } else if (typed.type === "run.completed") {
+          addActivity("Run completed");
           updateLastAssistant({ text: typed.run.output || "Done.", pending: false, tool: undefined });
         } else if (typed.type === "run.approval_required") {
-          updateLastAssistant({ text: `Chusky needs your approval to use ${typed.approval.toolSlug.replaceAll("_", " ").toLowerCase()}.`, pending: false, tool: undefined, approval: typed.approval });
+          addActivity("Waiting for approval");
+          updateLastAssistant({ text: `Chusky needs your approval to use ${(typed.approval?.toolSlug || "this action").replaceAll("_", " ").toLowerCase()}.`, pending: false, tool: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {
+          addActivity(`Run failed: ${typed.error.message}`);
           updateLastAssistant({ text: "I couldn’t complete that request. Please try again.", pending: false, tool: undefined });
+        } else if (typed.type === "run.cancelled") {
+          addActivity("Run cancelled");
+          updateLastAssistant({ text: "Run cancelled.", pending: false, tool: undefined });
         }
       }
     } catch (error) {
@@ -221,7 +238,7 @@ export function ChatPage() {
       <div className={showContext ? "grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_280px]" : "flex min-h-0 flex-1 overflow-hidden"}>
         <div className="flex min-h-0 min-w-0 flex-col">
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-2.5 py-4 sm:px-5 sm:py-6 lg:px-8">
-            <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2.5 sm:mb-6 sm:gap-3"><div className="min-w-0"><p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Agent workspace</p><p className="mt-1.5 text-[11px] text-muted-foreground">Ask naturally. Chusky streams progress and keeps durable run state.</p></div><span className="flex max-w-full items-center gap-2 truncate rounded-full border border-foreground/10 bg-background px-2.5 py-1.5 text-[10px]"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> <span className="truncate">{account?.model || "Agent model"}</span></span></div>
+            <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2.5 sm:mb-6 sm:gap-3"><div className="min-w-0"><p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Agent workspace</p><p className="mt-1.5 text-[11px] text-muted-foreground">Ask naturally. Chusky streams progress and keeps durable run state.</p></div><div className="flex max-w-full items-center gap-1.5"><label className="sr-only" htmlFor="chat-model">Run model</label><select id="chat-model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="max-w-40 truncate rounded-full border border-foreground/10 bg-background px-2.5 py-1.5 text-[10px] outline-none"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select><label className="sr-only" htmlFor="chat-duration">Run duration</label><select id="chat-duration" value={runDuration} onChange={(event) => setRunDuration(event.target.value as DurationBudget)} className="rounded-full border border-foreground/10 bg-background px-2.5 py-1.5 text-[10px] outline-none">{["5m", "30m", "1h", "3h", "6h", "3d", "1w"].map((duration) => <option key={duration} value={duration}>{duration}</option>)}</select></div></div>
 
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-5 sm:space-y-6">
@@ -233,6 +250,7 @@ export function ChatPage() {
                     {item.pending && !item.text ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> {item.tool ? `Using ${item.tool.replaceAll("_", " ").toLowerCase()}…` : "Thinking through your request…"}</p> : item.role === "assistant" ? <MarkdownMessage content={item.text} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p>}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}
                     {item.tool && <p className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground"><Zap size={12} /> {item.tool.replaceAll("_", " ").toLowerCase()}</p>}
+                    {item.activity?.length ? <div className="mt-3 space-y-1 border-t border-foreground/10 pt-2">{item.activity.map((entry, activityIndex) => <p key={`${entry}-${activityIndex}`} className="flex items-start gap-1.5 text-[10px] text-muted-foreground"><span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-emerald-500" />{entry}</p>)}</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-4 right-2 z-10 flex items-center gap-1 rounded-md border border-foreground/10 bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
                       <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex min-h-8 min-w-8 items-center justify-center rounded px-1.5 hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>
@@ -247,7 +265,7 @@ export function ChatPage() {
             </div>
             </div>
 
-            <div className="shrink-0 pt-4 sm:pt-6"><div className="mb-2 flex flex-wrap gap-1.5"><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Paperclip size={10} /> Verified R2 uploads</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Zap size={10} /> Use connected apps</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Terminal size={10} /> Run in workspace</span></div><div className="rounded-xl border border-foreground/15 bg-background shadow-sm transition-colors focus-within:border-foreground/40"><input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,audio/mpeg,audio/ogg,audio/wav,video/mp4" className="hidden" onChange={(event) => void selectFiles(event.target.files)} /><div className="flex flex-wrap gap-1.5 px-3 pt-3">{attachments.map((item) => <div key={item.localId} className="flex max-w-full items-center gap-1.5 rounded-md border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[9px]"><FileText size={11} className={item.status === "error" ? "text-amber-600" : "text-muted-foreground"} /><span className="max-w-40 truncate">{item.name}</span><span className="text-muted-foreground">{item.status === "uploading" ? `${item.progress}%` : item.status === "ready" ? "ready" : "failed"}</span><button type="button" onClick={() => void removeAttachment(item)} className="text-muted-foreground hover:text-foreground" aria-label={`Remove ${item.name}`}><X size={11} /></button>{item.error ? <span className="hidden text-amber-700 sm:inline">{item.error}</span> : null}</div>)}{!messages.some((item) => item.role === "user") && !attachments.length && suggestions.map((item) => <button key={item} type="button" onClick={() => setInput(item)} className="rounded-md border border-foreground/10 px-2.5 py-1.5 text-left text-[11px] text-muted-foreground hover:border-foreground/35 hover:text-foreground">{item}<ArrowUpRight size={11} className="ml-1.5 inline" /></button>)}</div><textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : "Ask Chusky anything…"} rows={3} disabled={!thread || Boolean(controller)} className="w-full resize-none bg-transparent px-3 pt-3 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" /><div className="flex items-center justify-between px-2.5 pb-2.5 pt-1.5"><div className="flex items-center gap-1"><button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || Boolean(controller) || attachments.length >= 5} className="rounded-full p-2 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Paperclip size={15} /></button><span className="ml-1 hidden text-[9px] text-muted-foreground sm:inline">Images, PDFs, text, audio, and MP4 · 25 MB each</span></div><div className="flex items-center gap-2"><span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">⌘ ↵ to send</span>{controller ? <button type="button" onClick={() => controller.abort()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background" aria-label="Stop response"><Square size={12} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading")} aria-label="Send message"><ArrowUp size={15} /></button>}</div></div></div></div>
+            <div className="shrink-0 pt-4 sm:pt-6"><div className="mb-2 flex flex-wrap gap-1.5"><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Paperclip size={10} /> Verified R2 uploads</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Zap size={10} /> Use connected apps</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Terminal size={10} /> Run in workspace</span></div><div className="rounded-xl border border-foreground/15 bg-background shadow-sm transition-colors focus-within:border-foreground/40"><input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} /><div className="flex flex-wrap gap-1.5 px-3 pt-3">{attachments.map((item) => <div key={item.localId} className="flex max-w-full items-center gap-1.5 rounded-md border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[9px]"><FileText size={11} className={item.status === "error" ? "text-amber-600" : "text-muted-foreground"} /><span className="max-w-40 truncate">{item.name}</span><span className="text-muted-foreground">{item.status === "uploading" ? `${item.progress}%` : item.status === "ready" ? "ready" : "failed"}</span><button type="button" onClick={() => void removeAttachment(item)} className="text-muted-foreground hover:text-foreground" aria-label={`Remove ${item.name}`}><X size={11} /></button>{item.error ? <span className="hidden text-amber-700 sm:inline">{item.error}</span> : null}</div>)}{!messages.some((item) => item.role === "user") && !attachments.length && suggestions.map((item) => <button key={item} type="button" onClick={() => setInput(item)} className="rounded-md border border-foreground/10 px-2.5 py-1.5 text-left text-[11px] text-muted-foreground hover:border-foreground/35 hover:text-foreground">{item}<ArrowUpRight size={11} className="ml-1.5 inline" /></button>)}</div><textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : "Ask Chusky anything…"} rows={3} disabled={!thread || Boolean(controller)} className="w-full resize-none bg-transparent px-3 pt-3 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" /><div className="flex items-center justify-between px-2.5 pb-2.5 pt-1.5"><div className="flex items-center gap-1"><button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || Boolean(controller) || attachments.length >= 5} className="rounded-full p-2 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Paperclip size={15} /></button><span className="ml-1 hidden text-[9px] text-muted-foreground sm:inline">Images, documents, archives, audio, and video · 25 MB each</span></div><div className="flex items-center gap-2"><span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">⌘ ↵ to send</span>{controller ? <button type="button" onClick={() => controller.abort()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background" aria-label="Stop response"><Square size={12} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading")} aria-label="Send message"><ArrowUp size={15} /></button>}</div></div></div></div>
           </div>
         </div>
 

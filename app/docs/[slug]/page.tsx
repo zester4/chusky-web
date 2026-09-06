@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Code2, Copy, FileCode2, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronRight, Search, ShieldCheck } from "lucide-react";
+import { CodeBlock } from "@/components/docs/code-block";
 
 type Doc = { slug: string; title: string; group: string; description: string; body: string; code?: string };
 
@@ -28,10 +29,6 @@ export function generateStaticParams() { return docs.map(({ slug }) => ({ slug }
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const doc = docs.find((item) => item.slug === params.slug);
   return { title: `${doc?.title ?? "Documentation"} | Chusky`, description: doc?.description ?? "Chusky developer documentation." };
-}
-
-function CodeBlock({ code }: { code: string }) {
-  return <div className="mt-8 overflow-hidden rounded-xl border border-foreground/15 bg-[#111] text-sm text-[#f7f7f4]"><div className="flex items-center justify-between border-b border-white/10 px-4 py-3 font-mono text-[10px] text-white/50"><span className="flex items-center gap-2"><FileCode2 size={13} /> example.ts</span><button className="flex items-center gap-1.5 text-white/60 hover:text-white" onClick={() => void navigator.clipboard?.writeText(code)}><Copy size={12} /> Copy</button></div><pre className="overflow-x-auto p-5 leading-7"><code>{code}</code></pre></div>;
 }
 
 export default function DocumentationPage({ params }: { params: { slug: string } }) {
