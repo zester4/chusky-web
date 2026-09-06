@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Check,
   Copy,
+  Pencil,
   FileText,
   History,
   LoaderCircle,
@@ -20,6 +21,8 @@ import {
   SlidersHorizontal,
   Square,
   Terminal,
+  ThumbsUp,
+  Share2,
   X,
   Zap,
 } from "lucide-react";
@@ -63,10 +66,12 @@ export function ChatPage() {
   const [controller, setController] = useState<AbortController>();
   const [activeMessageIndex, setActiveMessageIndex] = useState<number>();
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number>();
+  const [likedMessageIndex, setLikedMessageIndex] = useState<number>();
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number>();
   const [listening, setListening] = useState(false);
-  const [speaking, setSpeaking] = useState<number>();
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -134,15 +139,21 @@ export function ChatPage() {
     recognition.start();
   };
 
-  const speakMessage = (index: number, text: string) => {
-    if (!("speechSynthesis" in window) || !text) return;
-    if (speaking === index) { window.speechSynthesis.cancel(); setSpeaking(undefined); return; }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.replace(/[*_#`]/g, ""));
-    utterance.onend = () => setSpeaking(undefined);
-    utterance.onerror = () => setSpeaking(undefined);
-    setSpeaking(index);
-    window.speechSynthesis.speak(utterance);
+  const editMessage = (index: number, text: string) => {
+    setInput(text);
+    setEditingMessageIndex(index);
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const shareMessage = async (index: number, text: string) => {
+    try {
+      if (navigator.share) await navigator.share({ title: "Chusky message", text });
+      else await navigator.clipboard.writeText(text);
+      setCopiedMessageIndex(index);
+      window.setTimeout(() => setCopiedMessageIndex((current) => current === index ? undefined : current), 1600);
+    } catch {
+      // Sharing can be cancelled by the user or unavailable in an embedded context.
+    }
   };
 
   const decideApproval = async (approvalId: string, decision: "approve" | "deny") => {
@@ -189,7 +200,9 @@ export function ChatPage() {
     setController(abort);
     setInput("");
     setAttachments([]);
-    setMessages((current) => [...current, { role: "user", text: text || "Attached file(s)", time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size }) => ({ id, name, contentType, size })) }, { role: "assistant", text: "", pending: true }]);
+    const outgoing: Message = { role: "user", text: text || "Attached file(s)", time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size }) => ({ id, name, contentType, size })) };
+    setMessages((current) => editingMessageIndex === undefined ? [...current, outgoing, { role: "assistant", text: "", pending: true }] : [...current.slice(0, editingMessageIndex), outgoing, { role: "assistant", text: "", pending: true }]);
+    setEditingMessageIndex(undefined);
     try {
       for await (const event of chuskyApi.runs.stream(thread.id, text, readyAttachments.map((item) => item.id), abort.signal, { model: runModel || undefined, budget: { duration: runDuration } })) {
         const typed = event as RunStreamEvent;
@@ -223,13 +236,19 @@ export function ChatPage() {
 
   return (
     <div className="-mx-2.5 -my-4 flex h-[calc(100dvh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden bg-[#f7f7f4] sm:-mx-4 sm:-my-6 sm:h-[calc(100dvh-3.5rem)] lg:-mx-7 lg:-my-8">
-      <header className="flex min-h-11 items-center justify-between gap-2 border-b border-foreground/10 bg-background px-2.5 sm:min-h-12 sm:px-4 lg:px-6">
+      <header className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-foreground/10 bg-background px-2.5 py-1.5 sm:min-h-12 sm:px-4 lg:px-6">
         <button type="button" onClick={toggleVoiceInput} disabled={!thread || Boolean(controller)} className={`fixed bottom-24 right-4 z-30 rounded-full border bg-background p-3 shadow-sm disabled:opacity-40 ${listening ? "text-rose-700" : "text-muted-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"}><Mic size={16} /></button>
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Bot size={14} /></div>
-          <div className="min-w-0">
+          <div className="min-w-0 max-w-[15rem] sm:max-w-[20rem]">
             <div className="flex items-center gap-2"><h1 className="truncate text-xs font-medium">{thread ? "New conversation" : "Connecting to Chusky"}</h1><span className={status === "ready" ? "rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{status === "ready" ? "Live" : status === "offline" ? "Offline" : "Connecting"}</span></div>
             <p className="truncate text-[10px] text-muted-foreground">Private workspace · backed by your Chusky session</p>
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5 border-l border-foreground/10 pl-2">
+            <label className="sr-only" htmlFor="chat-model">Run model</label>
+            <select id="chat-model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="max-w-32 truncate rounded-md border border-foreground/10 bg-background px-2 py-1.5 text-[10px] outline-none hover:border-foreground/25 focus:border-foreground/40 sm:max-w-44"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select>
+            <label className="sr-only" htmlFor="chat-duration">Run duration</label>
+            <select id="chat-duration" value={runDuration} onChange={(event) => setRunDuration(event.target.value as DurationBudget)} className="rounded-md border border-foreground/10 bg-background px-2 py-1.5 text-[10px] outline-none hover:border-foreground/25 focus:border-foreground/40">{["5m", "30m", "1h", "3h", "6h", "3d", "1w"].map((duration) => <option key={duration} value={duration}>{duration}</option>)}</select>
           </div>
         </div>
         <div className="flex items-center gap-1"><button type="button" className="hidden items-center gap-1.5 px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground sm:flex"><History size={12} /> History</button><button type="button" onClick={() => setShowContext((value) => !value)} className="flex items-center gap-1.5 border border-foreground/10 px-2 py-1.5 text-[10px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"><PanelRight size={12} /><span className="hidden sm:inline">Context</span></button><button type="button" className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Chat settings"><SlidersHorizontal size={14} /></button></div>
@@ -237,26 +256,28 @@ export function ChatPage() {
 
       <div className={showContext ? "grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_280px]" : "flex min-h-0 flex-1 overflow-hidden"}>
         <div className="flex min-h-0 min-w-0 flex-col">
-          <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-2.5 py-4 sm:px-5 sm:py-6 lg:px-8">
-            <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2.5 sm:mb-6 sm:gap-3"><div className="min-w-0"><p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Agent workspace</p><p className="mt-1.5 text-[11px] text-muted-foreground">Ask naturally. Chusky streams progress and keeps durable run state.</p></div><div className="flex max-w-full items-center gap-1.5"><label className="sr-only" htmlFor="chat-model">Run model</label><select id="chat-model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="max-w-40 truncate rounded-full border border-foreground/10 bg-background px-2.5 py-1.5 text-[10px] outline-none"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select><label className="sr-only" htmlFor="chat-duration">Run duration</label><select id="chat-duration" value={runDuration} onChange={(event) => setRunDuration(event.target.value as DurationBudget)} className="rounded-full border border-foreground/10 bg-background px-2.5 py-1.5 text-[10px] outline-none">{["5m", "30m", "1h", "3h", "6h", "3d", "1w"].map((duration) => <option key={duration} value={duration}>{duration}</option>)}</select></div></div>
-
+          <div className={`mx-auto flex h-full min-h-0 w-full flex-1 flex-col px-2.5 py-4 sm:px-5 sm:py-6 lg:px-8 ${showContext ? "max-w-4xl" : "max-w-[92rem]"}`}>
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
-            <div className="space-y-5 sm:space-y-6">
+            <div className="space-y-3.5 sm:space-y-4">
               {messages.map((item, index) => (
-                <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto max-w-[90%] sm:max-w-2xl" : "group relative flex gap-2.5 sm:gap-4"} onClick={() => setActiveMessageIndex(index)}>
-                  {item.role === "assistant" && <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] text-background">C</div>}
-                  <div className={item.role === "user" ? "relative min-w-0 rounded-xl border border-foreground/20 bg-foreground px-3 py-2.5 text-xs leading-5 text-background shadow-sm" : "relative min-w-0 rounded-xl border border-foreground/10 bg-background px-3 py-2.5 shadow-sm"}>
+                <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto max-w-[86%] sm:max-w-2xl" : "group relative flex gap-2 sm:gap-3"} onClick={() => setActiveMessageIndex(index)}>
+                  {item.role === "assistant" && <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">C</div>}
+                  <div className={item.role === "user" ? "relative min-w-0 rounded-lg border border-foreground/20 bg-foreground px-2.5 py-2 text-xs leading-[1.35rem] text-background shadow-sm" : "relative min-w-0 rounded-lg border border-foreground/10 bg-background px-2.5 py-2 shadow-sm"}>
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2.5"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && !item.text ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> {item.tool ? `Using ${item.tool.replaceAll("_", " ").toLowerCase()}…` : "Thinking through your request…"}</p> : item.role === "assistant" ? <MarkdownMessage content={item.text} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p>}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}
                     {item.tool && <p className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground"><Zap size={12} /> {item.tool.replaceAll("_", " ").toLowerCase()}</p>}
                     {item.activity?.length ? <div className="mt-3 space-y-1 border-t border-foreground/10 pt-2">{item.activity.map((entry, activityIndex) => <p key={`${entry}-${activityIndex}`} className="flex items-start gap-1.5 text-[10px] text-muted-foreground"><span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-emerald-500" />{entry}</p>)}</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
-                    {item.text ? <div className={`absolute -bottom-4 right-2 z-10 flex items-center gap-1 rounded-md border border-foreground/10 bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
-                      <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex min-h-8 min-w-8 items-center justify-center rounded px-1.5 hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>
-                        {copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}
-                      </button>
-                      {item.role === "assistant" && <button type="button" onClick={() => speakMessage(index, item.text)} className="flex min-h-11 min-w-11 items-center justify-center rounded px-2 hover:bg-foreground/5 hover:text-foreground" aria-label={speaking === index ? "Stop speaking" : "Read message aloud"}><Mic size={12} /></button>}
+                    {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md border border-foreground/10 bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
+                      {item.role === "user" ? <>
+                        <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={11} /> : <Copy size={11} />}</button>
+                        <button type="button" onClick={() => editMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label="Edit message" title="Edit"><Pencil size={11} /></button>
+                      </> : <>
+                        <button type="button" onClick={() => setLikedMessageIndex((current) => current === index ? undefined : index)} className={`flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground ${likedMessageIndex === index ? "text-emerald-600" : ""}`} aria-label={likedMessageIndex === index ? "Unlike message" : "Like message"} aria-pressed={likedMessageIndex === index} title="Like"><ThumbsUp size={11} fill={likedMessageIndex === index ? "currentColor" : "none"} /></button>
+                        <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={11} /> : <Copy size={11} />}</button>
+                        <button type="button" onClick={() => void shareMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label="Share message" title="Share"><Share2 size={11} /></button>
+                      </>}
                     </div> : null}
                   </div>
                 </div>
@@ -265,7 +286,7 @@ export function ChatPage() {
             </div>
             </div>
 
-            <div className="shrink-0 pt-4 sm:pt-6"><div className="mb-2 flex flex-wrap gap-1.5"><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Paperclip size={10} /> Verified R2 uploads</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Zap size={10} /> Use connected apps</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Terminal size={10} /> Run in workspace</span></div><div className="rounded-xl border border-foreground/15 bg-background shadow-sm transition-colors focus-within:border-foreground/40"><input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} /><div className="flex flex-wrap gap-1.5 px-3 pt-3">{attachments.map((item) => <div key={item.localId} className="flex max-w-full items-center gap-1.5 rounded-md border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[9px]"><FileText size={11} className={item.status === "error" ? "text-amber-600" : "text-muted-foreground"} /><span className="max-w-40 truncate">{item.name}</span><span className="text-muted-foreground">{item.status === "uploading" ? `${item.progress}%` : item.status === "ready" ? "ready" : "failed"}</span><button type="button" onClick={() => void removeAttachment(item)} className="text-muted-foreground hover:text-foreground" aria-label={`Remove ${item.name}`}><X size={11} /></button>{item.error ? <span className="hidden text-amber-700 sm:inline">{item.error}</span> : null}</div>)}{!messages.some((item) => item.role === "user") && !attachments.length && suggestions.map((item) => <button key={item} type="button" onClick={() => setInput(item)} className="rounded-md border border-foreground/10 px-2.5 py-1.5 text-left text-[11px] text-muted-foreground hover:border-foreground/35 hover:text-foreground">{item}<ArrowUpRight size={11} className="ml-1.5 inline" /></button>)}</div><textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : "Ask Chusky anything…"} rows={3} disabled={!thread || Boolean(controller)} className="w-full resize-none bg-transparent px-3 pt-3 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" /><div className="flex items-center justify-between px-2.5 pb-2.5 pt-1.5"><div className="flex items-center gap-1"><button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || Boolean(controller) || attachments.length >= 5} className="rounded-full p-2 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Paperclip size={15} /></button><span className="ml-1 hidden text-[9px] text-muted-foreground sm:inline">Images, documents, archives, audio, and video · 25 MB each</span></div><div className="flex items-center gap-2"><span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">⌘ ↵ to send</span>{controller ? <button type="button" onClick={() => controller.abort()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background" aria-label="Stop response"><Square size={12} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading")} aria-label="Send message"><ArrowUp size={15} /></button>}</div></div></div></div>
+            <div className="shrink-0 pt-3 sm:pt-4"><div className="mb-1.5 flex flex-wrap gap-1.5"><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Paperclip size={10} /> Verified R2 uploads</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Zap size={10} /> Use connected apps</span><span className="inline-flex items-center gap-1.5 rounded-full border border-foreground/10 px-2 py-1 text-[9px] text-muted-foreground"><Terminal size={10} /> Run in workspace</span></div><div className="rounded-lg border border-foreground/15 bg-background shadow-sm transition-colors focus-within:border-foreground/40"><input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} /><div className="flex flex-wrap gap-1.5 px-3 pt-2.5">{attachments.map((item) => <div key={item.localId} className="flex max-w-full items-center gap-1.5 rounded-md border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[9px]"><FileText size={11} className={item.status === "error" ? "text-amber-600" : "text-muted-foreground"} /><span className="max-w-40 truncate">{item.name}</span><span className="text-muted-foreground">{item.status === "uploading" ? `${item.progress}%` : item.status === "ready" ? "ready" : "failed"}</span><button type="button" onClick={() => void removeAttachment(item)} className="text-muted-foreground hover:text-foreground" aria-label={`Remove ${item.name}`}><X size={11} /></button>{item.error ? <span className="hidden text-amber-700 sm:inline">{item.error}</span> : null}</div>)}{!messages.some((item) => item.role === "user") && !attachments.length && suggestions.map((item) => <button key={item} type="button" onClick={() => setInput(item)} className="rounded-md border border-foreground/10 px-2.5 py-1.5 text-left text-[11px] text-muted-foreground hover:border-foreground/35 hover:text-foreground">{item}<ArrowUpRight size={11} className="ml-1.5 inline" /></button>)}</div><textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || Boolean(controller)} className="w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" /><div className="flex items-center justify-between px-2.5 pb-2.5 pt-1.5"><div className="flex items-center gap-1"><button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || Boolean(controller) || attachments.length >= 5} className="rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Paperclip size={14} /></button><span className="ml-1 hidden text-[9px] text-muted-foreground sm:inline">Images, documents, archives, audio, and video · 25 MB each</span></div><div className="flex items-center gap-2"><span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">⌘ ↵ to send</span>{controller ? <button type="button" onClick={() => controller.abort()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background" aria-label="Stop response"><Square size={12} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={15} /></button>}</div></div></div></div>
           </div>
         </div>
 
