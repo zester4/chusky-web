@@ -216,4 +216,19 @@
       linear-gradient(135deg, var(--foreground) 25%, transparent 25%, transparent 50%, var(--foreground) 50%, var(--foreground) 75%, transparent 75%) border-box;
     background-size: 100% 100%, 8px 8px;
   }
+
+  .chusky-orbit {
+    animation: chusky-orbit 5s ease-in-out infinite;
+  }
+
+  @keyframes chusky-orbit {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-9px) rotate(8deg); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chusky-orbit {
+    animation: none;
+  }
 }

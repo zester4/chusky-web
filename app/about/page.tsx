@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Bot, MessageSquare, ShieldCheck, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPageShell } from "@/components/landing/product-page";
@@ -13,7 +14,7 @@ const principles = [
     number: "01",
     icon: MessageSquare,
     title: "Start where work already happens",
-    description: "Talk to Chusky from the channels you already use, then continue the same work from the web dashboard or terminal.",
+    description: "Talk to Chusky where work already happens, then continue the same work without losing your place.",
   },
   {
     number: "02",
@@ -40,7 +41,7 @@ export default function AboutPage() {
         </div>
 
         <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-          <div className="grid items-end gap-8 sm:gap-12 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid items-end gap-8 sm:gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.62fr)]">
             <div className="max-w-5xl">
               <span className="mb-6 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-8 sm:text-sm">
                 <span className="h-px w-8 bg-foreground/30" />
@@ -51,16 +52,27 @@ export default function AboutPage() {
                 <span className="text-muted-foreground">to put AI to work.</span>
               </h1>
             </div>
-            <p className="max-w-sm text-sm leading-relaxed text-muted-foreground sm:text-base lg:pb-3">
-              Chusky is an agent workspace for turning a message into reliable, connected work—without turning your day into another system to manage.
-            </p>
+            <div className="relative overflow-hidden rounded-[1.5rem] border border-foreground/10 bg-[#10182d] shadow-[0_24px_70px_-35px_rgba(7,15,35,0.65)]">
+              <div className="relative aspect-[4/3]">
+                <Image src="/chusky/chusky-poster.png" alt="Chusky helps turn chats into completed work" fill priority sizes="(max-width: 1024px) 100vw, 31vw" className="object-cover object-[center_46%]" />
+              </div>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#091229] via-[#091229]/65 to-transparent px-4 pb-4 pt-12 sm:px-5 sm:pb-5">
+                <p className="max-w-sm text-sm leading-relaxed text-white/80">Chusky is an agent workspace for turning a message into reliable, connected work—without turning your day into another system to manage.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="border-b border-foreground/10 py-14 sm:py-20 lg:py-28">
         <div className="mx-auto grid max-w-[1400px] gap-8 px-4 sm:gap-12 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-12">
-          <div>
+          <div className="space-y-6">
+            <div className="relative overflow-hidden rounded-[1.5rem] border border-foreground/10 bg-[#10182d]">
+              <div className="relative aspect-[4/3]">
+                <Image src="/chusky/chusky-wave.png" alt="Chusky mascot greeting you" fill sizes="(max-width: 1024px) 100vw, 36vw" className="object-cover" />
+              </div>
+              <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-[#0c1530]/80 px-3 py-1.5 font-mono text-[11px] text-white backdrop-blur">A thoughtful loop</div>
+            </div>
             <p className="text-sm font-mono text-muted-foreground">Why we built it</p>
             <div className="mt-6 flex h-12 w-12 items-center justify-center rounded-full border border-foreground/15">
               <Bot className="h-5 w-5" strokeWidth={1.5} />

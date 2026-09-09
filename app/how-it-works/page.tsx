@@ -5,7 +5,7 @@ import { ProductPageHero, ProductPageShell } from "@/components/landing/product-
 
 export const metadata: Metadata = {
   title: "How it works | Chusky AI Agent",
-  description: "See how Chusky connects your tools, understands intent, and executes work from Telegram or a linked terminal.",
+  description: "See how Chusky understands intent, connects the right tools, and turns requests into completed work.",
 };
 
 export default function HowItWorksPage() {
@@ -14,7 +14,8 @@ export default function HowItWorksPage() {
       <ProductPageHero
         eyebrow="How it works"
         title={<>Ask once.<br /><span className="text-muted-foreground">Ship more.</span></>}
-        description="Chusky turns a natural-language request into connected, observable work across your apps, remote workspace, and terminal."
+        description="Chusky turns a natural-language request into connected, visible work across your apps and the tools it needs to get the job done."
+        artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky moving a request through a connected workflow" }}
       />
       <HowItWorksSection />
       <InfrastructureSection />

@@ -60,7 +60,7 @@ export type ScratchpadNote = { key: string; content: string; updatedAt: string }
 // Browser requests stay on the frontend origin and are proxied by Next.js to
 // Chusky. This keeps Better Auth's session cookie first-party on Vercel.
 const apiBaseURL = typeof window === "undefined"
-  ? (process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:8080").replace(/\/+$/, "")
+  ? (process.env.NEXT_PUBLIC_AUTH_URL || (process.env.NODE_ENV === "production" ? "https://chusky.up.railway.app" : "http://localhost:8080")).replace(/\/+$/, "")
   : window.location.origin;
 
 export class ChuskyApiError extends Error {

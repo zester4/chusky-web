@@ -5,38 +5,38 @@ import { useEffect, useRef, useState } from "react";
 const features = [
   {
     number: "01",
-    title: "Instant Deployment",
-    description: "Push to production in seconds. Our edge network ensures your applications load instantly, anywhere in the world.",
+    title: "One request. The right tools.",
+    description: "Describe the outcome you need. Chusky finds the relevant capabilities and gets to work across your connected apps.",
     visual: "deploy",
   },
   {
     number: "02",
-    title: "AI-Native Workflows",
-    description: "Build intelligent applications with built-in AI capabilities. From inference to training, everything scales automatically.",
+    title: "An agent that can reason and act",
+    description: "Chusky can plan multi-step work, choose from multiple models, and carry a task through to a useful result.",
     visual: "ai",
   },
   {
     number: "03",
-    title: "Real-time Collaboration",
-    description: "Work together seamlessly. Live preview, instant feedback, and version control that actually makes sense.",
+    title: "A computer for real work",
+    description: "Give your agent a focused computer for research, files, code, browser tasks, and polished outputs such as documents and PDFs.",
     visual: "collab",
   },
   {
     number: "04",
-    title: "Enterprise Security",
-    description: "Bank-grade encryption, SOC 2 compliance, and granular access controls. Your data stays yours.",
+    title: "Private by design",
+    description: "Your conversations, notes, and work stay scoped to you, with clear controls around what the agent can do.",
     visual: "security",
   },
   {
     number: "05",
     title: "Every channel, one agent",
-    description: "Move between Telegram, CLI, Slack, WhatsApp, and Sendblue without splitting your agent’s core behavior. Each provider gets the right formatting, permissions, and delivery path.",
+    description: "Start a task from the places you already use, then pick it up from the web or your development environment without losing context.",
     visual: "ai",
   },
   {
     number: "06",
     title: "Durable by default",
-    description: "Reminders, recurring jobs, long-running tasks, triggers, and outbound messages survive retries and restarts with Redis and workflow-backed state.",
+    description: "Reminders, recurring jobs, long-running tasks, and updates stay on track—even when work takes more than one conversation.",
     visual: "deploy",
   },
   {
@@ -48,7 +48,7 @@ const features = [
   {
     number: "08",
     title: "Media that goes further",
-    description: "Send images, audio, documents, and generated artifacts through the right model path. R2 keeps files durable while providers receive safe HTTPS media URLs.",
+    description: "Turn ideas into images, audio, documents, spreadsheets, and PDFs—then keep the results ready when you need them.",
     visual: "collab",
   },
 ];
@@ -376,7 +376,7 @@ export function FeaturesSection() {
         </div>
 
         <div className="mt-12 grid gap-3 border-t border-foreground/10 pt-6 sm:grid-cols-3 lg:mt-16">
-          {[{ label: "Context", value: "Private sessions, memories, and scratchpad" }, { label: "Control", value: "Approvals before external side effects" }, { label: "Continuity", value: "Redis state, retries, and durable workflows" }].map((item) => (
+          {[{ label: "Context", value: "Private conversations, memory, and notes" }, { label: "Control", value: "Approvals before important actions" }, { label: "Continuity", value: "Work that keeps moving across every step" }].map((item) => (
             <div key={item.label} className="border border-foreground/10 p-4">
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{item.label}</span>
               <p className="mt-3 text-xs leading-relaxed sm:text-sm">{item.value}</p>

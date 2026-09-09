@@ -64,7 +64,7 @@ export function HeroSection() {
         >
           <span className="inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:text-sm">
             <span className="h-px w-6 bg-foreground/30 sm:w-8" />
-            Production-ready Telegram AI agent
+            Your AI agent, ready to work
           </span>
         </div>
         
@@ -108,8 +108,7 @@ export function HeroSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            Your toolkit to stop configuring and start innovating. 
-            Access 1,000+ tools through Composio, powered by any OpenRouter model. Connect apps, browse the web, run commands, and automate work from Telegram.
+            Bring Chusky the outcome you want. It can connect 1,000+ tools, work with your apps, browse the web, create files, and carry work from idea to done.
           </p>
           
           {/* CTAs */}

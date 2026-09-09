@@ -14,6 +14,7 @@ export default function PricingPage() {
         eyebrow="Pricing"
         title={<>Start free.<br /><span className="text-muted-foreground">Scale naturally.</span></>}
         description="Choose the level of access that fits your workflow. Start experimenting today, then add capacity as Chusky becomes part of your team."
+        artwork={{ src: "/chusky/chusky-wave.png", alt: "Chusky mascot waving hello" }}
       />
       <PricingSection />
     </ProductPageShell>

@@ -6,7 +6,7 @@ import { ProductPageHero, ProductPageShell } from "@/components/landing/product-
 
 export const metadata: Metadata = {
   title: "Features | Chusky AI Agent",
-  description: "Connect apps, discover tools, run commands, and automate work with Chusky from Telegram.",
+  description: "Connect apps, discover the right tools, create files, and automate work with Chusky.",
 };
 
 export default function FeaturesPage() {
@@ -15,7 +15,8 @@ export default function FeaturesPage() {
       <ProductPageHero
         eyebrow="What Chusky can do"
         title={<>One agent.<br /><span className="text-muted-foreground">1,000+ tools.</span></>}
-        description="Chusky brings your apps, shell commands, web browsing, and real-time workflows into one production-ready Telegram AI agent."
+        description="Chusky brings your apps, web research, files, and workflows together in one capable AI agent."
+        artwork={{ src: "/chusky/chusky-connected-tools.png", alt: "Chusky connecting work across apps and tools" }}
       />
       <FeaturesSection />
       <IntegrationsSection />

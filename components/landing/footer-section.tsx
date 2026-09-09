@@ -56,7 +56,7 @@ export function FooterSection() {
               </Link>
 
               <p className="mb-6 max-w-xs text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Chusky is a production-ready Telegram AI agent with access to 1,000+ tools via Composio.
+                Chusky is an AI agent that connects your work, handles the details, and helps you move from idea to done.
               </p>
 
               {/* Social Links */}

@@ -5,63 +5,55 @@ import { useEffect, useRef, useState } from "react";
 const steps = [
   {
     number: "I",
-    title: "Connect your tools",
-    description: "Integrate with your existing stack in minutes. We support 200+ data sources out of the box.",
-    code: `import { chusky } from '@chusky/core'
-
-chusky.connect({
-  source: 'your-database',
-  sync: true
-})`,
+    title: "Tell Chusky what you need",
+    description: "Start with the outcome—not a configuration screen. Chusky understands the request and identifies the capabilities it needs.",
+    code: `“Pull together a brief for next week’s launch.
+Include the latest decisions and open questions.”`,
   },
   {
     number: "II",
-    title: "Build your workflow",
-    description: "Design powerful automations with our visual builder or write code directly.",
-    code: `chusky.workflow('process', {
-  trigger: 'event',
-  actions: [
-    'validate',
-    'transform', 
-    'deliver'
-  ]
-})`,
+    title: "Chusky makes a plan",
+    description: "The agent breaks work into sensible steps, gathers the right context, and uses the tools your task calls for.",
+    code: `Plan
+01  Gather the latest context
+02  Research and organise the details
+03  Prepare a clear deliverable`,
   },
   {
     number: "III",
-    title: "Ship to production",
-    description: "Deploy globally with zero configuration. Your app goes live in under 30 seconds.",
-    code: `chusky.deploy({
-  target: 'production',
-  regions: 'auto'
-})
-
-// Deployed to 12 regions`,
+    title: "Work across the right tools",
+    description: "Chusky can research, browse, create files, work with data, and coordinate the moving parts of a real task.",
+    code: `Working
+• Reviewing sources
+• Preparing the document
+• Checking the final details`,
   },
   {
     number: "IV",
     title: "Keep context close",
     description: "Chusky keeps your private history, explicit memories, reminders, and scratchpad scoped to your account—not mixed into shared channel conversations.",
-    code: `session = chusky.session(user)
-session.memory.search("launch plan")
-session.scratchpad.read("next")`,
+    code: `Context
+• Your latest decisions
+• Relevant notes and preferences
+• What still needs attention`,
   },
   {
     number: "V",
     title: "Approve the important parts",
     description: "When work would send, publish, delete, or change something externally, Chusky pauses and asks you to approve the exact action.",
-    code: `approval = chusky.approval.pending()
-approval.review({ exact: true })
-approval.resume("approve")`,
+    code: `Ready for your review
+“Send the final proposal to the client?”
+
+[ Review details ]   [ Approve ]`,
   },
   {
     number: "VI",
-    title: "Deliver where you are",
-    description: "One agent can respond through Telegram, CLI, Slack, WhatsApp, or iMessage—with durable delivery, retries, and provider-aware formatting.",
-    code: `chusky.deliver({
-  channels: ['telegram', 'sendblue'],
-  durable: true
-})`,
+    title: "Bring the result back to you",
+    description: "Chusky delivers a clear answer, a finished file, or the next decision—wherever you choose to continue the work.",
+    code: `Complete
+Your launch brief is ready.
+
+Summary  •  Key decisions  •  Next steps`,
   },
 ];
 

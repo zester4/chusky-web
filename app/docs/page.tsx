@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const guides = [
   { icon: Sparkles, title: "Quickstart", description: "Install the SDK, authenticate an end user, create a thread, and stream your first response.", href: "#quickstart" },
   { icon: Code2, title: "Agent runs", description: "Understand threads, runs, streaming events, approvals, cancellation, and recovery.", href: "#runs" },
-  { icon: FileText, title: "Files and knowledge", description: "Upload verified files through R2 and attach them to image, document, and audio-aware runs.", href: "#files" },
+  { icon: FileText, title: "Files and knowledge", description: "Upload verified files and attach them to image, document, and audio-aware runs.", href: "#files" },
   { icon: Webhook, title: "Webhooks and tasks", description: "Receive durable notifications and build workflows that survive restarts and disconnected clients.", href: "#durable" },
 ];
 
@@ -22,6 +22,7 @@ export default function DocsPage() {
         eyebrow="Chusky documentation"
         title={<>Build with the agent.<br /><span className="text-muted-foreground">Keep the work durable.</span></>}
         description="Chusky gives developers a secure API and TypeScript SDK for building conversational products around a persistent, tool-using agent. Start in a server route, then add streaming, files, approvals, tasks, and webhooks as your product grows."
+        artwork={{ src: "/chusky/chusky-developer.png", alt: "Chusky working with code and developer infrastructure" }}
       />
 
       <section className="border-b border-foreground/10 py-12 sm:py-16 lg:py-24">
@@ -51,7 +52,7 @@ export default function DocsPage() {
       </section>
 
       <section id="files" className="border-b border-foreground/10 py-14 sm:py-20 lg:py-28">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:px-12"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">03 · Files</p><h2 className="mt-4 font-display text-4xl tracking-tight sm:text-6xl">Give the agent verified context.</h2><p className="mt-5 text-sm leading-relaxed text-muted-foreground">Files are uploaded directly to Cloudflare R2 using short-lived URLs. Chusky verifies ownership, size, and content type before a file reaches the model.</p></div><div className="space-y-3">{["Create an upload intent", "Upload bytes to the signed URL", "Complete server-side verification", "Attach the verified file ID to a run"].map((item) => <div key={item} className="flex items-center gap-3 border border-foreground/10 px-4 py-4 text-sm"><Check className="h-4 w-4 text-emerald-600" />{item}</div>)}</div></div>
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:px-12"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">03 · Files</p><h2 className="mt-4 font-display text-4xl tracking-tight sm:text-6xl">Give the agent verified context.</h2><p className="mt-5 text-sm leading-relaxed text-muted-foreground">Files are uploaded through short-lived, secure links. Chusky verifies ownership, size, and content type before a file reaches the model.</p></div><div className="space-y-3">{["Create an upload intent", "Upload to a secure link", "Complete server-side verification", "Attach the verified file ID to a run"].map((item) => <div key={item} className="flex items-center gap-3 border border-foreground/10 px-4 py-4 text-sm"><Check className="h-4 w-4 text-emerald-600" />{item}</div>)}</div></div>
       </section>
 
       <section id="durable" className="py-14 sm:py-20 lg:py-28"><div className="mx-auto flex max-w-6xl flex-col justify-between gap-8 px-4 sm:px-6 lg:flex-row lg:items-end lg:px-12"><div className="max-w-3xl"><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">04 · Keep building</p><h2 className="mt-4 font-display text-4xl tracking-tight sm:text-6xl">Tasks, webhooks, models, and more.</h2><p className="mt-5 text-sm leading-relaxed text-muted-foreground">Use the complete SDK documentation for model selection, file workflows, approvals, durable tasks, webhooks, security, errors, and production operations.</p></div><Link href="https://github.com/zester4/chusky-sdk/tree/main/docs" className="inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4">Open full SDK docs <ArrowRight className="h-4 w-4" /></Link></div></section>

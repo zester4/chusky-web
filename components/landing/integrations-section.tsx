@@ -7,14 +7,14 @@ const integrations = [
   { name: "Slack", category: "Communication" },
   { name: "Stripe", category: "Payments" },
   { name: "PostgreSQL", category: "Database" },
-  { name: "Redis", category: "Cache" },
+  { name: "Gmail", category: "Email" },
   { name: "AWS", category: "Cloud" },
   { name: "MongoDB", category: "Database" },
-  { name: "Vercel", category: "Hosting" },
+  { name: "Google Calendar", category: "Scheduling" },
   { name: "Figma", category: "Design" },
   { name: "Linear", category: "Project Management" },
   { name: "Notion", category: "Documentation" },
-  { name: "OpenAI", category: "AI/ML" },
+  { name: "Dropbox", category: "Files" },
 ];
 
 export function IntegrationsSection() {

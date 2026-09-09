@@ -2,7 +2,7 @@
 const chuskyApiOrigin = (
   process.env.CHUSKY_API_ORIGIN ||
   process.env.NEXT_PUBLIC_AUTH_URL ||
-  "http://localhost:8080"
+  (process.env.NODE_ENV === "production" ? "https://chusky.up.railway.app" : "http://localhost:8080")
 ).replace(/\/+$/, "")
 
 const nextConfig = {

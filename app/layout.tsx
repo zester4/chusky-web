@@ -22,11 +22,11 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Chusky AI Agent',
-  description: 'Chusky is a production-ready Telegram AI agent with access to 1,000+ tools via Composio, powered by any OpenRouter model.',
+  description: 'Chusky is an AI agent that connects 1,000+ tools and turns requests into completed work.',
   generator: 'v0.app',
   openGraph: {
     title: 'Chusky AI Agent',
-    description: 'Chusky is a production-ready Telegram AI agent with access to 1,000+ tools via Composio, powered by any OpenRouter model.',
+    description: 'Chusky is an AI agent that connects 1,000+ tools and turns requests into completed work.',
     type: 'website',
     images: [
       {

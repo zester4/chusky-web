@@ -2,6 +2,7 @@
 
 import { FormEvent, ReactNode, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
@@ -56,21 +57,13 @@ function AuthCard({ children, title, description }: { children: ReactNode; title
   );
 }
 
-function SocialButtons() {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <button type="button" className="flex h-11 items-center justify-center gap-2 border border-foreground/15 text-sm transition-colors hover:border-foreground/50"><span className="font-semibold">G</span> Continue with Google</button>
-      <button type="button" className="flex h-11 items-center justify-center gap-2 border border-foreground/15 text-sm transition-colors hover:border-foreground/50"><span className="font-semibold">⌘</span> Continue with GitHub</button>
-    </div>
-  );
-}
-
-function Divider() {
-  return <div className="my-6 flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground"><span className="h-px flex-1 bg-foreground/10" /> or continue with email <span className="h-px flex-1 bg-foreground/10" /></div>;
-}
-
 function SubmitButton({ children }: { children: ReactNode }) {
   return <Button type="submit" className="h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/90">{children}<ArrowRight size={15} /></Button>;
+}
+
+function authErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof TypeError) return "Chusky could not reach the authentication service. Check that the backend is running and try again.";
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function SignInCard() {
@@ -80,18 +73,23 @@ function SignInCard() {
     event.preventDefault();
     setBusy(true); setMessage("");
     const values = new FormData(event.currentTarget);
-    const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/app` });
-    setBusy(false);
-    if (result.error) setMessage("We couldn’t sign you in. Check your email and password and try again.");
-    else window.location.assign("/app");
+    try {
+      const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/app` });
+      if (result.error) setMessage(result.error.message || "We couldn’t sign you in. Check your email and password and try again.");
+      else window.location.assign("/app");
+    } catch (error) {
+      setMessage(authErrorMessage(error, "We couldn’t sign you in. Please try again."));
+    } finally {
+      setBusy(false);
+    }
   };
-  return <AuthCard title="Sign in" description="Use your Chusky account to continue."><SocialButtons /><Divider /><form onSubmit={submit} className="space-y-5"><Field label="Email address" id="email" type="email" autoComplete="email" placeholder="you@example.com" /><div><div className="mb-2 flex items-center justify-between"><label htmlFor="password" className="block text-sm font-medium">Password</label><Link href="/forgot-password" className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">Forgot password?</Link></div><Field label="" id="password" type="password" autoComplete="current-password" /></div><SubmitButton>{busy ? "Signing in…" : "Sign in"}</SubmitButton><p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">{message}</p></form><p className="mt-6 text-center text-sm text-muted-foreground">New to Chusky? <Link href="/sign-up" className="text-foreground underline underline-offset-4">Create an account</Link></p></AuthCard>;
+  return <AuthCard title="Sign in" description="Use your Chusky account to continue."><form onSubmit={submit} className="space-y-5"><Field label="Email address" id="email" type="email" autoComplete="email" placeholder="you@example.com" /><div><div className="mb-2 flex items-center justify-between"><label htmlFor="password" className="block text-sm font-medium">Password</label><Link href="/forgot-password" className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">Forgot password?</Link></div><Field label="" id="password" type="password" autoComplete="current-password" /></div><SubmitButton>{busy ? "Signing in…" : "Sign in"}</SubmitButton><p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">{message}</p></form><p className="mt-6 text-center text-sm text-muted-foreground">New to Chusky? <Link href="/sign-up" className="text-foreground underline underline-offset-4">Create an account</Link></p></AuthCard>;
 }
 
 function SignUpCard() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(""); const values = new FormData(event.currentTarget); const result = await authClient.signUp.email({ name: String(values.get("name") ?? ""), email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/verify-email/success` }); setBusy(false); if (result.error) setMessage(result.error.message || "We couldn’t create your account. Please try again."); else window.location.assign("/verify-email"); };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(""); const values = new FormData(event.currentTarget); try { const result = await authClient.signUp.email({ name: String(values.get("name") ?? ""), email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/verify-email/success` }); if (result.error) setMessage(result.error.message || "We couldn’t create your account. Please try again."); else window.location.assign("/verify-email"); } catch (error) { setMessage(authErrorMessage(error, "We couldn’t create your account. Please try again.")); } finally { setBusy(false); } };
   return <AuthCard title="Create your account" description="Start with the essentials. You can connect apps later."><form onSubmit={submit} className="space-y-5"><Field label="Name" id="name" autoComplete="name" placeholder="Morgan Lee" /><Field label="Email address" id="email" type="email" autoComplete="email" placeholder="you@example.com" /><Field label="Password" id="password" type="password" autoComplete="new-password" placeholder="At least 12 characters" /><label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground"><input type="checkbox" required className="mt-0.5 h-4 w-4 accent-foreground" /> I agree to the Chusky terms and understand that account access is protected by email verification.</label><SubmitButton>{busy ? "Creating account…" : "Create account"}</SubmitButton><p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">{message}</p></form><p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <Link href="/sign-in" className="text-foreground underline underline-offset-4">Sign in</Link></p></AuthCard>;
 }
 
@@ -125,7 +123,7 @@ export function AuthPage({ variant }: { variant: AuthVariant }) {
       <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-3 py-3 sm:px-6 sm:py-5 lg:px-10">
         <header className="flex items-center justify-between"><Link href="/" className="font-display text-2xl tracking-tight">chusky<span className="text-muted-foreground">.</span></Link><Link href="/" className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft size={14} /> Back to website</Link></header>
         <div className="grid flex-1 items-center gap-6 py-8 sm:gap-8 sm:py-12 lg:grid-cols-[1fr_420px] lg:gap-16 lg:py-16">
-          <div className="max-w-2xl"><span className="mb-5 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-6"><span className="h-px w-6 bg-foreground/30" />{content.eyebrow}</span><h1 className="font-display text-4xl leading-[0.92] tracking-tight sm:text-6xl md:text-7xl">{content.title}</h1><p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg">{content.description}</p><div className="mt-6 hidden gap-6 border-t border-foreground/10 pt-5 text-[11px] text-muted-foreground sm:flex"><span className="flex items-center gap-2"><Check size={13} /> Persistent context</span><span className="flex items-center gap-2"><Check size={13} /> Human approvals</span></div></div>
+          <div className="max-w-2xl"><span className="mb-5 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-6"><span className="h-px w-6 bg-foreground/30" />{content.eyebrow}</span><h1 className="font-display text-4xl leading-[0.92] tracking-tight sm:text-6xl md:text-7xl">{content.title}</h1><p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg">{content.description}</p><div className="mt-6 hidden gap-6 border-t border-foreground/10 pt-5 text-[11px] text-muted-foreground sm:flex"><span className="flex items-center gap-2"><Check size={13} /> Persistent context</span><span className="flex items-center gap-2"><Check size={13} /> Human approvals</span></div><div className="relative mt-7 hidden max-w-xl overflow-hidden rounded-2xl border border-foreground/10 bg-[#10182d] lg:block"><div className="relative aspect-[16/5]"><Image src="/chusky/chusky-connected-tools.png" alt="Chusky bringing connected tools together" fill sizes="42vw" className="object-cover object-right" /></div><span className="absolute left-4 top-4 rounded-full border border-white/15 bg-[#0c1530]/80 px-3 py-1.5 text-[11px] text-white backdrop-blur">Your work, connected</span></div></div>
           <div>{card}</div>
         </div>
         <footer className="flex flex-col gap-2 border-t border-foreground/10 pt-5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span>Private by default · Built for your work</span><span>© Chusky AI</span></footer>

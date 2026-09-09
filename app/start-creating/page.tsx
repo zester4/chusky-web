@@ -1,31 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Bot, Terminal, Zap } from "lucide-react";
+import { ArrowRight, Bot, MonitorCog, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPageHero, ProductPageShell } from "@/components/landing/product-page";
 
 export const metadata: Metadata = {
   title: "Start creating | Chusky AI Agent",
-  description: "Start using Chusky from Telegram or a linked terminal and connect your tools in minutes.",
+  description: "Start using Chusky, connect your tools, and move work forward in minutes.",
 };
 
 const startingPoints = [
   {
     icon: Bot,
-    title: "Connect Telegram",
+    title: "Start a conversation",
     description: "Give Chusky a task in natural language and let it find the right tools for the job.",
-    href: "#telegram",
+    href: "/sign-up",
   },
   {
-    icon: Terminal,
-    title: "Link your terminal",
-    description: "Continue the same Redis-backed session from a terminal with an optional isolated workspace.",
-    href: "#terminal",
+    icon: MonitorCog,
+    title: "Give your agent a computer",
+    description: "Let Chusky work with browsers, files, code, and documents in a focused environment built for getting things done.",
+    href: "/features",
   },
   {
     icon: Zap,
     title: "Explore the tools",
-    description: "Discover apps, triggers, shell commands, scheduling, and automations through one agent.",
+    description: "Discover 1,000+ connected tools, schedules, automations, and capable ways to move work forward.",
     href: "/features",
   },
 ];
@@ -36,7 +36,8 @@ export default function StartCreatingPage() {
       <ProductPageHero
         eyebrow="Start creating"
         title={<>Make work<br /><span className="text-muted-foreground">move faster.</span></>}
-        description="Chusky is the AI agent that brings your apps, tools, and workflows together. Start in Telegram, then keep going wherever you work."
+        description="Chusky is the AI agent that brings your apps, tools, and workflows together—so you can go from a request to a result in one place."
+        artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky helping work move from idea to delivery" }}
       />
       <section className="py-14 sm:py-20 lg:py-32">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">

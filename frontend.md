@@ -57,7 +57,7 @@ loading, offline, and empty states when a resource has no saved data.
 
 ### Required production configuration
 
-- Vercel needs `CHUSKY_API_ORIGIN=https://chusky.selithub.shop` so its same-
+- Vercel needs `CHUSKY_API_ORIGIN=https://chusky.up.railway.app` so its same-
   origin `/api/auth/*` and `/v1/*` rewrites reach the Oracle backend.
 - The Cloudflare R2 bucket needs a CORS rule permitting `PUT` with the
   `Content-Type` header from `https://chusky-web.vercel.app` and, once DNS is

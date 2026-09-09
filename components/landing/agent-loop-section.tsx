@@ -1,8 +1,8 @@
 const surfaces = [
-  { label: "Talk", title: "Telegram + iMessage", text: "Message Chusky where conversations already happen. Sendblue adds images, audio transcription, typing indicators, read receipts, and tapbacks." },
-  { label: "Work", title: "Tasks + Daytona", text: "Give Chusky a durable objective, then let it work through files, code, browsers, and isolated computer sessions without losing its place." },
+  { label: "Talk", title: "One agent, wherever you work", text: "Start with a simple message, then keep the conversation moving across the places your team already uses." },
+  { label: "Work", title: "An agent with its own computer", text: "Give Chusky an objective and let it work through files, browsers, code, and documents without losing its place." },
   { label: "Remember", title: "Memory + scratchpad", text: "Keep lasting facts explicit and temporary notes private. Chusky brings back only the context relevant to the request." },
-  { label: "Trust", title: "Approvals + delivery", text: "Review risky actions before they happen. Redis-backed outbox delivery and workflow retries keep important results moving." },
+  { label: "Trust", title: "Approvals + follow-through", text: "Review important actions before they happen. Chusky keeps work moving and makes the outcome clear." },
 ];
 
 export function AgentLoopSection() {
