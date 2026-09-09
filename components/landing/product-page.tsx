@@ -21,7 +21,7 @@ export function ProductPageHero({ eyebrow, title, description, artwork }: Produc
       <div className="absolute inset-0 pointer-events-none opacity-30">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--foreground)_1px,transparent_1px),linear-gradient(to_bottom,var(--foreground)_1px,transparent_1px)] bg-[size:72px_72px] opacity-[0.04]" />
         <div className="absolute -left-24 top-28 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-orange-300/20 blur-3xl" />
+        <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-chusky-amber/20 blur-3xl" />
       </div>
       <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         <div className={artwork ? "grid items-center gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.8fr)] lg:gap-14" : "max-w-4xl"}>
@@ -60,12 +60,12 @@ export function ProductPageHero({ eyebrow, title, description, artwork }: Produc
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(145deg,transparent_52%,rgba(8,18,39,0.48))]" />
                 <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#0c1530]/80 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur sm:left-5 sm:top-5">
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-300" aria-hidden="true" />
+                  <Sparkles className="h-3.5 w-3.5 text-chusky-amber" aria-hidden="true" />
                   Chusky at work
                 </div>
-                <span className="chusky-orbit absolute -right-3 bottom-8 h-12 w-12 rounded-full border-[7px] border-cyan-300/90 bg-[#10204a] shadow-[0_0_24px_rgba(103,232,249,0.7)]" aria-hidden="true" />
-                <span className="absolute right-10 top-12 h-3 w-10 rotate-[-35deg] rounded-full bg-orange-400" aria-hidden="true" />
-                <span className="absolute right-5 top-[4.6rem] h-3 w-6 rotate-[-35deg] rounded-full bg-orange-400" aria-hidden="true" />
+                <span className="chusky-orbit absolute -right-3 bottom-8 h-12 w-12 rounded-full border-[7px] border-chusky-amber bg-[#10204a] shadow-[0_0_24px_rgba(246,164,0,0.65)]" aria-hidden="true" />
+                <span className="absolute right-10 top-12 h-3 w-10 rotate-[-35deg] rounded-full bg-chusky-amber" aria-hidden="true" />
+                <span className="absolute right-5 top-[4.6rem] h-3 w-6 rotate-[-35deg] rounded-full bg-chusky-amber" aria-hidden="true" />
               </div>
             </div>
           )}

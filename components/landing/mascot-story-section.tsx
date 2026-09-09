@@ -29,7 +29,7 @@ export function MascotStorySection() {
           <div className="mt-6 grid gap-2 sm:grid-cols-3">
             {moments.map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-2 rounded-xl border border-foreground/10 bg-background px-3 py-3 text-xs font-medium sm:flex-col sm:items-start sm:gap-3 sm:px-4">
-                <Icon className="h-4 w-4 text-orange-500" strokeWidth={1.75} aria-hidden="true" />
+                <Icon className="h-4 w-4 text-chusky-amber" strokeWidth={1.75} aria-hidden="true" />
                 {label}
               </div>
             ))}

@@ -49,7 +49,7 @@ export function Navigation() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group" aria-label="Chusky home">
             <span className={`font-display tracking-tight transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>Chusky</span>
-            <span className="flex gap-0.5 pb-2" aria-hidden="true"><i className="h-1.5 w-1.5 rounded-full bg-orange-400" /><i className="h-1.5 w-1.5 rounded-full bg-orange-400" /></span>
+            <span className="flex gap-0.5 pb-2" aria-hidden="true"><i className="h-1.5 w-1.5 rounded-full bg-chusky-amber" /><i className="h-1.5 w-1.5 rounded-full bg-chusky-amber" /></span>
             <span className={`text-muted-foreground font-mono transition-all duration-500 ${isScrolled ? "text-[10px] mt-0.5" : "text-xs mt-1"}`}>TM</span>
           </Link>
 

@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 
 const integrations = [
-  { name: "GitHub", category: "Version Control" },
-  { name: "Slack", category: "Communication" },
-  { name: "Stripe", category: "Payments" },
-  { name: "PostgreSQL", category: "Database" },
-  { name: "Gmail", category: "Email" },
-  { name: "AWS", category: "Cloud" },
-  { name: "MongoDB", category: "Database" },
-  { name: "Google Calendar", category: "Scheduling" },
-  { name: "Figma", category: "Design" },
-  { name: "Linear", category: "Project Management" },
-  { name: "Notion", category: "Documentation" },
-  { name: "Dropbox", category: "Files" },
+  { name: "GitHub", category: "Version Control", logo: "/logos/github-official.svg" },
+  { name: "Slack", category: "Communication", logo: "/logos/brand-slack.svg" },
+  { name: "Stripe", category: "Payments", logo: "/logos/brand-stripe.svg" },
+  { name: "PostgreSQL", category: "Database", logo: "/logos/brand-postgresql.svg" },
+  { name: "Gmail", category: "Email", logo: "/logos/brand-gmail.svg" },
+  { name: "AWS", category: "Cloud", logo: "/logos/brand-aws.svg" },
+  { name: "MongoDB", category: "Database", logo: "/logos/brand-mongodb.svg" },
+  { name: "Google Calendar", category: "Scheduling", logo: "/logos/brand-google-calendar.svg" },
+  { name: "Figma", category: "Design", logo: "/logos/figma.svg" },
+  { name: "Linear", category: "Project Management", logo: "/logos/brand-linear.svg" },
+  { name: "Notion", category: "Documentation", logo: "/logos/notion.svg" },
+  { name: "Dropbox", category: "Files", logo: "/logos/brand-dropbox.svg" },
 ];
 
 export function IntegrationsSection() {
@@ -69,10 +70,11 @@ export function IntegrationsSection() {
                   key={`${integration.name}-${setIndex}`}
                   className="shrink-0 border border-foreground/10 px-5 py-4 transition-all duration-300 group hover:border-foreground/30 hover:bg-foreground/[0.02] sm:px-8 sm:py-6"
                 >
-                  <div className="text-lg font-medium group-hover:translate-x-1 transition-transform">
+                  <div className="flex items-center gap-3 text-lg font-medium transition-transform group-hover:translate-x-1">
+                    <Image src={integration.logo} alt="" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
                     {integration.name}
                   </div>
-                  <div className="text-sm text-muted-foreground">{integration.category}</div>
+                  <div className="ml-10 text-sm text-muted-foreground">{integration.category}</div>
                 </div>
               ))}
             </div>
@@ -90,10 +92,11 @@ export function IntegrationsSection() {
                   key={`${integration.name}-reverse-${setIndex}`}
                   className="shrink-0 border border-foreground/10 px-5 py-4 transition-all duration-300 group hover:border-foreground/30 hover:bg-foreground/[0.02] sm:px-8 sm:py-6"
                 >
-                  <div className="text-lg font-medium group-hover:translate-x-1 transition-transform">
+                  <div className="flex items-center gap-3 text-lg font-medium transition-transform group-hover:translate-x-1">
+                    <Image src={integration.logo} alt="" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
                     {integration.name}
                   </div>
-                  <div className="text-sm text-muted-foreground">{integration.category}</div>
+                  <div className="ml-10 text-sm text-muted-foreground">{integration.category}</div>
                 </div>
               ))}
             </div>

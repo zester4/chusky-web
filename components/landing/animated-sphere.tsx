@@ -14,6 +14,10 @@ export function AnimatedSphere() {
     if (!ctx) return;
 
     const chars = "░▒▓█▀▄▌▐│─┤├┴┬╭╮╰╯";
+    const amber = getComputedStyle(document.documentElement)
+      .getPropertyValue("--chusky-amber-rgb")
+      .trim()
+      .replace(/\s+/g, ", ") || "246, 164, 0";
     let time = 0;
 
     const resize = () => {
@@ -77,7 +81,7 @@ export function AnimatedSphere() {
       // Draw points
       points.forEach((point) => {
         const alpha = 0.2 + (point.z + 1) * 0.4;
-        ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+        ctx.fillStyle = `rgba(${amber}, ${alpha})`;
         ctx.fillText(point.char, point.x, point.y);
       });
 
