@@ -42,8 +42,10 @@ export type AccountOverview = {
 };
 export type TelegramLinkCode = { code: string; expiresAt: string };
 export type Model = { id: string; name: string };
-export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string };
+export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string; accountCount?: number; aliases?: string[] };
 export type Trigger = { id: string; slug: string; status: string; config: Record<string, unknown> };
+export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; instructions?: string; toolkit: { slug: string; name: string; logo?: string }; config: Record<string, unknown> };
+export type TriggerToolkit = { slug: string; name: string; logo?: string; triggerCount: number; connected: boolean; accountCount: number };
 export type Tool = { slug: string; description: string; source: "native" | "composio"; approval?: "auto" | "approval_required"; toolkit?: string; connected?: boolean };
 export type Skill = { name: string; description: string; path: string; bytes?: number; updatedAt?: number | string; files?: number };
 export type SkillFile = { name?: string; path: string; bytes: number; binary: boolean; content?: string; truncated?: boolean };
@@ -192,7 +194,11 @@ export const chuskyApi = {
   },
   triggers: {
     list: () => request<Page<Trigger>>("/triggers"),
-    create: (slug: string, triggerConfig: Record<string, unknown> = {}) => request<Trigger>("/triggers", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ slug, triggerConfig }) }),
+    catalogue: {
+      toolkits: (connectedOnly = false) => request<{ data: TriggerToolkit[] }>(`/triggers/catalog/toolkits?connectedOnly=${connectedOnly}`),
+      types: (toolkit: string, page = 1, pageSize = 50) => request<{ data: TriggerCatalogueItem[]; page: number; pageSize: number; total: number; totalPages: number }>(`/triggers/catalog/toolkits/${encodeURIComponent(toolkit)}?page=${page}&pageSize=${pageSize}`),
+    },
+    create: (slug: string, triggerConfig: Record<string, unknown> = {}, connectedAccountId?: string) => request<Trigger>("/triggers", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ slug, triggerConfig, ...(connectedAccountId ? { connectedAccountId } : {}) }) }),
     setEnabled: (id: string, enabled: boolean) => request<unknown>(`/triggers/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ enabled }) }),
     remove: (id: string) => request<void>(`/triggers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },

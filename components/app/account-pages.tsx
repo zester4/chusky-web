@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, RefreshCw, RotateCcw, ShieldCheck, Trash2, Webhook, Zap } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Model, type TelegramLinkCode, type Toolkit, type Trigger } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type Model, type TelegramLinkCode, type Toolkit, type Trigger, type TriggerCatalogueItem, type TriggerToolkit } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -44,7 +44,7 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "jobs") return <Card>{data.jobs.length ? data.jobs.map((item) => <Row key={item.id} icon={<RotateCcw size={15} />} title={item.text} detail={item.cron} meta={`Created ${date(item.createdAt)}`} status={item.status} />) : <Empty>No recurring jobs saved yet.</Empty>}</Card>;
   if (kind === "memory") return <Card>{data.memory.length ? data.memory.map((item) => <Row key={item.id} icon={<Zap size={15} />} title={item.key} detail={item.value} meta={`${item.category} · ${Math.round(item.confidence * 100)}% confidence · ${date(item.updatedAt)}`} />) : <Empty>No explicit memories saved yet.</Empty>}</Card>;
   if (kind === "scratchpad") return <Card>{data.scratchpad.length ? data.scratchpad.map((item) => <Row key={item.key} icon={<ExternalLink size={15} />} title={item.key} detail={item.content} meta={`Updated ${date(item.updatedAt)}`} />) : <Empty>Your scratchpad is empty.</Empty>}</Card>;
-  if (kind === "triggers") return <TriggersPanel />;
+  if (kind === "triggers") return <ComprehensiveTriggersPanel />;
   if (kind === "devices") return <Card>{data.devices.length ? data.devices.map((item) => <Row key={item.name} icon={<Laptop size={15} />} title={item.name} detail={`Last seen ${date(item.lastSeenAt)}`} meta={`Linked ${date(item.createdAt)}`} status="Active" />) : <Empty>No CLI devices are linked.</Empty>}</Card>;
   if (kind === "workspace") return <Card className="p-4">{data.workspace ? <div className="space-y-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center border border-foreground/10"><Laptop size={17} /></span><div className="min-w-0"><h2 className="truncate text-xs font-medium">{data.workspace.name}</h2><p className="mt-1 truncate text-[11px] text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-3 text-[11px] sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No Daytona workspace has been created for this account.</Empty>}</Card>;
   return <div className="grid gap-4 lg:grid-cols-2"><SettingsPanel initialModel={data.model} initialVoice={data.voiceReplies} /><TelegramLink linked={data.telegramLink.linked} /><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
@@ -66,15 +66,84 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
   return <div className="space-y-3.5"><Card><div className="border-b border-foreground/10 px-3.5 py-2.5 text-[11px] text-muted-foreground sm:px-4">Composio apps · connection links open securely in a new tab</div>{items.length ? items.map((item) => <div key={item.slug} className="flex min-w-0 items-center gap-2.5 border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex h-8 w-8 shrink-0 items-center justify-center border border-foreground/10 text-xs">{item.name.slice(0, 1)}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{item.name}</p><p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{item.slug}</p></div>{item.connected ? <Status>Connected</Status> : <Button secondary disabled={busy === item.slug} onClick={() => void connect(item.slug)}>{busy === item.slug ? "Opening…" : "Connect"}</Button>}</div>) : <Empty>{error || "Loading connected apps…"}</Empty>}</Card><Card className="p-4 text-xs text-muted-foreground sm:p-5">{connectedChannels.length ? `${connectedChannels.length} verified channel connection${connectedChannels.length === 1 ? "" : "s"} also available.` : "Channel connections are managed separately from Composio apps."}{error && <p className="mt-2 text-amber-700">{error}</p>}</Card></div>;
 }
 
-function TriggersPanel() {
-  const [items, setItems] = useState<Trigger[]>([]); const [slug, setSlug] = useState(""); const [config, setConfig] = useState("{}"); const [busy, setBusy] = useState<string>(); const [error, setError] = useState<string>(); const [confirmId, setConfirmId] = useState<string>();
-  const load = async () => { try { setItems((await chuskyApi.triggers.list()).data); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load triggers."); } };
+function ComprehensiveTriggersPanel() {
+  const [items, setItems] = useState<Trigger[]>([]);
+  const [toolkits, setToolkits] = useState<TriggerToolkit[]>([]);
+  const [types, setTypes] = useState<TriggerCatalogueItem[]>([]);
+  const [toolkit, setToolkit] = useState("");
+  const [trigger, setTrigger] = useState("");
+  const [config, setConfig] = useState("{}");
+  const [busy, setBusy] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [confirmId, setConfirmId] = useState<string>();
+
+  const load = async () => {
+    setError(undefined);
+    try {
+      const [owned, catalogue] = await Promise.all([chuskyApi.triggers.list(), chuskyApi.triggers.catalogue.toolkits(false)]);
+      setItems(owned.data);
+      setToolkits(catalogue.data);
+      setToolkit((current) => current || catalogue.data[0]?.slug || "");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load the trigger catalogue.");
+    }
+  };
   useEffect(() => { void load(); }, []);
-  const create = async () => { setBusy("create"); setError(undefined); try { const parsed = JSON.parse(config); await chuskyApi.triggers.create(slug.trim().toUpperCase(), parsed); setSlug(""); setConfig("{}"); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Trigger configuration must be valid JSON."); } finally { setBusy(undefined); } };
-  const toggle = async (item: Trigger) => { setBusy(item.id); try { await chuskyApi.triggers.setEnabled(item.id, item.status.toLowerCase() !== "active" && item.status.toLowerCase() !== "enabled"); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update trigger."); } finally { setBusy(undefined); } };
+  useEffect(() => {
+    if (!toolkit) { setTypes([]); setTrigger(""); return; }
+    let active = true;
+    setTypes([]); setTrigger("");
+    void chuskyApi.triggers.catalogue.types(toolkit).then(async (result) => {
+      if (!active) return;
+      const remaining = result.totalPages > 1
+        ? await Promise.all(Array.from({ length: result.totalPages - 1 }, (_, index) => chuskyApi.triggers.catalogue.types(toolkit, index + 2)))
+        : [];
+      if (!active) return;
+      const allTypes = [result, ...remaining].flatMap((page) => page.data);
+      setTypes(allTypes);
+      setTrigger(allTypes[0]?.token || "");
+      setConfig("{}");
+    }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Could not load trigger types."); });
+    return () => { active = false; };
+  }, [toolkit]);
+
+  const selectedType = types.find((item) => item.token === trigger);
+  const selectedToolkit = toolkits.find((item) => item.slug === toolkit);
+  const required = Array.isArray(selectedType?.config.required) ? selectedType.config.required.filter((field): field is string => typeof field === "string") : [];
+  const create = async () => {
+    if (!selectedType || !selectedToolkit?.connected) return;
+    setBusy("create"); setError(undefined);
+    try {
+      const parsed = JSON.parse(config) as unknown;
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("Trigger configuration must be a JSON object.");
+      const missing = required.filter((field) => !(field in parsed));
+      if (missing.length) throw new Error(`Add the required field${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}.`);
+      await chuskyApi.triggers.create(selectedType.slug, parsed as Record<string, unknown>);
+      setConfig("{}");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Trigger configuration must be valid JSON.");
+    } finally { setBusy(undefined); }
+  };
+  const toggle = async (item: Trigger) => { setBusy(item.id); try { await chuskyApi.triggers.setEnabled(item.id, !["active", "enabled"].includes(item.status.toLowerCase())); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update trigger."); } finally { setBusy(undefined); } };
   const remove = async (id: string) => { setBusy(id); try { await chuskyApi.triggers.remove(id); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not delete trigger."); } finally { setBusy(undefined); } };
   const confirmedTrigger = items.find((item) => item.id === confirmId);
-  return <div className="space-y-3.5"><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Create trigger</p><div className="mt-3 grid gap-2.5 md:grid-cols-[1fr_1.4fr_auto]"><input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="GITHUB_COMMIT_EVENT" className="min-h-9 min-w-0 border border-foreground/15 bg-transparent px-2.5 py-2 text-xs outline-none" /><input value={config} onChange={(event) => setConfig(event.target.value)} placeholder='{"repo":"owner/name"}' className="min-h-9 min-w-0 border border-foreground/15 bg-transparent px-2.5 py-2 font-mono text-xs outline-none" /><Button disabled={!slug.trim() || busy === "create"} onClick={() => void create()}>{busy === "create" ? "Creating…" : "Create"}</Button></div>{error && <p className="mt-3 text-xs text-amber-700">{error}</p>}</Card><Card>{items.length ? items.map((item) => <div key={item.id} className="flex min-w-0 flex-col gap-2.5 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Webhook size={15} className="shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="break-all text-xs font-medium">{item.slug || item.id}</p><p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">{item.id}</p></div><div className="flex flex-wrap items-center gap-2"><Status tone={item.status.toLowerCase() === "active" || item.status.toLowerCase() === "enabled" ? "green" : "gray"}>{item.status}</Status><Button secondary disabled={busy === item.id} onClick={() => void toggle(item)}>{item.status.toLowerCase() === "active" || item.status.toLowerCase() === "enabled" ? "Disable" : "Enable"}</Button><Button secondary disabled={busy === item.id} onClick={() => setConfirmId(item.id)}><Trash2 size={12} /> Delete</Button></div></div>) : <Empty>No triggers yet. Create one above or ask Chusky in Telegram.</Empty>}</Card>{confirmedTrigger && <ConfirmDialog open={Boolean(confirmId)} onOpenChange={(open) => !open && setConfirmId(undefined)} title={`Delete ${confirmedTrigger.slug || confirmedTrigger.id}?`} description="This trigger and its configuration will be permanently removed." confirmLabel="Delete trigger" destructive onConfirm={() => { const id = confirmedTrigger.id; setConfirmId(undefined); return remove(id); }} />}</div>;
+  return <div className="space-y-3.5">
+    <Card className="p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Provider-backed trigger catalogue</p><p className="mt-1 text-xs text-muted-foreground">Choose from the same comprehensive Composio trigger types used by Telegram.</p></div><span className="font-mono text-[10px] text-muted-foreground">{toolkits.length} apps · {types.length} trigger types</span></div>
+      <div className="mt-4 grid gap-2.5 md:grid-cols-[1fr_1.4fr_auto]">
+        <select value={toolkit} onChange={(event) => setToolkit(event.target.value)} className="min-h-9 min-w-0 border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Choose an app</option>{toolkits.map((item) => <option key={item.slug} value={item.slug}>{item.name} · {item.triggerCount} triggers{item.connected ? " · connected" : " · connect first"}</option>)}</select>
+        <select value={trigger} onChange={(event) => { setTrigger(event.target.value); setConfig("{}"); }} disabled={!types.length} className="min-h-9 min-w-0 border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Choose an event</option>{types.map((item) => <option key={item.token} value={item.token}>{item.name}</option>)}</select>
+        <Button disabled={!selectedType || !selectedToolkit?.connected || busy === "create"} onClick={() => void create()}>{busy === "create" ? "Creating…" : "Create trigger"}</Button>
+      </div>
+      {selectedType && <div className="mt-3 border border-foreground/10 bg-foreground/[0.02] p-3"><p className="text-xs font-medium">{selectedType.name}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{selectedType.description}</p>{selectedType.instructions && <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{selectedType.instructions}</p>}<p className="mt-2 font-mono text-[9px] text-muted-foreground">{selectedType.slug}{required.length ? ` · required: ${required.join(", ")}` : " · no required configuration"}</p></div>}
+      <textarea value={config} onChange={(event) => setConfig(event.target.value)} disabled={!selectedType} placeholder='{"repo":"owner/name"}' rows={3} className="mt-2.5 w-full resize-y border border-foreground/15 bg-transparent px-2.5 py-2 font-mono text-xs outline-none disabled:opacity-50" />
+      {!selectedToolkit?.connected && toolkit && <p className="mt-2 text-[11px] text-amber-700">Connect this app from Connected apps before creating its trigger.</p>}
+      {error && <p className="mt-3 text-xs text-amber-700">{error}</p>}
+    </Card>
+    <Card>{items.length ? items.map((item) => <div key={item.id} className="flex min-w-0 flex-col gap-2.5 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Webhook size={15} className="shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="break-all text-xs font-medium">{item.slug || item.id}</p><p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">{item.id}</p></div><div className="flex flex-wrap items-center gap-2"><Status tone={["active", "enabled"].includes(item.status.toLowerCase()) ? "green" : "gray"}>{item.status}</Status><Button secondary disabled={busy === item.id} onClick={() => void toggle(item)}>{["active", "enabled"].includes(item.status.toLowerCase()) ? "Disable" : "Enable"}</Button><Button secondary disabled={busy === item.id} onClick={() => setConfirmId(item.id)}><Trash2 size={12} /> Delete</Button></div></div>) : <Empty>No triggers yet. Choose a provider-backed event above or ask Chusky in Telegram.</Empty>}</Card>
+    {confirmedTrigger && <ConfirmDialog open={Boolean(confirmId)} onOpenChange={(open) => !open && setConfirmId(undefined)} title={`Delete ${confirmedTrigger.slug || confirmedTrigger.id}?`} description="This trigger and its configuration will be permanently removed." confirmLabel="Delete trigger" destructive onConfirm={() => { const id = confirmedTrigger.id; setConfirmId(undefined); return remove(id); }} />}
+  </div>;
 }
 
 function TelegramLink({ linked }: { linked: boolean }) {

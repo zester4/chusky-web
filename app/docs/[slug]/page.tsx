@@ -26,13 +26,17 @@ const groups = ["Getting started", "Core concepts", "Guides", "Reference", "Prod
 
 export function generateStaticParams() { return docs.map(({ slug }) => ({ slug })); }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const doc = docs.find((item) => item.slug === params.slug);
+type DocumentationPageProps = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: DocumentationPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const doc = docs.find((item) => item.slug === slug);
   return { title: `${doc?.title ?? "Documentation"} | Chusky`, description: doc?.description ?? "Chusky developer documentation." };
 }
 
-export default function DocumentationPage({ params }: { params: { slug: string } }) {
-  const doc = docs.find((item) => item.slug === params.slug) ?? docs[0];
+export default async function DocumentationPage({ params }: DocumentationPageProps) {
+  const { slug } = await params;
+  const doc = docs.find((item) => item.slug === slug) ?? docs[0];
   const index = docs.findIndex((item) => item.slug === doc.slug);
   const previous = docs[index - 1];
   const next = docs[index + 1];
