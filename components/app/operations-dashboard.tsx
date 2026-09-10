@@ -5,8 +5,8 @@ import { Activity, AlertTriangle, Check, CircleDot, Clock3, Database, ExternalLi
 import { chuskyApi, type AccountOverview, type HealthSnapshot } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
-const labels: Record<string, string> = { redis: "Redis persistence", qstash: "QStash workflows", sendblue: "Sendblue iMessage", telegram: "Telegram bot" };
-const channelLabels: Record<string, string> = { telegram: "Telegram", cli: "CLI", slack: "Slack", whatsapp: "WhatsApp", sendblue: "Sendblue" };
+const labels: Record<string, string> = { redis: "Redis persistence", qstash: "QStash workflows", composioTriggers: "Composio triggers", sendblue: "Sendblue iMessage", facetime: "FaceTime bridge", twilio: "Twilio voice", twilioSms: "Twilio SMS", xchat: "X Chat", telegram: "Telegram bot" };
+const channelLabels: Record<string, string> = { telegram: "Telegram", cli: "CLI", slack: "Slack", whatsapp: "WhatsApp", sendblue: "Sendblue", sms: "SMS", xchat: "X Chat" };
 
 function tone(value: string): "green" | "amber" | "gray" { return value === "ok" || value === "configured" ? "green" : value === "disabled" ? "gray" : "amber"; }
 function formatTime(value?: string) { return value ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "No failures recorded"; }

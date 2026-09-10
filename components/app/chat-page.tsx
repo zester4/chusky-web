@@ -52,6 +52,7 @@ const suggestions = [
 export function ChatPage() {
   const searchParams = useSearchParams();
   const requestedThreadId = searchParams.get("thread");
+  const requestedNew = searchParams.get("new") === "1";
   const [thread, setThread] = useState<Thread>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -81,7 +82,7 @@ export function ChatPage() {
         const page = await chuskyApi.threads.list({ limit: 1 });
         const current = requestedThreadId
           ? await chuskyApi.threads.get(requestedThreadId)
-          : page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
+          : requestedNew ? await chuskyApi.threads.create({ source: "web-dashboard" }) : page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
         if (active) {
           setThread(current);
           setStatus("ready");
@@ -89,10 +90,13 @@ export function ChatPage() {
         const runs = await chuskyApi.threads.runs(current.id, { limit: 50 });
         if (active) {
           const restored: Message[] = [];
-          for (const run of runs.data) {
+          for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
             if (run.input || run.attachments?.length) restored.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
             if (run.output || run.status === "requires_approval") {
-              restored.push({ role: "assistant", text: run.output || "This run is awaiting approval.", time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false });
+              const approval = run.status === "requires_approval" && run.approvalId
+                ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
+                : undefined;
+              restored.push({ role: "assistant", text: run.output || "This run is awaiting approval.", time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
             }
           }
           setMessages(restored);
@@ -260,7 +264,7 @@ export function ChatPage() {
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Bot size={14} /></div>
           <div className="min-w-0 max-w-[15rem] sm:max-w-[20rem]">
-            <div className="flex items-center gap-2"><h1 className="truncate text-xs font-medium">{thread ? "New conversation" : "Connecting to Chusky"}</h1><span className={status === "ready" ? "rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{status === "ready" ? "Live" : status === "offline" ? "Offline" : "Connecting"}</span></div>
+            <div className="flex items-center gap-2"><h1 className="truncate text-xs font-medium">{thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky"}</h1><span className={status === "ready" ? "rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{status === "ready" ? "Live" : status === "offline" ? "Offline" : "Connecting"}</span></div>
             <p className="truncate text-[10px] text-muted-foreground">Private workspace · backed by your Chusky session</p>
           </div>
           <div className="flex min-w-0 items-center gap-1.5 border-l border-foreground/10 pl-2">
