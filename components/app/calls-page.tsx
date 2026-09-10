@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, LoaderCircle, Phone, RefreshCw, ShieldCheck } from "lucide-react";
-import { chuskyApi, type CallApproval, type CallRecord, ChuskyApiError } from "@/lib/chusky-api";
+import { chuskyApi, type CallApproval, type CallRecord } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -18,7 +18,7 @@ export function CallsPage() {
   useEffect(() => { void load(); }, []);
   const requestCall = async () => { setBusy("request"); setError(undefined); try { const next = await chuskyApi.account.calls.request({ phoneNumber: phoneNumber.trim(), purpose: purpose.trim() }); setApproval(next); setPhoneNumber(""); setPurpose(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not request a call."); } finally { setBusy(undefined); } };
   const decide = async (decision: "approve" | "deny") => { if (!approval) return; setBusy(decision); setError(undefined); try { await chuskyApi.approvals.decide(approval.id, decision); setApproval(undefined); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update the approval."); } finally { setBusy(undefined); } };
-  const setupRequired = error instanceof ChuskyApiError && error.code === "workspace_link_required";
+  const setupRequired = error?.toLowerCase().includes("link your telegram") ?? false;
   return <>
     <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Request a Twilio phone call from Chusky. Every call requires a separate approval before it can dial." action={<Button secondary onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button>} />
     {error && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 sm:mb-5 sm:p-4"><div className="flex gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><div><p>{error}</p>{setupRequired && <p className="mt-1.5 text-amber-900/70">Open Settings and link the verified Telegram account that owns your Chusky workspace first.</p>}</div></div></Card>}

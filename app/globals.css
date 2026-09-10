@@ -40,6 +40,9 @@
   --sidebar-ring: oklch(0.708 0 0);
   --chusky-amber: #f6a400;
   --chusky-amber-rgb: 246 164 0;
+  --font-instrument: 'Instrument Sans', system-ui, sans-serif;
+  --font-instrument-serif: 'Instrument Serif', Georgia, serif;
+  --font-jetbrains: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 @theme inline {

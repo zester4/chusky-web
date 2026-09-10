@@ -73,7 +73,7 @@ export function ChatPage() {
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const noticeTimerRef = useRef<number>();
+  const noticeTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -108,7 +108,7 @@ export function ChatPage() {
       }
     })();
     return () => { active = false; };
-  }, [requestedThreadId]);
+  }, [requestedThreadId, requestedNew]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -144,7 +144,7 @@ export function ChatPage() {
 
   const toggleVoiceInput = () => {
     const Recognition = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
-    if (!Recognition) return;
+    if (!Recognition) { showNotice("Voice input is not supported in this browser.", "info"); return; }
     if (listening) { setListening(false); return; }
     const recognition = new Recognition();
     recognition.lang = navigator.language || "en-US";
@@ -177,7 +177,8 @@ export function ChatPage() {
     updateLastAssistant({ approval: { id: approvalId, toolSlug: "", expiresAt: "", deciding: true } });
     try {
       const run = await chuskyApi.approvals.decide(approvalId, decision);
-      updateLastAssistant({ text: decision === "approve" ? (run.output || "Approved and completed.") : "Action denied.", approval: undefined, pending: false });
+      const output = "output" in run && run.output ? run.output : "text" in run && run.text ? run.text : undefined;
+      updateLastAssistant({ text: decision === "approve" ? (output || "Approved and completed.") : "Action denied.", approval: undefined, pending: false });
     } catch {
       showNotice("That approval could not be completed. It may have expired or already been decided.");
       updateLastAssistant({ approval: undefined, pending: false });
@@ -274,7 +275,7 @@ export function ChatPage() {
             <select id="chat-duration" value={runDuration} onChange={(event) => setRunDuration(event.target.value as DurationBudget)} className="rounded-md border border-foreground/10 bg-background px-2 py-1.5 text-[10px] outline-none hover:border-foreground/25 focus:border-foreground/40">{["5m", "30m", "1h", "3h", "6h", "3d", "1w"].map((duration) => <option key={duration} value={duration}>{duration}</option>)}</select>
           </div>
         </div>
-        <div className="flex items-center gap-1"><button type="button" className="hidden items-center gap-1.5 px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground sm:flex"><History size={12} /> History</button><button type="button" onClick={() => setShowContext((value) => !value)} className="flex items-center gap-1.5 border border-foreground/10 px-2 py-1.5 text-[10px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"><PanelRight size={12} /><span className="hidden sm:inline">Context</span></button><button type="button" className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Chat settings"><SlidersHorizontal size={14} /></button></div>
+        <div className="flex items-center gap-1"><a href="/app/conversations" className="hidden items-center gap-1.5 px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground sm:flex"><History size={12} /> History</a><button type="button" onClick={() => setShowContext((value) => !value)} className="flex items-center gap-1.5 border border-foreground/10 px-2 py-1.5 text-[10px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"><PanelRight size={12} /><span className="hidden sm:inline">Context</span></button><a href="/app/settings" className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Chat settings"><SlidersHorizontal size={14} /></a></div>
       </header>
 
       {notice && <div className={`fixed left-1/2 top-16 z-50 flex w-[min(calc(100%-1rem),32rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border px-3 py-2 text-[11px] shadow-lg ${notice.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`} role="alert"><span>{notice.message}</span><button type="button" onClick={() => setNotice(undefined)} className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss notification"><X size={13} /></button></div>}

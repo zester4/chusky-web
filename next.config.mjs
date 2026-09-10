@@ -6,9 +6,6 @@ const chuskyApiOrigin = (
 ).replace(/\/+$/, "")
 
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },

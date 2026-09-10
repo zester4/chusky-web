@@ -17,7 +17,8 @@ export type RunStreamEvent =
   | { type: "run.cancelled"; run: Run };
 export type Task = { id: string; status: "queued" | "running" | "blocked" | "completed" | "failed" | "cancelled"; title: string; objective: string; checkpoint?: string; nextAction?: string; result?: string; error?: string; attempt?: number; maxAttempts?: number; sdkRunId?: string; sdkThreadId?: string; sdkBudget?: RunBudget; sdkModel?: string; sdkSkills?: string[]; events?: Array<{ id: string; type: string; message: string; at: number; attempt: number }>; createdAt: string; updatedAt: string };
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
-export type Approval = { id: string; status?: "pending" | "approved" | "denied" | "consumed"; toolSlug: string; args: Record<string, unknown>; request?: string; channelProvider?: string; handoffId?: string; expiresAt: string };
+export type Approval = { id: string; status?: "pending" | "approved" | "denied" | "consumed"; toolSlug: string; args: Record<string, unknown>; request?: string; channelProvider?: string; handoffId?: string; createdAt?: string; expiresAt: string };
+export type ApprovalDecision = { id: string; status: "denied" | "consumed"; text?: string };
 export type CallRecord = { id: string; provider: "twilio" | "facetime"; direction: "inbound" | "outbound"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; error?: string; createdAt: string; updatedAt: string };
 export type CallApproval = { id: string; toolSlug: "CHUCK_START_PHONE_CALL"; args: { phoneNumber: string; purpose: string }; status: "pending"; expiresAt: string };
 export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; createdAt: string; rotatedAt?: string; revokedAt?: string };
@@ -163,7 +164,7 @@ export const chuskyApi = {
   approvals: {
     list: () => request<{ data: Approval[] }>("/approvals"),
     get: (approvalId: string) => request<Approval>(`/approvals/${encodeURIComponent(approvalId)}`),
-    decide: (approvalId: string, decision: "approve" | "deny") => request<Run>(`/approvals/${encodeURIComponent(approvalId)}`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ decision }) }),
+    decide: (approvalId: string, decision: "approve" | "deny") => request<Run | ApprovalDecision>(`/approvals/${encodeURIComponent(approvalId)}`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ decision }) }),
   },
   usage: { get: () => request<Usage>("/usage") },
   activity: { get: (since = 0) => request<Activity>(`/activity?since=${since}`) },
