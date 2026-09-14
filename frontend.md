@@ -113,7 +113,7 @@ empty state; it does not fill resource pages with demo records.
 - `/app/workspace` — workspace information and usage
 - `/app/devices` — connected CLI/device sessions
 - `/app/settings` — account and product settings
-- `/app/calls` — approval-gated Twilio call requests and safe recent-call history
+- `/app/calls` — approval-gated Twilio or Bland call requests, provider readiness, and safe call outcomes
 
 The app shell includes responsive navigation, a mobile menu, page headings,
 status badges, cards, buttons, and a consistent Chusky visual system.
@@ -129,8 +129,9 @@ status badges, cards, buttons, and a consistent Chusky visual system.
 - The page validates an E.164 destination and purpose, then creates a pending
   `CHUCK_START_PHONE_CALL` approval. A separate **Approve and call** action
   executes the exact stored request without asking a model to reinterpret it.
-- Call history is account-scoped and masks phone numbers. Provider errors are
-  reduced to a safe user-facing status; diagnostics remain server-side.
+- Call history is account-scoped and masks phone numbers. Bland summaries are
+  shown separately from the transcript; provider errors are reduced to a safe
+  user-facing status while diagnostics remain server-side.
 
 ## Files added or changed
 
