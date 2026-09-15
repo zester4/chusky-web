@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'Chusky AI Agent',
   description: 'Chusky is an AI agent that connects 1,000+ tools and turns requests into completed work.',
   generator: 'v0.app',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === 'production' ? 'https://chusky-web.vercel.app' : 'http://localhost:3000')),
   openGraph: {
     title: 'Chusky AI Agent',
     description: 'Chusky is an AI agent that connects 1,000+ tools and turns requests into completed work.',

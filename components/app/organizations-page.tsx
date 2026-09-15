@@ -38,6 +38,7 @@ export function OrganizationsPage() {
   const [notice, setNotice] = useState("");
   const [createdKey, setCreatedKey] = useState<CreatedDeveloperProject>();
   const [copied, setCopied] = useState(false);
+  const [copiedMcp, setCopiedMcp] = useState(false);
 
   const workspaceList = (organizations.data ?? []) as Workspace[];
   const active = activeOrganization.data as (Workspace & { members?: Member[]; invitations?: Invitation[] }) | null | undefined;
@@ -226,6 +227,13 @@ export function OrganizationsPage() {
     catch { setError("Clipboard access failed. Select and copy the key manually."); }
   };
 
+  const mcpEndpoint = process.env.NEXT_PUBLIC_CHUSKY_MCP_URL || "https://chusky-mcp.adesrnd.workers.dev/mcp";
+  const mcpConfig = JSON.stringify({ mcpServers: { chusky: { url: mcpEndpoint, headers: { Authorization: "Bearer ${CHUSKY_API_KEY}", "X-Chusky-User-Id": "${CHUSKY_END_USER_ID}" } } } }, null, 2);
+  const copyMcpConfig = async () => {
+    try { await navigator.clipboard.writeText(mcpConfig); setCopiedMcp(true); }
+    catch { setError("Clipboard access failed. Select and copy the MCP configuration manually."); }
+  };
+
   return <>
     <PageHeading eyebrow="Company platform" title="Organizations" description="Create a shared workspace, invite teammates, and configure company-scoped agent projects. Connected apps and OAuth accounts remain managed by Composio." action={<Button secondary onClick={() => void refresh()} disabled={busy !== ""}><RefreshCw size={13} /> Refresh</Button>} />
     {error && <div role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900">{error}</div>}
@@ -274,6 +282,14 @@ export function OrganizationsPage() {
           <div className="mt-3 flex flex-col gap-2 sm:flex-row"><select value={templateSlug} onChange={(event) => setTemplateSlug(event.target.value)} aria-label="Agent template" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Choose a specialist template</option>{(templates ?? []).map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}</select><Button disabled={!templateSlug || busy === "agent" || !canManage} onClick={() => void createAgent()}>{busy === "agent" ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} Add agent</Button></div>
           {templateSlug && <label className="mt-3 block text-[10px] text-muted-foreground">Company-specific instructions (optional)<textarea value={agentGuidance} onChange={(event) => setAgentGuidance(event.target.value)} maxLength={5000} rows={3} placeholder="For lead research: only target companies with 50+ employees; cite the source for headcount and prepare follow-up drafts for review." className="mt-1.5 min-h-20 w-full resize-y border border-foreground/15 bg-transparent p-2.5 text-xs leading-5 text-foreground outline-none focus:border-foreground/50" /></label>}
           {agents === undefined ? <p className="mt-4 text-xs text-muted-foreground">Loading agent profiles…</p> : agents.length ? <div className="mt-3 border-t border-foreground/10">{agents.map((agent) => <div key={agent.id} className="border-b border-foreground/10 py-3 last:border-0"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{agent.name}</p><Status tone="amber">Approval before external action</Status></div><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{templates?.find((item) => item.slug === agent.template)?.outcome ?? agent.template}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">ID: {agent.id} · max {agent.budget.maxToolCalls ?? "project limit"} tool calls · ${agent.budget.maxCost ?? "project limit"} run cost</p></div>)}</div> : <p className="mt-4 border border-dashed border-foreground/20 p-3 text-xs text-muted-foreground">No agents configured for this project. Choose a template to create one.</p>}
+        </Card>}
+
+        {chosenProject && <Card className="p-4 sm:p-5">
+          <div className="flex items-start gap-2.5"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><div><h2 className="text-sm font-medium">Connect through MCP</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Use Chusky from Claude, Cursor, ChatGPT, or another MCP host. The host sends your project key and a stable customer identity to the remote Worker.</p></div></div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"><label className="text-[10px] text-muted-foreground">Remote MCP endpoint<code className="mt-1.5 block break-all border border-foreground/15 bg-foreground/[0.03] px-2.5 py-2 font-mono text-[11px] text-foreground">{mcpEndpoint}</code></label><Button secondary onClick={() => void copyMcpConfig()}>{copiedMcp ? <Check size={13} /> : <Copy size={13} />}{copiedMcp ? "Copied config" : "Copy config"}</Button></div>
+          <pre className="mt-3 max-h-44 overflow-auto border border-foreground/10 bg-foreground/[0.03] p-3 text-[10px] leading-5 text-muted-foreground"><code>{mcpConfig}</code></pre>
+          <div className="mt-3 grid gap-2 border-t border-foreground/10 pt-3 text-[10px] leading-5 text-muted-foreground sm:grid-cols-2"><p><strong className="text-foreground">Scope:</strong> {chosenProject.scopes.length} project scopes · key prefix {chosenProject.keyPrefix}…</p><p><strong className="text-foreground">Identity:</strong> set a stable non-PII <code>X-Chusky-User-Id</code> per customer. Never put the project key in browser code.</p></div>
+          <p className="mt-3 text-[10px] leading-5 text-muted-foreground">MCP can start and monitor policy-governed work, but it cannot approve its own external actions. Human approvals remain in Chusky or your authorized host.</p>
         </Card>}
 
         {chosenProject && <Card className="p-4 sm:p-5">

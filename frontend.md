@@ -59,7 +59,13 @@ loading, offline, and empty states when a resource has no saved data.
 ### Required production configuration
 
 - Vercel needs `CHUSKY_API_ORIGIN=https://chusky.up.railway.app` so its same-
-  origin `/api/auth/*` and `/v1/*` rewrites reach the Oracle backend.
+  origin `/api/auth/*` and `/v1/*` rewrites reach the backend. `NEXT_PUBLIC_AUTH_URL`
+  is for the Better Auth browser client and is not used as a rewrite fallback;
+  this prevents a frontend-origin self-loop.
+- Set `NEXT_PUBLIC_SITE_URL` to the canonical HTTPS dashboard URL and
+  `NEXT_PUBLIC_CHUSKY_MCP_URL` to the deployed MCP `/mcp` endpoint. The
+  Organizations page shows a copyable MCP config for each selected project;
+  it contains environment-variable placeholders, never a project key.
 - The Cloudflare R2 bucket needs a CORS rule permitting `PUT` with the
   `Content-Type` header from `https://chusky-web.vercel.app` and, once DNS is
   live, `https://agent.selithub.shop`. Add `http://localhost:3000` only for
@@ -221,6 +227,23 @@ one command. Operations is at `/app/operations`; Delivery is at `/app/delivery`.
 
 ## What is left
 
+### Verification commands
+
+From `chusky-web/`, use the reproducible checks below:
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm run lint
+pnpm run build
+$env:CHUSKY_WEB_URL = "https://chusky-web.vercel.app"
+pnpm run smoke
+```
+
+The smoke script checks public routing, the Better Auth health route, private
+cache headers on the dashboard shell, and an unauthenticated `401` on the
+protected API. It does not pretend to verify a signed-in session.
+
 ### Remaining production validation
 
 - Add browser-level signed-in end-to-end coverage for the new meeting, channel,
@@ -240,7 +263,10 @@ one command. Operations is at `/app/operations`; Delivery is at `/app/delivery`.
 - Configure R2 CORS, Vercel's `CHUSKY_API_ORIGIN`, and the `agent.selithub.shop`
   DNS record before relying on browser uploads and the custom dashboard URL.
 - Add production observability, accessibility review, responsive browser testing,
-  and a release smoke test for sign-up → verify email → sign-in → link Telegram.
+  and a signed-in release test for sign-up → verify email → sign-in → link
+  Telegram. The repository now provides the unauthenticated smoke boundary;
+  browser credentials and provider staging accounts must remain outside source
+  control.
 
 ## Authentication integration
 
@@ -263,7 +289,8 @@ Frontend files:
 - `chusky-web/components/app/app-shell.tsx` — sign-out action
 - `chusky-web/components/landing/auth-pages.tsx` — real sign-in, sign-up,
   recovery, reset, and verification client calls
-- `chusky-web/.env.example` — `NEXT_PUBLIC_AUTH_URL`
+- `chusky-web/.env.example` — `CHUSKY_API_ORIGIN`, `NEXT_PUBLIC_AUTH_URL`,
+  `NEXT_PUBLIC_SITE_URL`, and `NEXT_PUBLIC_CHUSKY_MCP_URL`
 
 ### Local configuration
 
