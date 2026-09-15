@@ -5,7 +5,7 @@ export type UploadIntent = UploadedFile & { uploadUrl: string; expiresAt: string
 export type DurationBudget = "5m" | "30m" | "1h" | "3h" | "6h" | "3d" | "1w";
 export type RunBudget = { duration?: DurationBudget; maxToolCalls?: number; maxCost?: number };
 export type RunToolPolicy = { allow?: string[]; deny?: string[]; requireApproval?: string[] };
-export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; output?: string; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
+export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
   | { type: "run.started"; run: Run }
@@ -20,29 +20,47 @@ export type Usage = { messages: number; cost: number; files: { count: number; de
 export type Approval = { id: string; status?: "pending" | "approved" | "denied" | "consumed"; toolSlug: string; args: Record<string, unknown>; request?: string; channelProvider?: string; handoffId?: string; createdAt?: string; expiresAt: string };
 export type ApprovalDecision = { id: string; status: "denied" | "consumed"; text?: string };
 export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; summary?: string; error?: string; createdAt: string; updatedAt: string };
-export type CallApproval = { id: string; toolSlug: "CHUCK_START_PHONE_CALL"; args: { phoneNumber: string; purpose: string }; status: "pending"; expiresAt: string };
-export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; createdAt: string; rotatedAt?: string; revokedAt?: string };
+export type CallMode = "general" | "sales" | "onboarding" | "support" | "scheduling";
+export type CallTone = "professional" | "warm" | "direct" | "consultative";
+export type CallCapability = "memory_lookup" | "scratchpad_lookup" | "schedule_lookup" | "task_lookup" | "call_history";
+export type CallProfile = { identity: string; organization?: string; mode: CallMode; tone: CallTone; opening?: string; facts: string[]; guardrails: string[]; capabilities: CallCapability[] };
+export type CallApproval = { id: string; toolSlug: "CHUCK_START_PHONE_CALL"; args: { phoneNumber: string; purpose: string; profile: CallProfile }; status: "pending"; expiresAt: string };
+export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; organizationId?: string; createdAt: string; rotatedAt?: string; revokedAt?: string };
 export type CreatedDeveloperProject = DeveloperProject & { key: string };
+export type CompanyAgentTemplate = { slug: string; name: string; outcome: string; allowedTools: string[]; requireApproval: string[] };
+export type CompanyAgent = { id: string; name: string; template: string; instructions: string; tools: RunToolPolicy; budget: RunBudget; createdAt: string; updatedAt: string };
+export type CompanyPolicy = { tools?: RunToolPolicy; budget?: RunBudget };
+export type CompanyRun = { id: string; status: Run["status"]; agentId?: string; agentName?: string; cost?: number; errorCode?: string; createdAt: string; updatedAt: string };
+export type CompanyAuditEvent = { id: string; requestId: string; action: string; status: number; at: string };
+export type CompanyUsagePeriod = { month: string; completedRuns: number; costUsd: number };
+export type CompanyUsage = { currentMonth: CompanyUsagePeriod; periods: CompanyUsagePeriod[]; runs: { indexed: number; active: number } };
+export type CompanyBranding = { organizationId: string; displayName: string; logoUrl?: string; accentColor: string; backgroundColor: string; customDomain?: string; customDomainStatus: "not_configured" | "pending_dns"; updatedAt?: string };
 export type Activity = { now: number; approvals: Approval[]; tasks: Task[]; reminders: Array<{ id: string; text: string; createdAt: number }>; jobs: Array<{ id: string; text: string; cron: string; createdAt: number }> };
 export type HealthSnapshot = { ok: boolean; status: "operational" | "degraded"; persistence: "redis" | "memory"; checks: Record<string, string>; channels: Record<string, boolean>; monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string; message?: string } | null } };
 export type AccountOverview = {
-  model: string; voiceReplies: boolean;
+  model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences;
   approvals: Array<{ id: string; toolSlug: string; request: string; status: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
-  channels: Array<{ provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
+  channels: Array<{ id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
   reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
   jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string }>;
   memory: Array<{ id: string; category: string; key: string; value: string; confidence: number; updatedAt: string }>;
   scratchpad: Array<{ key: string; content: string; updatedAt: string }>;
   triggers: string[];
-  devices: Array<{ name: string; createdAt: string; lastSeenAt: string }>;
+  devices: Array<{ id: string; name: string; createdAt: string; lastSeenAt: string }>;
   workspace: { sandboxId: string; name: string; lastKnownState?: string; createdAt: string; updatedAt: string; ptySessions: number; lastUrl?: string } | null;
   webhooks: Array<{ id: string; url: string; createdAt: string }>;
   telegramLink: { linked: boolean };
   deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
+export type FluxVoice = { id: string; name: string; accent: string };
+export type BlandVoice = { id: string; name: string; description?: string };
+export type LiveVoicePreferences = { twilio?: string; meetings?: string; bland?: { id: string; name: string } };
+export type VoiceOptions = { fluxVoices: FluxVoice[]; blandVoices: BlandVoice[]; blandAvailable: boolean; blandCatalogueAvailable: boolean };
+export type VoiceSettings = { model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences };
 export type TelegramLinkCode = { code: string; expiresAt: string };
 export type Model = { id: string; name: string };
 export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string; accountCount?: number; aliases?: string[] };
+export type ConnectedAccount = { id: string; alias?: string; toolkit: string; status: string; createdAt?: string; updatedAt?: string };
 export type Trigger = { id: string; slug: string; status: string; config: Record<string, unknown> };
 export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; instructions?: string; toolkit: { slug: string; name: string; logo?: string }; config: Record<string, unknown> };
 export type TriggerToolkit = { slug: string; name: string; logo?: string; triggerCount: number; connected: boolean; accountCount: number };
@@ -52,7 +70,14 @@ export type SkillFile = { name?: string; path: string; bytes: number; binary: bo
 export type Artifact = { id: string; name: string; type: "website" | "report" | "docx" | "presentation" | "pdf" | "spreadsheet" | "image" | "video" | "zip" | "project"; path: string; contentType: string; size: number; status: "available"; sandboxId: string; createdAt: string; updatedAt: string; downloadUrl?: string };
 export type VideoJob = { id: string; prompt: string; destination: "telegram" | "daytona" | "both"; workspacePath?: string; workflowRunId?: string; status: "queued" | "running" | "completed" | "failed" | "cancelled"; pollCount: number; error?: string; resultPath?: string; createdAt: string; updatedAt: string; completedAt?: string };
 export type Worker = { id: string; worker: string; from: string; objective: string; expectedOutput: string; status: string; taskId?: string; workflowRunId?: string; timestamp: string; delegation?: Record<string, unknown>; context?: Record<string, unknown> };
-export type ChannelConnection = { provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean };
+export type ChannelConnection = { id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean };
+export type ChannelLinkCode = { provider: string; code: string; expiresInSeconds: number; instructions: string; installUrl?: string };
+export type MeetingRepresentativeRole = "sales" | "client_onboarding" | "employee_onboarding" | "customer_success" | "custom";
+export type MeetingRepresentativeProfile = { enabled: boolean; representativeName: string; organizationName: string; role: MeetingRepresentativeRole; objective: string; communicationStyle: string; approvedKnowledge: string; authorityBoundaries: string; allowedComposioTools: string[]; composioAccountAliases: Record<string, string>; allowedNativeTools: string[]; allowMeetingScheduling: boolean; autoJoinCalendar: boolean; updatedAt: number; autoJoinReconciliation?: { cancelled: number; stillInCall: number; failures: number } };
+export type CalendarPreparation = { id: string; sourceTriggerEventId: string; calendarEventId?: string; lifecycle: "created" | "updated" | "sync" | "starting_soon" | "attendee_response" | "cancelled"; status: "prepared" | "auto_scheduled" | "cancelled" | "joined" | "expired"; title?: string; startAt?: string; endAt?: string; participants: string[]; meetingUrlAvailable: boolean; brief?: string; briefStatus?: string; createdAt: string; updatedAt: string };
+export type Meeting = { id: string; platform: string; interactionMode: "addressed" | "copilot" | "representative"; status: string; title?: string; joinAt?: string; error?: string; providerStatusAt?: string; participantRoster: Array<{ id: string; name: string; isHost?: boolean; status: "present" | "left"; updatedAt: string }>; speakerEvents: Array<{ type: "speech_on" | "speech_off"; participantId?: string; at: string }>; history: Array<{ role: "user" | "assistant"; content: string; createdAt?: string }>; outcome?: { title: string; summary: string; decisions: string[]; actionItems: Array<{ task: string; owner: string; dueDate?: string }>; openQuestions: string[] }; outcomeFollowThrough?: { notionSaved?: boolean; notionTool?: string; notionUrl?: string; completedTools?: string[] }; outcomeStatus?: "pending" | "completed"; outcomeNotificationStatus?: string; createdAt: string; updatedAt: string };
+export type MeetingContact = { id: string; meetingId: string; participantName: string; email?: string; phone?: string; contactPreference: "email" | "phone" | "unspecified"; interest: string; nextStep?: string; followUpAt?: string; followUpTaskId?: string; createdAt: string; updatedAt: string };
+export type MeetingWorkspace = { preparations: CalendarPreparation[]; meetings: Meeting[]; contacts: MeetingContact[] };
 export type Delivery = { id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string };
 export type Webhook = { id: string; url: string; createdAt: string; disabledAt?: string };
 export type Reminder = { id: string; text: string; runAt: string; status: string; createdAt: string; deliveryError?: string };
@@ -77,6 +102,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ChuskyApiError(response.status, body?.error?.message || `Chusky returned HTTP ${response.status}`, body?.error?.code);
   }
   if (response.status === 204) return undefined as T;
+  return await response.json() as T;
+}
+
+async function publicRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`${apiBaseURL}${path}`, { credentials: "include", headers: { Accept: "application/json" } });
+  if (!response.ok) throw new ChuskyApiError(response.status, `Chusky returned HTTP ${response.status}`);
   return await response.json() as T;
 }
 
@@ -175,22 +206,67 @@ export const chuskyApi = {
     get: () => request<AccountOverview>("/account/overview"),
     createTelegramLink: () => request<TelegramLinkCode>("/account/telegram-link", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     models: () => request<Page<Model>>("/account/models"),
-    updatePreferences: (input: { model?: string; voiceReplies?: boolean }) => request<{ model: string; voiceReplies: boolean }>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    preferences: () => request<VoiceSettings>("/account/preferences"),
+    voiceOptions: () => request<VoiceOptions>("/account/voice-options"),
+    updatePreferences: (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => request<VoiceSettings>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     calls: {
       list: () => request<{ available: boolean; provider: "twilio" | "bland" | null; data: CallRecord[] }>("/account/calls"),
-      request: (input: { phoneNumber: string; purpose: string }) => request<CallApproval>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      request: (input: { phoneNumber: string; purpose: string; profile: CallProfile }) => request<CallApproval>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     },
     projects: {
-      list: () => request<Page<DeveloperProject>>("/account/projects"),
-      create: (input: { name: string; scopes?: string[] }) => request<CreatedDeveloperProject>("/account/projects", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      list: (organizationId?: string) => request<Page<DeveloperProject>>(`/account/projects${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
+      create: (input: { name: string; scopes?: string[]; organizationId?: string }) => request<CreatedDeveloperProject>("/account/projects", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
       updateScopes: (projectId: string, scopes: string[]) => request<DeveloperProject>(`/account/projects/${encodeURIComponent(projectId)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ scopes }) }),
       rotate: (projectId: string) => request<CreatedDeveloperProject>(`/account/projects/${encodeURIComponent(projectId)}/rotate-key`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
       revoke: (projectId: string) => request<void>(`/account/projects/${encodeURIComponent(projectId)}`, { method: "DELETE" }),
+      policy: {
+        get: (projectId: string) => request<{ data: CompanyPolicy }>(`/account/projects/${encodeURIComponent(projectId)}/policy`),
+        update: (projectId: string, policy: CompanyPolicy) => request<{ data: CompanyPolicy }>(`/account/projects/${encodeURIComponent(projectId)}/policy`, { method: "PUT", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(policy) }),
+      },
+      agents: {
+        list: (projectId: string) => request<{ data: CompanyAgent[] }>(`/account/projects/${encodeURIComponent(projectId)}/agents`),
+        create: (projectId: string, input: { template: string; name?: string; instructions?: string }) => request<CompanyAgent>(`/account/projects/${encodeURIComponent(projectId)}/agents`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+        update: (projectId: string, agentId: string, input: { name?: string; instructions?: string }) => request<CompanyAgent>(`/account/projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+        remove: (projectId: string, agentId: string) => request<void>(`/account/projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" }),
+      },
+      telemetry: {
+        runs: (projectId: string) => request<Page<CompanyRun>>(`/account/projects/${encodeURIComponent(projectId)}/company/runs?limit=20`),
+        audit: (projectId: string) => request<Page<CompanyAuditEvent>>(`/account/projects/${encodeURIComponent(projectId)}/company/audit-events`),
+        usage: (projectId: string) => request<CompanyUsage>(`/account/projects/${encodeURIComponent(projectId)}/company/usage`),
+      },
+    },
+    organizations: {
+      branding: {
+        get: (organizationId: string) => request<{ data: CompanyBranding }>(`/account/organizations/${encodeURIComponent(organizationId)}/branding`),
+        update: (organizationId: string, input: Pick<CompanyBranding, "displayName" | "logoUrl" | "accentColor" | "backgroundColor" | "customDomain">) => request<{ data: CompanyBranding }>(`/account/organizations/${encodeURIComponent(organizationId)}/branding`, { method: "PUT", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      },
     },
   },
+  branding: {
+    public: (hostname: string) => publicRequest<{ data: CompanyBranding | null }>(`/public/company-branding?hostname=${encodeURIComponent(hostname)}`),
+  },
+  agentTemplates: { list: () => request<{ data: CompanyAgentTemplate[] }>("/agents/templates") },
   apps: {
     list: () => request<Page<Toolkit>>("/apps"),
-    connect: (toolkit: string) => request<{ toolkit: string; url: string }>(`/apps/${encodeURIComponent(toolkit)}/connect`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    connections: () => request<Page<ConnectedAccount>>("/apps/connections"),
+    disconnect: (connectionId: string) => request<void>(`/apps/connections/${encodeURIComponent(connectionId)}`, { method: "DELETE" }),
+    connect: (toolkit: string, alias?: string) => request<{ toolkit: string; alias?: string; url: string }>(`/apps/${encodeURIComponent(toolkit)}/connect`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(alias ? { alias } : {}) }),
+  },
+  meetings: {
+    list: () => request<MeetingWorkspace>("/meetings"),
+    profile: () => request<MeetingRepresentativeProfile>("/meetings/profile"),
+    updateProfile: (profile: Partial<MeetingRepresentativeProfile>) => request<MeetingRepresentativeProfile>("/meetings/profile", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(profile) }),
+    deleteContact: (id: string) => request<void>(`/meetings/contacts/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  channels: {
+    list: () => request<Page<ChannelConnection>>("/channels"),
+    createLinkCode: (provider: "slack" | "whatsapp" | "sendblue") => request<ChannelLinkCode>("/channels/link-code", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ provider }) }),
+    update: (channel: ChannelConnection, proactiveOptIn: boolean) => request<{ id: string; provider: string; proactiveOptIn: boolean }>(`/channels/${encodeURIComponent(channel.provider)}/${encodeURIComponent(channel.id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ proactiveOptIn }) }),
+    unlink: (channel: ChannelConnection) => request<void>(`/channels/${encodeURIComponent(channel.provider)}/${encodeURIComponent(channel.id)}`, { method: "DELETE" }),
+  },
+  devices: {
+    list: () => request<Page<AccountOverview["devices"][number]>>("/devices"),
+    revoke: (id: string) => request<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   triggers: {
     list: () => request<Page<Trigger>>("/triggers"),
@@ -229,7 +305,6 @@ export const chuskyApi = {
     get: (id: string) => request<Worker>(`/workers/${encodeURIComponent(id)}`),
     cancel: (id: string) => request<Worker>(`/workers/${encodeURIComponent(id)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
   },
-  channels: { list: () => request<{ data: ChannelConnection[] }>("/channels") },
   deliveries: { list: () => request<{ data: Delivery[] }>("/deliveries") },
   webhooks: {
     list: () => request<{ data: Webhook[] }>("/webhooks"),

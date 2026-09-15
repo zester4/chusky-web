@@ -10,10 +10,16 @@ import { JobsPage, MemoryPage, RemindersPage, ScratchpadPage } from "./automatio
 import { OperationsDashboard } from "./operations-dashboard";
 import { SkillsPage } from "./skills-page";
 import { WorkersPage } from "./workers-page";
+import { OrganizationsPage } from "./organizations-page";
+import { MeetingsPage } from "./meetings-page";
+import { ChannelsPage } from "./channels-page";
 
 export function AppPage({ section }: { section: string }) {
+  if (section === "organizations") return <OrganizationsPage />;
   if (section === "developer-api") return <DeveloperApiPage />;
   if (section === "calls") return <CallsPage />;
+  if (section === "meetings") return <MeetingsPage />;
+  if (section === "channels") return <ChannelsPage />;
   if (section === "capabilities") return <CapabilitiesPage />;
   if (section === "workers") return <WorkersPage />;
   if (section === "skills") return <SkillsPage />;

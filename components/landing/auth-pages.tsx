@@ -74,9 +74,11 @@ function SignInCard() {
     setBusy(true); setMessage("");
     const values = new FormData(event.currentTarget);
     try {
-      const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: `${window.location.origin}/app` });
+      const requestedCallback = new URLSearchParams(window.location.search).get("callbackURL") ?? "/app";
+      const callbackPath = requestedCallback.startsWith("/") && !requestedCallback.startsWith("//") && !requestedCallback.includes("\\") ? requestedCallback : "/app";
+      const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: new URL(callbackPath, window.location.origin).toString() });
       if (result.error) setMessage(result.error.message || "We couldn’t sign you in. Check your email and password and try again.");
-      else window.location.assign("/app");
+      else window.location.assign(callbackPath);
     } catch (error) {
       setMessage(authErrorMessage(error, "We couldn’t sign you in. Please try again."));
     } finally {

@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react";
+import { organizationClient } from "better-auth/client/plugins";
 
 // Use the frontend origin in the browser. Next.js proxies auth requests to
 // Chusky, keeping sessions first-party for both Vercel preview domains and
@@ -9,5 +10,6 @@ const authBaseURL = typeof window === "undefined"
 
 export const authClient = createAuthClient({
   baseURL: authBaseURL,
+  plugins: [organizationClient()],
   fetchOptions: { credentials: "include" },
 });

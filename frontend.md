@@ -3,8 +3,9 @@
 ## Overview
 
 The frontend is a Next.js application in `chusky-web/`. It contains the public
-Chusky marketing site and a product dashboard prototype for managing the Chusky
-agent.
+Chusky marketing site and an authenticated dashboard connected to the owner-
+scoped `/v1` API for agent operations, meetings, channels, connected apps, and
+voice configuration.
 
 The frontend was pushed separately from the parent agent repository:
 
@@ -114,6 +115,8 @@ empty state; it does not fill resource pages with demo records.
 - `/app/devices` — connected CLI/device sessions
 - `/app/settings` — account and product settings
 - `/app/calls` — approval-gated Twilio or Bland call requests, provider readiness, and safe call outcomes
+- `/app/meetings` — calendar meeting preparations and briefs, Recall session roster/history/outcomes, saved participant follow-ups, and the meeting representative profile. A calendar item appears as joinable only if the backend verified a supported conferencing URL; the UI opens a drafted chat request rather than silently starting a bot.
+- `/app/channels` — linked Telegram/Slack/WhatsApp/Sendblue identities, proactive-reply preferences, short-lived link flows, and owner-scoped unlink. Unlinking the Chusky identity does not uninstall a provider-side app.
 
 The app shell includes responsive navigation, a mobile menu, page headings,
 status badges, cards, buttons, and a consistent Chusky visual system.
@@ -132,6 +135,32 @@ status badges, cards, buttons, and a consistent Chusky visual system.
 - Call history is account-scoped and masks phone numbers. Bland summaries are
   shown separately from the transcript; provider errors are reduced to a safe
   user-facing status while diagnostics remain server-side.
+- Each call request may include an editable representative profile (identity,
+  organization, purpose mode, tone, facts, communication guidance, and selected
+  read-only context capabilities). The exact profile is stored in the pending
+  approval and is shown before the owner approves dialing.
+
+### Meeting, channel, app, and voice controls
+
+- The Meetings page reads the calendar lifecycle records and Recall meeting
+  records from `/v1/meetings`; it shows attendee names, short conversation
+  history, structured outcomes, and privately collected follow-up contacts.
+  Calendar trigger types are explained as event notifications, not blanket
+  meeting authorization. Preparation join actions prefill a new chat and still
+  require the user to send the request.
+- The meeting representative profile edits the existing account-scoped profile
+  through `/v1/meetings/profile`: role, objective, communication style,
+  approved knowledge, authority guidance, exact connected-app tool slugs,
+  aliases, native tools, scheduling, and optional calendar auto-join.
+- Settings loads the server-curated Flux voice list for Twilio and Recall
+  meetings, including `flux-haley-en`, and the available curated Bland list
+  when configured. Preferences persist per owner and can be reset to a
+  provider default. The UI shows an unavailable catalogue as unavailable; it
+  does not fabricate voice options.
+- Connected apps show each owner-scoped Composio account with optional alias,
+  allow adding another connection, and disconnect only after an explicit
+  confirmation. Device tokens are never exposed; the Devices page revokes a
+  selected CLI device through an opaque owner-scoped identifier.
 
 ## Files added or changed
 
@@ -145,8 +174,15 @@ status badges, cards, buttons, and a consistent Chusky visual system.
 
 - `chusky-web/components/app/app-shell.tsx` — responsive sidebar, header,
   navigation, shared layout primitives, and status UI
-- `chusky-web/components/app/app-pages.tsx` — dashboard and product-section
-  page implementations, demo data, and local interactions
+- `chusky-web/components/app/app-pages.tsx` — routes authenticated product
+  sections to their focused, API-backed page components
+- `chusky-web/components/app/meetings-page.tsx` and
+  `chusky-web/components/app/channels-page.tsx` — calendar/Recall meeting
+  lifecycle, representative profile, follow-up records, and linked channel
+  management
+- `chusky-web/components/app/organizations-page.tsx` and
+  `chusky-web/app/accept-invitation/page.tsx` — shared organization workspace,
+  membership, invitations, and organization-scoped agent projects
 
 ### Frontend configuration
 
@@ -185,22 +221,16 @@ one command. Operations is at `/app/operations`; Delivery is at `/app/delivery`.
 
 ## What is left
 
-### Backend and authentication integration
+### Remaining production validation
 
-- Add frontend unit/component and end-to-end coverage for sign-in, dashboard
-  linking, chat uploads, approvals, and failure states.
-- Add intentional unlink/recovery UX before allowing a user to change a linked
-  Telegram account; the current production behavior safely refuses rebinding.
-
-### Product functionality
-
-- Implement create, edit, cancel, delete, and search actions for the relevant
-  resources.
-- Add real Composio app connection and OAuth flows for supported integrations.
-- Add channel management for Telegram, Slack, WhatsApp, and future channel
-  adapters while preserving Chusky account ownership and conversation scope.
-- Add device pairing, token revocation, and last-seen status for CLI devices.
-- Add account/profile management and persistent settings.
+- Add browser-level signed-in end-to-end coverage for the new meeting, channel,
+  Composio disconnect, device revoke, voice selection, and call-profile flows.
+- Exercise the calendar trigger → brief → suggested join flow against an
+  authorized staging Google Calendar and Recall meeting; verify provider
+  participant updates and outcome delivery in a real session.
+- Validate that provider OAuth callback completion refreshes Composio
+  connections on the deployed environment and that each curated voice ID is
+  accepted by its actual Twilio/Recall/Bland runtime configuration.
 
 ### Production readiness
 
@@ -324,7 +354,8 @@ exposing the private Oracle `CHUSKY_PROJECT_KEY` or any scoped developer
 - `src/index.ts` — mounts `/v1` when Better Auth is enabled in both local
   polling and hosted webhook modes.
 
-The public `/v1` files, webhook, and audit endpoints are available in the
-backend contract but are not yet surfaced by the browser client. Runtime
-failure counters are process-local for now; durable workflow state and the
-Redis fail-closed startup guard remain authoritative.
+Chat already uses the first-party file intent/upload/verification flow. The
+dashboard can list developer webhooks but still lacks a dedicated webhook
+management workspace and audit-event browser. Runtime failure counters are
+process-local for now; durable workflow state and the Redis fail-closed startup
+guard remain authoritative.

@@ -53,6 +53,7 @@ export function ChatPage() {
   const requestedThreadId = searchParams.get("thread");
   const requestedNew = searchParams.get("new") === "1";
   const newConversationNonce = searchParams.get("nonce");
+  const requestedDraft = searchParams.get("draft");
   const [thread, setThread] = useState<Thread>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -113,6 +114,10 @@ export function ChatPage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (requestedDraft) setInput(requestedDraft);
+  }, [requestedDraft, newConversationNonce]);
 
   useEffect(() => () => {
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);

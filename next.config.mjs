@@ -19,6 +19,10 @@ const nextConfig = {
         source: "/v1/:path*",
         destination: `${chuskyApiOrigin}/v1/:path*`,
       },
+      {
+        source: "/public/:path*",
+        destination: `${chuskyApiOrigin}/public/:path*`,
+      },
     ]
   },
 }
