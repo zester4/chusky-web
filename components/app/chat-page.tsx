@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -24,7 +26,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type DurationBudget, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type DurationBudget, type Model, type Page, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
 import { MarkdownMessage } from "./markdown-message";
 
 type Message = {
@@ -42,6 +44,7 @@ const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 export function ChatPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedThreadId = searchParams.get("thread");
   const requestedNew = searchParams.get("new") === "1";
@@ -56,6 +59,8 @@ export function ChatPage() {
   const [runModel, setRunModel] = useState("");
   const [runDuration, setRunDuration] = useState<DurationBudget>("30m");
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
+  const [conversationPage, setConversationPage] = useState<Page<Thread>>();
+  const [showHistory, setShowHistory] = useState(false);
   const [showContext, setShowContext] = useState(true);
   const [controller, setController] = useState<AbortController>();
   const [activeMessageIndex, setActiveMessageIndex] = useState<number>();
@@ -71,13 +76,20 @@ export function ChatPage() {
 
   useEffect(() => {
     let active = true;
+    setStatus("loading");
+    setThread(undefined);
+    setMessages([]);
     (async () => {
       try {
-        const page = await chuskyApi.threads.list({ limit: 1 });
+        const page = await chuskyApi.threads.list({ limit: 50, includeArchived: true });
         const current = requestedThreadId
           ? await chuskyApi.threads.get(requestedThreadId)
           : requestedNew ? await chuskyApi.threads.create({ source: "web-dashboard" }) : page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
         if (active) {
+          setConversationPage((existing) => {
+            const items = [current, ...(existing?.data ?? page.data)].filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index);
+            return { data: items, nextCursor: existing?.nextCursor ?? page.nextCursor };
+          });
           setThread(current);
           setStatus("ready");
         }
@@ -120,6 +132,11 @@ export function ChatPage() {
     setNotice({ kind, message });
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
     noticeTimerRef.current = window.setTimeout(() => setNotice(undefined), 5000);
+  };
+
+  const startNewChat = () => {
+    if (controller) { showNotice("Stop the current response before starting another chat.", "info"); return; }
+    router.push(`/app/chat?new=1&nonce=${Date.now()}`);
   };
 
   const updateLastAssistant = (update: Partial<Message>) => {
@@ -220,6 +237,7 @@ export function ChatPage() {
     const outgoing: Message = { role: "user", text: text || "Attached file(s)", time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size }) => ({ id, name, contentType, size })) };
     setMessages((current) => editingMessageIndex === undefined ? [...current, outgoing, { role: "assistant", text: "", pending: true }] : [...current.slice(0, editingMessageIndex), outgoing, { role: "assistant", text: "", pending: true }]);
     setEditingMessageIndex(undefined);
+    const shouldTitle = Boolean(text && !thread.metadata.title);
     try {
       for await (const event of chuskyApi.runs.stream(thread.id, text, readyAttachments.map((item) => item.id), abort.signal, { model: runModel || undefined, budget: { duration: runDuration } })) {
         const typed = event as RunStreamEvent;
@@ -252,17 +270,26 @@ export function ChatPage() {
         removeActiveAssistant();
       }
     } finally {
+      if (shouldTitle) {
+        try {
+          const updated = await chuskyApi.threads.update(thread.id, { title: text.slice(0, 80) });
+          setThread(updated);
+          setConversationPage((current) => current && { ...current, data: current.data.map((item) => item.id === updated.id ? updated : item) });
+        } catch {
+          // The run is already persisted; a title failure must not hide the conversation.
+        }
+      }
       setController(undefined);
     }
   };
 
   return (
     <div className="-mx-2.5 -my-4 flex h-[calc(100dvh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden bg-[#f7f7f4] sm:-mx-4 sm:-my-6 sm:h-[calc(100dvh-3.5rem)] lg:-mx-7 lg:-my-8">
-      <header className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-foreground/10 bg-background px-2.5 py-1.5 sm:min-h-12 sm:px-4 lg:px-6">
+      <header className="flex min-h-11 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-foreground/10 bg-background px-2.5 py-1.5 sm:min-h-12 sm:px-4 lg:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Bot size={14} /></div>
           <div className="min-w-0 max-w-[15rem] sm:max-w-[20rem]">
-            <div className="flex items-center gap-2"><h1 className="truncate text-xs font-medium">{thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky"}</h1><span className={status === "ready" ? "rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{status === "ready" ? "Live" : status === "offline" ? "Offline" : "Connecting"}</span></div>
+            <div className="flex items-center gap-2"><h1 className="truncate text-[11px] font-medium">{thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky"}</h1><span className={status === "ready" ? "rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{status === "ready" ? "Live" : status === "offline" ? "Offline" : "Connecting"}</span></div>
             <p className="truncate text-[10px] text-muted-foreground">Private workspace · backed by your Chusky session</p>
           </div>
           <div className="flex min-w-0 items-center gap-1.5 border-l border-foreground/10 pl-2">
@@ -272,19 +299,22 @@ export function ChatPage() {
             <select id="chat-duration" value={runDuration} onChange={(event) => setRunDuration(event.target.value as DurationBudget)} className="rounded-md border border-foreground/10 bg-background px-2 py-1.5 text-[10px] outline-none hover:border-foreground/25 focus:border-foreground/40">{["5m", "30m", "1h", "3h", "6h", "3d", "1w"].map((duration) => <option key={duration} value={duration}>{duration}</option>)}</select>
           </div>
         </div>
-        <div className="flex items-center gap-1"><a href="/app/conversations" className="hidden items-center gap-1.5 px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground sm:flex"><History size={12} /> History</a><button type="button" onClick={() => setShowContext((value) => !value)} className="flex items-center gap-1.5 border border-foreground/10 px-2 py-1.5 text-[10px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"><PanelRight size={12} /><span className="hidden sm:inline">Context</span></button><a href="/app/settings" className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Chat settings"><SlidersHorizontal size={14} /></a></div>
+        <div className="flex items-center gap-1"><button type="button" onClick={startNewChat} className="flex items-center gap-1.5 rounded-full bg-foreground px-2.5 py-1.5 text-[10px] text-background hover:bg-foreground/85"><ArrowUp size={11} /> New chat</button><button type="button" onClick={() => setShowHistory((value) => !value)} className="flex items-center gap-1.5 border border-foreground/10 px-2 py-1.5 text-[10px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"><History size={12} /><span className="hidden sm:inline">Chats</span></button><button type="button" onClick={() => setShowContext((value) => !value)} className="hidden items-center gap-1.5 border border-foreground/10 px-2 py-1.5 text-[10px] text-muted-foreground hover:border-foreground/30 hover:text-foreground sm:flex"><PanelRight size={12} /><span className="hidden lg:inline">Context</span></button><Link href="/app/settings" className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Chat settings"><SlidersHorizontal size={14} /></Link></div>
       </header>
 
       {notice && <div className={`fixed left-1/2 top-16 z-50 flex w-[min(calc(100%-1rem),32rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border px-3 py-2 text-[11px] shadow-lg ${notice.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`} role="alert"><span>{notice.message}</span><button type="button" onClick={() => setNotice(undefined)} className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss notification"><X size={13} /></button></div>}
 
-      <div className={showContext ? "grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_280px]" : "flex min-h-0 flex-1 overflow-hidden"}>
+      <div className={showHistory ? "grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[220px_minmax(0,1fr)]" : "flex min-h-0 flex-1 overflow-hidden"}>
+        {showHistory && <ChatHistory threads={conversationPage?.data ?? []} currentThreadId={thread?.id} onNew={startNewChat} />}
+        <div className={showContext ? "grid min-h-0 min-w-0 overflow-hidden xl:grid-cols-[minmax(0,1fr)_250px]" : "flex min-h-0 min-w-0 overflow-hidden"}>
         <div className="flex min-h-0 min-w-0 flex-col">
           <div className={`mx-auto flex h-full min-h-0 w-full flex-1 flex-col px-2.5 py-4 sm:px-5 sm:py-6 lg:px-8 ${showContext ? "max-w-4xl" : "max-w-[92rem]"}`}>
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-3.5 sm:space-y-4">
+              {!messages.length && status === "ready" && <div className="mx-auto mt-10 max-w-sm text-center"><p className="text-xs font-medium">Start a new conversation</p><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Ask Chusky to research, write, plan, or act. Your chat will be saved automatically so you can return to it later.</p><button type="button" onClick={() => inputRef.current?.focus()} className="mt-3 text-[11px] font-medium underline underline-offset-4">Write the first message</button></div>}
               {messages.map((item, index) => (
                 <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(86%,42rem)]" : "group relative w-fit max-w-[min(100%,54rem)]"} onClick={() => setActiveMessageIndex(index)}>
-                  <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 rounded-lg border border-foreground/20 bg-foreground px-2 py-1.5 text-xs leading-5 text-background shadow-sm" : "relative w-fit max-w-full min-w-0 rounded-lg border border-foreground/10 bg-background px-2 py-1.5 shadow-sm"}>
+                  <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 rounded-lg border border-foreground/20 bg-foreground px-2 py-1.5 text-[12px] leading-5 text-background shadow-sm" : "relative w-fit max-w-full min-w-0 rounded-lg border border-foreground/10 bg-background px-2 py-1.5 shadow-sm"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && !item.text ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> {item.tool ? `Using ${item.tool.replaceAll("_", " ").toLowerCase()}…` : "Thinking through your request…"}</p> : item.role === "assistant" ? <MarkdownMessage content={item.text} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p>}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}
@@ -311,8 +341,13 @@ export function ChatPage() {
           </div>
         </div>
 
-        {showContext && <aside className="hidden min-h-0 overflow-y-auto border-l border-foreground/10 bg-background xl:block"><div className="border-b border-foreground/10 px-5 py-5"><div className="flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Context</p><button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Context options"><MoreHorizontal size={16} /></button></div><h2 className="mt-4 font-display text-2xl">Your tools, close at hand.</h2><p className="mt-2 text-xs leading-relaxed text-muted-foreground">This workspace uses the authenticated Chusky session and server-side run API.</p></div><div className="space-y-6 p-5"><div><p className="mb-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Verified channels</p><div className="space-y-2">{account?.channels.length ? account.channels.map((channel) => <div key={`${channel.provider}-${channel.externalUserId}`} className="flex items-center justify-between border border-foreground/10 px-3 py-2.5 text-xs"><span className="flex min-w-0 items-center gap-2"><FileText size={14} /><span className="truncate">{channel.displayName || channel.provider}</span></span><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /></div>) : <p className="border border-dashed border-foreground/15 px-3 py-3 text-xs leading-relaxed text-muted-foreground">No verified channels yet. Chusky can still work in this private web conversation.</p>}</div></div><div className="border-t border-foreground/10 pt-5"><p className="mb-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Safety</p><div className="space-y-3 text-xs text-muted-foreground"><p className="flex gap-2"><ShieldCheck size={14} className="shrink-0 text-emerald-600" /> Approvals stay one-time and server-bound</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> R2 uploads are verified before the agent can read them</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Stream can be stopped per run</p></div></div></div></aside>}
+        {showContext && <aside className="hidden min-h-0 overflow-y-auto border-l border-foreground/10 bg-background xl:block"><div className="border-b border-foreground/10 px-4 py-4"><div className="flex items-center justify-between"><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Context</p><button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Context options"><MoreHorizontal size={14} /></button></div><h2 className="mt-3 font-display text-xl">Tools, close at hand.</h2><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Authenticated session and server-side run API.</p></div><div className="space-y-5 p-4"><div><p className="mb-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Verified channels</p><div className="space-y-1.5">{account?.channels.length ? account.channels.map((channel) => <div key={`${channel.provider}-${channel.externalUserId}`} className="flex items-center justify-between border border-foreground/10 px-2.5 py-2 text-[11px]"><span className="flex min-w-0 items-center gap-2"><FileText size={12} /><span className="truncate">{channel.displayName || channel.provider}</span></span><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /></div>) : <p className="border border-dashed border-foreground/15 px-2.5 py-2.5 text-[11px] leading-5 text-muted-foreground">No verified channels yet. Chusky can still work in this private web conversation.</p>}</div></div><div className="border-t border-foreground/10 pt-4"><p className="mb-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Safety</p><div className="space-y-2.5 text-[11px] leading-5 text-muted-foreground"><p className="flex gap-2"><ShieldCheck size={13} className="shrink-0 text-emerald-600" /> Approvals stay one-time and server-bound</p><p className="flex gap-2"><CheckCircle2 size={13} className="shrink-0 text-emerald-600" /> R2 uploads are verified before the agent can read them</p><p className="flex gap-2"><CheckCircle2 size={13} className="shrink-0 text-emerald-600" /> Stream can be stopped per run</p></div></div></div></aside>}
+        </div>
       </div>
     </div>
   );
+}
+
+function ChatHistory({ threads, currentThreadId, onNew }: { threads: Thread[]; currentThreadId?: string; onNew: () => void }) {
+  return <aside className="max-h-[35dvh] min-h-0 overflow-y-auto border-b border-foreground/10 bg-background xl:max-h-none xl:border-r xl:border-b-0"><div className="border-b border-foreground/10 p-3"><div className="flex items-center justify-between gap-2"><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Saved chats</p><span className="text-[9px] text-muted-foreground">{threads.length}</span></div><button type="button" onClick={onNew} className="mt-3 flex min-h-8 w-full items-center justify-center gap-1.5 rounded-full bg-foreground px-2.5 text-[10px] text-background hover:bg-foreground/85"><ArrowUp size={11} /> Start new chat</button></div><div className="p-2">{threads.length ? threads.map((item) => { const archived = item.metadata.archived === true; return <Link key={item.id} href={`/app/chat?thread=${encodeURIComponent(item.id)}`} className={`block border-l-2 px-2.5 py-2.5 transition-colors ${currentThreadId === item.id ? "border-foreground bg-foreground/[0.05]" : "border-transparent hover:bg-foreground/[0.03]"}`}><p className="truncate text-[11px] font-medium">{String(item.metadata.title || item.metadata.prompt || "New conversation")}</p><p className="mt-1 truncate text-[9px] text-muted-foreground">{archived ? "Archived · " : ""}{new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(item.updatedAt))}</p></Link>; }) : <p className="px-2.5 py-4 text-[11px] leading-5 text-muted-foreground">Your saved conversations will appear here.</p>}</div><div className="border-t border-foreground/10 p-3"><Link href="/app/conversations" className="text-[10px] text-muted-foreground underline underline-offset-4 hover:text-foreground">View all conversations</Link></div></aside>;
 }

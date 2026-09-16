@@ -114,11 +114,12 @@ async function publicRequest<T>(path: string): Promise<T> {
 }
 
 const idempotency = () => crypto.randomUUID();
-type PageOptions = { limit?: number; cursor?: string };
-const pageQuery = ({ limit, cursor }: PageOptions = {}) => {
+type PageOptions = { limit?: number; cursor?: string; includeArchived?: boolean };
+const pageQuery = ({ limit, cursor, includeArchived }: PageOptions = {}) => {
   const query = new URLSearchParams();
   if (limit !== undefined) query.set("limit", String(limit));
   if (cursor) query.set("cursor", cursor);
+  if (includeArchived !== undefined) query.set("includeArchived", String(includeArchived));
   const value = query.toString();
   return value ? `?${value}` : "";
 };

@@ -5,14 +5,14 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
 const components: Components = {
-  h1: ({ children, ...props }) => <h1 className="mt-4 text-base font-semibold first:mt-0 sm:text-lg" {...props}>{children}</h1>,
-  h2: ({ children, ...props }) => <h2 className="mt-4 text-sm font-semibold first:mt-0 sm:text-base" {...props}>{children}</h2>,
-  h3: ({ children, ...props }) => <h3 className="mt-3 text-xs font-semibold sm:text-sm" {...props}>{children}</h3>,
-  p: ({ children, ...props }) => <p className="my-2 text-[13px] leading-6 first:mt-0 last:mb-0 sm:text-sm" {...props}>{children}</p>,
-  ul: ({ children, ...props }) => <ul className="my-2 list-disc space-y-1 pl-5 text-[13px] leading-6 sm:text-sm" {...props}>{children}</ul>,
-  ol: ({ children, ...props }) => <ol className="my-2 list-decimal space-y-1 pl-5 text-[13px] leading-6 sm:text-sm" {...props}>{children}</ol>,
+  h1: ({ children, ...props }) => <h1 className="mt-3 text-sm font-semibold first:mt-0 sm:text-base" {...props}>{children}</h1>,
+  h2: ({ children, ...props }) => <h2 className="mt-3 text-[13px] font-semibold first:mt-0 sm:text-sm" {...props}>{children}</h2>,
+  h3: ({ children, ...props }) => <h3 className="mt-2.5 text-xs font-semibold" {...props}>{children}</h3>,
+  p: ({ children, ...props }) => <p className="my-1.5 text-xs leading-5 first:mt-0 last:mb-0 sm:text-[13px]" {...props}>{children}</p>,
+  ul: ({ children, ...props }) => <ul className="my-1.5 list-disc space-y-0.5 pl-4 text-xs leading-5 sm:text-[13px]" {...props}>{children}</ul>,
+  ol: ({ children, ...props }) => <ol className="my-1.5 list-decimal space-y-0.5 pl-4 text-xs leading-5 sm:text-[13px]" {...props}>{children}</ol>,
   li: ({ children, ...props }) => <li className="pl-1" {...props}>{children}</li>,
-  blockquote: ({ children, ...props }) => <blockquote className="my-3 border-l-2 border-foreground/20 pl-3 text-[13px] italic text-muted-foreground sm:text-sm" {...props}>{children}</blockquote>,
+  blockquote: ({ children, ...props }) => <blockquote className="my-2 border-l-2 border-foreground/20 pl-3 text-xs italic text-muted-foreground sm:text-[13px]" {...props}>{children}</blockquote>,
   a: ({ children, ...props }) => <a className="underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground" target="_blank" rel="noreferrer" {...props}>{children}</a>,
   hr: (props) => <hr className="my-4 border-foreground/10" {...props} />,
   strong: ({ children, ...props }) => <strong className="font-semibold" {...props}>{children}</strong>,

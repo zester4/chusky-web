@@ -45,6 +45,14 @@ loading, offline, and empty states when a resource has no saved data.
 
 - `components/app/chat-page.tsx` has bordered, rounded message bubbles, a
   rounded composer, and an upward-arrow send button.
+- The chat workspace keeps a compact saved-chat rail with explicit **New chat**
+  and **View all conversations** actions. Starting a chat creates a new durable
+  thread; it does not replace or clear the previous thread. The first message
+  becomes the thread title after the run settles, so old chats remain easy to
+  identify and revisit.
+- `/app/conversations` loads active and archived threads, supports loading older
+  pages, and lets users restore an archived conversation. Deletion remains an
+  explicit confirmed action.
 - The attachment button supports JPEG, PNG, WebP, PDF, plain text, MP3, OGG,
   WAV, and MP4 files up to 25 MB each, with progress, remove, success, and
   failure states. A run can include up to five verified attachments.
