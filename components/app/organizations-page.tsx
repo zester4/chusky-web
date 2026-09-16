@@ -1,10 +1,11 @@
 "use client";
 
-import { Activity, Building2, Check, CircleDollarSign, Copy, LoaderCircle, Plus, RefreshCw, ScrollText, ShieldCheck, UserPlus } from "lucide-react";
+import { Activity, Building2, Check, CircleDollarSign, Copy, LoaderCircle, Pencil, Plus, RefreshCw, ScrollText, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type CompanyAgent, type CompanyAgentTemplate, type CompanyAuditEvent, type CompanyBranding, type CompanyPolicy, type CompanyRun, type CompanyUsage, type CreatedDeveloperProject, type DeveloperProject } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
+import { ConfirmDialog } from "./confirm-dialog";
 
 type Workspace = { id: string; name: string; slug: string };
 type Member = { id: string; userId: string; role: string; user?: { name?: string; email?: string } };
@@ -31,6 +32,9 @@ export function OrganizationsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [templateSlug, setTemplateSlug] = useState("");
   const [agentGuidance, setAgentGuidance] = useState("");
+  const [editingAgent, setEditingAgent] = useState<CompanyAgent>();
+  const [editingInstructions, setEditingInstructions] = useState("");
+  const [removingAgent, setRemovingAgent] = useState<CompanyAgent>();
   const [projectName, setProjectName] = useState("");
   const [busy, setBusy] = useState("");
   const [savingPolicy, setSavingPolicy] = useState(false);
@@ -191,6 +195,28 @@ export function OrganizationsPage() {
     finally { setBusy(""); }
   };
 
+  const startAgentEdit = (agent: CompanyAgent) => { setEditingAgent(agent); setEditingInstructions(agent.instructions); setError(""); setNotice(""); };
+  const saveAgent = async () => {
+    if (!selectedProjectId || !editingAgent) return;
+    setBusy(`agent:${editingAgent.id}`); setError(""); setNotice("");
+    try {
+      const updated = await chuskyApi.account.projects.agents.update(selectedProjectId, editingAgent.id, { instructions: editingInstructions.trim() });
+      setAgents((current) => current?.map((item) => item.id === updated.id ? updated : item));
+      setEditingAgent(undefined); setNotice(`${updated.name} instructions saved.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update the agent profile."); }
+    finally { setBusy(""); }
+  };
+  const removeAgent = async (agent: CompanyAgent) => {
+    if (!selectedProjectId) return;
+    setBusy(`agent:${agent.id}`); setError(""); setNotice("");
+    try {
+      await chuskyApi.account.projects.agents.remove(selectedProjectId, agent.id);
+      setAgents((current) => current?.filter((item) => item.id !== agent.id));
+      setNotice(`${agent.name} removed from this project.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not remove the agent profile."); }
+    finally { setBusy(""); }
+  };
+
   const savePolicy = async () => {
     if (!selectedProjectId || !policy) return;
     setSavingPolicy(true); setError(""); setNotice("");
@@ -281,7 +307,7 @@ export function OrganizationsPage() {
           <div className="flex items-start gap-2.5"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><div><h2 className="text-sm font-medium">Agent templates</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">External Composio executions are approval-gated by policy. A caller can further restrict tools and budgets, but cannot widen the project grant.</p></div></div>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row"><select value={templateSlug} onChange={(event) => setTemplateSlug(event.target.value)} aria-label="Agent template" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Choose a specialist template</option>{(templates ?? []).map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}</select><Button disabled={!templateSlug || busy === "agent" || !canManage} onClick={() => void createAgent()}>{busy === "agent" ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} Add agent</Button></div>
           {templateSlug && <label className="mt-3 block text-[10px] text-muted-foreground">Company-specific instructions (optional)<textarea value={agentGuidance} onChange={(event) => setAgentGuidance(event.target.value)} maxLength={5000} rows={3} placeholder="For lead research: only target companies with 50+ employees; cite the source for headcount and prepare follow-up drafts for review." className="mt-1.5 min-h-20 w-full resize-y border border-foreground/15 bg-transparent p-2.5 text-xs leading-5 text-foreground outline-none focus:border-foreground/50" /></label>}
-          {agents === undefined ? <p className="mt-4 text-xs text-muted-foreground">Loading agent profiles…</p> : agents.length ? <div className="mt-3 border-t border-foreground/10">{agents.map((agent) => <div key={agent.id} className="border-b border-foreground/10 py-3 last:border-0"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{agent.name}</p><Status tone="amber">Approval before external action</Status></div><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{templates?.find((item) => item.slug === agent.template)?.outcome ?? agent.template}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">ID: {agent.id} · max {agent.budget.maxToolCalls ?? "project limit"} tool calls · ${agent.budget.maxCost ?? "project limit"} run cost</p></div>)}</div> : <p className="mt-4 border border-dashed border-foreground/20 p-3 text-xs text-muted-foreground">No agents configured for this project. Choose a template to create one.</p>}
+           {agents === undefined ? <p className="mt-4 text-xs text-muted-foreground">Loading agent profiles…</p> : agents.length ? <div className="mt-3 border-t border-foreground/10">{agents.map((agent) => <div key={agent.id} className="border-b border-foreground/10 py-3 last:border-0"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs font-medium">{agent.name}</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{templates?.find((item) => item.slug === agent.template)?.outcome ?? agent.template}</p></div><div className="flex shrink-0 flex-wrap gap-2"><Status tone="amber">Approval before external action</Status>{canManage && <><Button secondary disabled={busy === `agent:${agent.id}`} onClick={() => startAgentEdit(agent)}><Pencil size={11} /> Edit</Button><Button secondary disabled={busy === `agent:${agent.id}`} onClick={() => setRemovingAgent(agent)}><Trash2 size={11} /> Remove</Button></>}</div></div><p className="mt-1 font-mono text-[9px] text-muted-foreground">ID: {agent.id} · max {agent.budget.maxToolCalls ?? "project limit"} tool calls · ${agent.budget.maxCost ?? "project limit"} run cost</p>{editingAgent?.id === agent.id && <div className="mt-3 border-t border-foreground/10 pt-3"><label className="block text-[10px] text-muted-foreground">Instructions<textarea value={editingInstructions} onChange={(event) => setEditingInstructions(event.target.value)} maxLength={5000} rows={4} className="mt-1.5 min-h-20 w-full resize-y border border-foreground/15 bg-transparent p-2.5 text-xs leading-5 text-foreground outline-none focus:border-foreground/50" /></label><div className="mt-2 flex flex-wrap gap-2"><Button disabled={busy === `agent:${agent.id}`} onClick={() => void saveAgent()}>{busy === `agent:${agent.id}` ? <LoaderCircle size={13} className="animate-spin" /> : <Check size={13} />} Save instructions</Button><Button secondary disabled={busy === `agent:${agent.id}`} onClick={() => setEditingAgent(undefined)}>Cancel</Button></div></div>}</div>)}</div> : <p className="mt-4 border border-dashed border-foreground/20 p-3 text-xs text-muted-foreground">No agents configured for this project. Choose a template to create one.</p>}
         </Card>}
 
         {chosenProject && <Card className="p-4 sm:p-5">
@@ -340,5 +366,6 @@ export function OrganizationsPage() {
     </div>
     <Card className="mt-4 flex gap-2.5 p-3.5 text-xs text-muted-foreground sm:mt-5 sm:p-4"><ShieldCheck size={16} className="shrink-0 text-emerald-700" /><p><strong className="text-foreground">OAuth stays with Composio.</strong> Chusky does not store or refresh provider OAuth credentials. Each project run uses the Composio connected accounts associated with its authenticated Chusky identity.</p></Card>
     {createdKey && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-3" role="dialog" aria-modal="true" aria-labelledby="company-key-title"><Card className="w-full max-w-xl p-4 shadow-2xl sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Shown once</p><h2 id="company-key-title" className="mt-1 text-lg font-medium">{createdKey.name} project key</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Store this credential in your backend secret manager. Never place it in browser code or send it to end users.</p><div className="mt-3 flex items-start gap-2 border border-foreground/15 bg-foreground/[0.03] p-2.5"><code className="min-w-0 flex-1 break-all text-[11px]">{createdKey.key}</code><Button secondary onClick={() => void copyKey()}>{copied ? <Check size={13} /> : <Copy size={13} />}{copied ? "Copied" : "Copy"}</Button></div><div className="mt-4 flex justify-end"><Button onClick={() => { setCreatedKey(undefined); setCopied(false); }}>I saved it</Button></div></Card></div>}
+    {removingAgent && <ConfirmDialog open onOpenChange={(open) => !open && setRemovingAgent(undefined)} title={`Remove ${removingAgent.name}?`} description="This removes the agent profile from the selected project. Existing runs and audit records remain available." confirmLabel="Remove agent" destructive onConfirm={() => { const agent = removingAgent; setRemovingAgent(undefined); return removeAgent(agent); }} />}
   </>;
 }

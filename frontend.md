@@ -29,6 +29,9 @@ loading, offline, and empty states when a resource has no saved data.
 - `components/app/account-pages.tsx` powers Approvals, Channels, Reminders,
   Jobs, Memory, Scratchpad, Triggers, Workspace, Devices, and Settings from
   `GET /v1/account/overview`.
+- `components/app/mcp-page.tsx` powers `/app/mcp` from the authenticated MCP
+  catalogue and connection APIs. It never displays stored credentials; token
+  input is sent once to the backend, which encrypts it before use.
 - `components/app/backend-pages.tsx` powers Overview, Conversations, and Tasks
   from the authenticated threads, usage, and task APIs.
 - `components/app/operations-dashboard.tsx` powers Operations and Delivery
@@ -111,6 +114,7 @@ empty state; it does not fill resource pages with demo records.
 - `/app/conversations` — conversation list and conversation state
 - `/app/approvals` — pending risky-action approvals with approve/deny controls
 - `/app/apps` — connected applications and integrations
+- `/app/mcp` — approved third-party MCP catalogue and account connections
 - `/app/tasks` — task list and task status
 - `/app/reminders` — one-time reminders
 - `/app/jobs` — recurring jobs and schedules

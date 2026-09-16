@@ -64,6 +64,8 @@ export type ConnectedAccount = { id: string; alias?: string; toolkit: string; st
 export type Trigger = { id: string; slug: string; status: string; config: Record<string, unknown> };
 export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; instructions?: string; toolkit: { slug: string; name: string; logo?: string }; config: Record<string, unknown> };
 export type TriggerToolkit = { slug: string; name: string; logo?: string; triggerCount: number; connected: boolean; accountCount: number };
+export type McpCatalogEntry = { id: string; name: string; url: string; auth: "none" | "bearer" | "oauth"; scopes?: string[]; enabled?: boolean; allowedTools?: string[]; requireApproval?: boolean };
+export type McpConnection = { serverId: string; name: string; auth: "none" | "bearer" | "oauth"; enabled: boolean; connectedAt: string; updatedAt: string };
 export type Tool = { slug: string; description: string; source: "native" | "composio"; approval?: "auto" | "approval_required"; toolkit?: string; connected?: boolean };
 export type Skill = { name: string; description: string; path: string; bytes?: number; updatedAt?: number | string; files?: number };
 export type SkillFile = { name?: string; path: string; bytes: number; binary: boolean; content?: string; truncated?: boolean };
@@ -246,6 +248,12 @@ export const chuskyApi = {
     public: (hostname: string) => publicRequest<{ data: CompanyBranding | null }>(`/public/company-branding?hostname=${encodeURIComponent(hostname)}`),
   },
   agentTemplates: { list: () => request<{ data: CompanyAgentTemplate[] }>("/agents/templates") },
+  mcp: {
+    catalog: () => request<{ data: McpCatalogEntry[]; errors?: string[] }>("/mcp/catalog"),
+    connections: () => request<{ data: McpConnection[] }>("/mcp/connections"),
+    connect: (serverId: string, credential?: { accessToken: string; refreshToken?: string; expiresAt?: number }) => request<McpConnection>("/mcp/connections", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ serverId, ...(credential ? { ...credential } : {}) }) }),
+    disconnect: (serverId: string) => request<void>(`/mcp/connections/${encodeURIComponent(serverId)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
+  },
   apps: {
     list: () => request<Page<Toolkit>>("/apps"),
     connections: () => request<Page<ConnectedAccount>>("/apps/connections"),

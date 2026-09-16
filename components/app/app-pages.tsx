@@ -13,6 +13,7 @@ import { WorkersPage } from "./workers-page";
 import { OrganizationsPage } from "./organizations-page";
 import { MeetingsPage } from "./meetings-page";
 import { ChannelsPage } from "./channels-page";
+import { McpPage } from "./mcp-page";
 
 export function AppPage({ section }: { section: string }) {
   if (section === "organizations") return <OrganizationsPage />;
@@ -20,6 +21,7 @@ export function AppPage({ section }: { section: string }) {
   if (section === "calls") return <CallsPage />;
   if (section === "meetings") return <MeetingsPage />;
   if (section === "channels") return <ChannelsPage />;
+  if (section === "mcp") return <McpPage />;
   if (section === "capabilities") return <CapabilitiesPage />;
   if (section === "workers") return <WorkersPage />;
   if (section === "skills") return <SkillsPage />;

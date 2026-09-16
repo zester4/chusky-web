@@ -11,7 +11,7 @@ type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratc
 
 const copy: Record<PageKind, { eyebrow: string; title: string; description: string }> = {
   approvals: { eyebrow: "Safety center", title: "Approvals", description: "Review externally visible actions before Chusky executes them." },
-  apps: { eyebrow: "Channel connections", title: "Connected apps", description: "See the channels currently verified for your Chusky account." },
+  apps: { eyebrow: "Composio connections", title: "Connected apps", description: "Connect and manage the external accounts Chusky can use through Composio." },
   reminders: { eyebrow: "One-time automation", title: "Reminders", description: "Durable reminders delivered when they are due." },
   jobs: { eyebrow: "Scheduled automation", title: "Recurring jobs", description: "Recurring schedules currently stored for your account." },
   memory: { eyebrow: "Long-term context", title: "Memory", description: "Facts and preferences you explicitly asked Chusky to remember." },
