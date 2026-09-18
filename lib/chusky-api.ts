@@ -84,7 +84,7 @@ export type Delivery = { id: string; provider: string; status: string; kind: str
 export type Webhook = { id: string; url: string; createdAt: string; disabledAt?: string };
 export type Reminder = { id: string; text: string; runAt: string; status: string; createdAt: string; deliveryError?: string };
 export type Job = { id: string; text: string; cron: string; status: "active" | "cancelled"; scheduleId?: string; createdAt: string; deliveryError?: string };
-export type MemoryFact = { id: string; category: string; key: string; value: string; confidence: number; source?: string; sensitivity?: string; createdAt: string; updatedAt: string; expiresAt?: string; reviewAt?: string };
+export type MemoryFact = { id: string; category: string; key: string; value: string; confidence: number; source?: string; sensitivity: "normal" | "sensitive"; createdAt: string; updatedAt: string; expiresAt?: string; reviewAt?: string };
 export type ScratchpadNote = { key: string; content: string; updatedAt: string };
 
 // Browser requests stay on the frontend origin and are proxied by Next.js to
@@ -333,7 +333,7 @@ export const chuskyApi = {
   },
   memory: {
     list: (query = "") => request<{ data: MemoryFact[] }>(`/memory${query ? `?query=${encodeURIComponent(query)}` : ""}`),
-    save: (input: { category: string; key: string; value: string; confidence?: number; sensitivity?: string; projectId?: string; personKey?: string }) => request<MemoryFact>("/memory", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    save: (input: { category: string; key: string; value: string; confidence?: number; sensitivity: "normal" | "sensitive"; projectId?: string; personKey?: string; reviewAt?: number; expiresAt?: number }) => request<MemoryFact>("/memory", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     remove: (id: string) => request<void>(`/memory/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   scratchpad: {
