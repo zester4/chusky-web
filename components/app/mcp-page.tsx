@@ -56,7 +56,7 @@ export function McpPage() {
   };
 
   return <>
-    <PageHeading eyebrow="Agent integrations" title="MCP connections" description="Connect approved third-party MCP servers to Chusky. Credentials are encrypted by the backend and are never returned to the dashboard." action={<Button secondary onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={13} /> Refresh</Button>} />
+    <PageHeading eyebrow="Agent integrations" title="MCP connections" description="Connect approved third-party MCP servers to Chusky. Credentials are encrypted by the backend and are never returned to the dashboard." action={<Button secondary onClick={() => void load()} disabled={Boolean(busy)}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />
     {error && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900">{error}</Card>}
     {errors.length > 0 && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900"><p className="font-medium">Some MCP catalogue entries could not be loaded.</p><ul className="mt-2 list-disc space-y-1 pl-4">{errors.map((item) => <li key={item}>{item}</li>)}</ul></Card>}
     <Card className="mb-4 p-4 sm:p-5"><div className="flex items-start gap-2.5"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-emerald-700" /><div><h2 className="text-sm font-medium">A controlled MCP boundary</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Chusky discovers tools through the official MCP client, namespaces them per server, validates arguments, and keeps approval required for side-effecting actions by default. This is separate from the Chusky MCP endpoint that your company agents connect to.</p></div></div></Card>

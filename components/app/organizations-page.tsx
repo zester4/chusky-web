@@ -261,7 +261,7 @@ export function OrganizationsPage() {
   };
 
   return <>
-    <PageHeading eyebrow="Company platform" title="Organizations" description="Create a shared workspace, invite teammates, and configure company-scoped agent projects. Connected apps and OAuth accounts remain managed by Composio." action={<Button secondary onClick={() => void refresh()} disabled={busy !== ""}><RefreshCw size={13} /> Refresh</Button>} />
+    <PageHeading eyebrow="Company platform" title="Organizations" description="Create a shared workspace, invite teammates, and configure company-scoped agent projects. Connected apps and OAuth accounts remain managed by Composio." action={<Button secondary onClick={() => void refresh()} disabled={busy !== ""}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />
     {error && <div role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900">{error}</div>}
     {notice && <div role="status" className="mb-4 border border-emerald-300 bg-emerald-50 p-3.5 text-xs text-emerald-900">{notice}</div>}
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(19rem,0.8fr)]">

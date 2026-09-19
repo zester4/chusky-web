@@ -70,7 +70,7 @@ export function MeetingsPage() {
   };
 
   return <>
-    <PageHeading eyebrow="Calendar & live sessions" title="Meetings" description="Review calendar meeting preparations, participant context, live-call outcomes, and the representative profile Chusky uses. Calendar triggers can also describe non-meeting events; only verified supported video links become meeting preparations." action={<Button secondary onClick={() => void load()}><RefreshCw size={13}/> Refresh</Button>} />
+    <PageHeading eyebrow="Calendar & live sessions" title="Meetings" description="Review calendar meeting preparations, participant context, live-call outcomes, and the representative profile Chusky uses. Calendar triggers can also describe non-meeting events; only verified supported video links become meeting preparations." action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13}/></span> Refresh</Button>} />
     {error && <div role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">{error}</div>}{notice && <p role="status" className="mb-3 text-xs text-emerald-700">{notice}</p>}
 
     <section className="mb-5"><div className="mb-2 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Calendar briefings</p><h2 className="mt-1 font-display text-2xl">Prepared events</h2></div><span className="text-[10px] text-muted-foreground">Refreshes every 15 seconds</span></div>

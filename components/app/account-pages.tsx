@@ -24,7 +24,7 @@ const copy: Record<PageKind, { eyebrow: string; title: string; description: stri
 
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 function Empty({ children }: { children: ReactNode }) { return <p className="p-4 text-xs text-muted-foreground sm:p-5">{children}</p>; }
-function Offline({ retry }: { retry: () => void }) { return <Card className="flex flex-col items-start gap-3 p-4"><Status tone="amber">Backend unavailable</Status><p className="text-xs text-muted-foreground">This page needs the authenticated Chusky API to load your private data.</p><Button secondary onClick={retry}><RefreshCw size={13} /> Retry</Button></Card>; }
+function Offline({ retry }: { retry: () => void }) { return <Card className="flex flex-col items-start gap-3 p-4"><Status tone="amber">Backend unavailable</Status><p className="text-xs text-muted-foreground">This page needs the authenticated Chusky API to load your private data.</p><Button secondary onClick={retry}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Retry</Button></Card>; }
 
 export function AccountDataPage({ kind }: { kind: PageKind }) {
   const [data, setData] = useState<AccountOverview>();
@@ -34,7 +34,7 @@ export function AccountDataPage({ kind }: { kind: PageKind }) {
   useEffect(() => { void load(); }, []);
   const decide = async (id: string, decision: "approve" | "deny") => { setBusy(id); try { await chuskyApi.approvals.decide(id, decision); await load(); } finally { setBusy(undefined); } };
   const heading = copy[kind];
-  return <><PageHeading eyebrow={heading.eyebrow} title={heading.title} description={heading.description} action={<Button secondary onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button>} />{offline ? <Offline retry={() => void load()} /> : !data ? <Card className="flex items-center gap-3 p-4 text-xs text-muted-foreground sm:p-5"><LoaderCircle size={15} className="animate-spin" /> Loading your saved data…</Card> : <Content kind={kind} data={data} decide={decide} busy={busy} />}</>;
+  return <><PageHeading eyebrow={heading.eyebrow} title={heading.title} description={heading.description} action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />{offline ? <Offline retry={() => void load()} /> : !data ? <Card className="flex items-center gap-3 p-4 text-xs text-muted-foreground sm:p-5"><LoaderCircle size={15} className="animate-spin" /> Loading your saved data…</Card> : <Content kind={kind} data={data} decide={decide} busy={busy} />}</>;
 }
 
 function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOverview; decide: (id: string, decision: "approve" | "deny") => Promise<void>; busy?: string }) {

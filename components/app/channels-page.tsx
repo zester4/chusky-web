@@ -53,7 +53,7 @@ export function ChannelsPage() {
   };
 
   return <>
-    <PageHeading eyebrow="Account connections" title="Channels" description="Manage the identities linked to your Chusky workspace. These controls change Chusky’s link, not the provider-side app installation." action={<Button secondary onClick={() => void load()}><RefreshCw size={13}/> Refresh</Button>} />
+    <PageHeading eyebrow="Account connections" title="Channels" description="Manage the identities linked to your Chusky workspace. These controls change Chusky’s link, not the provider-side app installation." action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13}/></span> Refresh</Button>} />
     {error && <div role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">{error}</div>}
     {notice && <p role="status" className="mb-3 text-xs text-emerald-700">{notice}</p>}
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
