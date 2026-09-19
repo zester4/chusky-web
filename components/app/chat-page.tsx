@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Check,
   Copy,
+  Download,
   Pencil,
   FileText,
   LoaderCircle,
@@ -19,7 +20,7 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type DurationBudget, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type Artifact, type DurationBudget, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 
@@ -30,11 +31,58 @@ type Message = {
   pending?: boolean;
   tool?: string;
   attachments?: Array<{ id: string; name: string; contentType: string; size: number; downloadUrl?: string }>;
+  artifacts?: Artifact[];
   approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean };
 };
 
 const formatToolLabel = (tool?: string) => tool ? tool.replaceAll("_", " ").toLowerCase() : "working";
 const isDelegation = (tool?: string) => Boolean(tool && /(sub.?agent|delegate|worker|handoff)/i.test(tool));
+const formatArtifactSize = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes < 1024) return `${Math.max(0, bytes || 0)} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
+};
+const normalizeArtifactText = (value: string) => {
+  let decoded = value;
+  try { decoded = decodeURIComponent(value); } catch { /* Keep malformed provider paths comparable. */ }
+  return decoded.toLowerCase().replace(/\.[a-z0-9]{2,8}$/i, "").replace(/[^a-z0-9]+/g, " ").trim();
+};
+const isArtifactLink = (href: string) => /^(sandbox:|file:|artifact:)|\/(?:mnt\/data|v1\/artifacts|artifacts)\//i.test(href);
+const artifactLinksInText = (content: string, artifacts: Artifact[]) => {
+  const matches: Artifact[] = [];
+  const linkPattern = /\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+  for (const match of content.matchAll(linkPattern)) {
+    const label = normalizeArtifactText(match[1]);
+    const href = match[2];
+    const artifact = artifacts.find((candidate) => {
+      const name = normalizeArtifactText(candidate.name);
+      const id = candidate.id.toLowerCase();
+      let decodedHref = href;
+      try { decodedHref = decodeURIComponent(href); } catch { /* Keep malformed provider paths comparable. */ }
+      const hrefText = decodedHref.toLowerCase();
+      const normalizedHref = normalizeArtifactText(href);
+      return (isArtifactLink(href) || hrefText.includes(id) || normalizedHref.includes(name)) &&
+        (label.includes(name) || name.includes(label) || hrefText.includes(id) || normalizedHref.includes(name));
+    });
+    if (artifact && !matches.some((candidate) => candidate.id === artifact.id)) matches.push(artifact);
+  }
+  return matches;
+};
+const stripArtifactLinks = (content: string, artifacts: Artifact[]) => {
+  if (!artifacts.length) return content;
+  return content.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (full, label) => artifactLinksInText(full, artifacts).length ? label : full);
+};
+
+function ArtifactCard({ artifact, busy, onDownload }: { artifact: Artifact; busy: boolean; onDownload: (artifact: Artifact) => void }) {
+  return <div className="mt-2 flex max-w-full items-center gap-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2.5">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-foreground/10 bg-background text-muted-foreground"><FileText size={15} /></div>
+    <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</p><p className="mt-0.5 text-[10px] capitalize text-muted-foreground">{artifact.type} · {formatArtifactSize(artifact.size)}</p></div>
+    <button type="button" onClick={() => onDownload(artifact)} disabled={busy} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-foreground/15 px-2.5 py-1.5 text-[10px] font-medium hover:bg-foreground/5 disabled:cursor-wait disabled:opacity-60" aria-label={`Download ${artifact.name}`}><Download size={12} />{busy ? "Preparing…" : "Download"}</button>
+  </div>;
+}
 
 type PendingAttachment = { localId: string; id?: string; name: string; contentType: string; size: number; progress: number; status: "uploading" | "ready" | "error"; error?: string };
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/markdown", "application/zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "audio/mpeg", "audio/ogg", "audio/wav", "video/mp4", "video/webm"]);
@@ -61,6 +109,8 @@ export function ChatPage() {
   const [likedMessageIndex, setLikedMessageIndex] = useState<number>();
   const [editingMessageIndex, setEditingMessageIndex] = useState<number>();
   const [notice, setNotice] = useState<{ kind: "error" | "info"; message: string }>();
+  const [artifactCatalog, setArtifactCatalog] = useState<Artifact[]>([]);
+  const [downloadingArtifactId, setDownloadingArtifactId] = useState<string>();
   const [listening, setListening] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +139,9 @@ export function ChatPage() {
           setStatus("ready");
         }
         const runs = await chuskyApi.threads.runs(current.id, { limit: 50 });
+        const artifactPage = await chuskyApi.artifacts.list().catch(() => ({ data: [] as Artifact[] }));
         if (active) {
+          setArtifactCatalog(artifactPage.data);
           const restored: Message[] = [];
           for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
             if (run.input || run.attachments?.length) restored.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
@@ -97,7 +149,8 @@ export function ChatPage() {
               const approval = run.status === "requires_approval" && run.approvalId
                 ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
                 : undefined;
-              restored.push({ role: "assistant", text: run.output || "This run is awaiting approval.", time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
+              const output = run.output || "This run is awaiting approval.";
+              restored.push({ role: "assistant", text: output, artifacts: artifactLinksInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
             }
           }
           setMessages(restored);
@@ -216,11 +269,31 @@ export function ChatPage() {
     if (item.id) await chuskyApi.files.remove(item.id).catch(() => undefined);
   };
 
+  const downloadArtifact = async (artifact: Artifact) => {
+    setDownloadingArtifactId(artifact.id);
+    try {
+      const blob = await chuskyApi.artifacts.download(artifact.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = artifact.name;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      window.setTimeout(() => { URL.revokeObjectURL(url); anchor.remove(); }, 60_000);
+    } catch {
+      showNotice(`Could not download ${artifact.name}. Please try again.`);
+    } finally {
+      setDownloadingArtifactId(undefined);
+    }
+  };
+
   const send = async () => {
     const text = input.trim();
     const readyAttachments = attachments.filter((item) => item.status === "ready" && item.id) as Array<PendingAttachment & { id: string }>;
     if ((!text && !readyAttachments.length) || !thread || controller || attachments.some((item) => item.status === "uploading")) return;
     const abort = new AbortController();
+    const artifactIdsBefore = new Set(artifactCatalog.map((artifact) => artifact.id));
     setController(abort);
     setInput("");
     setAttachments([]);
@@ -238,7 +311,18 @@ export function ChatPage() {
         } else if (typed.type === "run.tool_started") {
           updateLastAssistant({ pending: true, tool: typed.toolSlug });
         } else if (typed.type === "run.completed") {
-          updateLastAssistant({ text: typed.run.output || "Done.", pending: false, tool: undefined });
+          const output = typed.run.output || "Done.";
+          let latestArtifacts = artifactCatalog;
+          try {
+            const page = await chuskyApi.artifacts.list();
+            latestArtifacts = page.data;
+            setArtifactCatalog(latestArtifacts);
+          } catch {
+            // The run is complete even if the artifact catalogue is temporarily unavailable.
+          }
+          const createdArtifacts = latestArtifacts.filter((artifact) => !artifactIdsBefore.has(artifact.id));
+          const linkedArtifacts = artifactLinksInText(output, latestArtifacts);
+          updateLastAssistant({ text: output, artifacts: linkedArtifacts.length ? linkedArtifacts : createdArtifacts, pending: false, tool: undefined });
         } else if (typed.type === "run.approval_required") {
           updateLastAssistant({ text: `Chusky needs your approval to use ${(typed.approval?.toolSlug || "this action").replaceAll("_", " ").toLowerCase()}.`, pending: false, tool: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {
@@ -287,7 +371,8 @@ export function ChatPage() {
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 rounded-md border border-foreground/15 bg-foreground px-2 py-1.5 text-[12px] leading-5 text-background" : "relative w-fit max-w-full min-w-0 rounded-md border border-foreground/10 bg-background px-2 py-1.5"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{isDelegation(item.tool) ? "Sub-agent working" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "Chusky is working"}</span></div>}
-                    {item.text ? item.role === "assistant" ? <MarkdownMessage content={item.text} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
+                    {item.text ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
+                    {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} busy={downloadingArtifactId === artifact.id} onDownload={(candidate) => void downloadArtifact(candidate)} />)}</div> : null}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
