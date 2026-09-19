@@ -1,0 +1,12 @@
+<svg
+  fill="none"
+  height="24"
+  viewBox="0 0 24 24"
+  width="24"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <rect fill="#f97316" height="24" rx="4" width="24" />
+  <rect fill="white" height="3" width="12" x="6" y="6" />
+  <rect fill="white" height="3" width="8" x="6" y="11" />
+  <rect fill="white" height="3" width="10" x="6" y="16" />
+</svg>
