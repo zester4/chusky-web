@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { AnimatedSphere } from "./animated-sphere";
 
-const words = ["create", "build", "scale", "ship"];
+const words = ["plan", "connect", "research", "automate", "execute", "deliver"];
 
 export function HeroSection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -64,7 +64,7 @@ export function HeroSection() {
         >
           <span className="inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:text-sm">
             <span className="h-px w-6 bg-foreground/30 sm:w-8" />
-            Your AI agent, ready to work
+            Your AI agent, ready for work
           </span>
         </div>
         
@@ -75,9 +75,9 @@ export function HeroSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
           >
-            <span className="block">Your AI agent</span>
+            <span className="block">Your AI agent,</span>
             <span className="block">
-              to{" "}
+              ready to{" "}
               <span className="relative inline-block">
                 <span 
                   key={wordIndex}
@@ -113,21 +113,21 @@ export function HeroSection() {
           
           {/* CTAs */}
           <div 
-            className={`flex flex-col sm:flex-row items-start gap-4 transition-all duration-700 delay-300 ${
+            className={`flex flex-row items-center gap-2 transition-all duration-700 delay-300 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
             <Button 
               size="lg" 
-            className="h-10 rounded-full bg-foreground px-4 text-xs text-background group hover:bg-foreground/90 sm:h-11 sm:px-5 sm:text-sm"
+            className="h-9 shrink-0 rounded-full bg-foreground px-3 text-[11px] text-background group hover:bg-foreground/90 sm:h-11 sm:px-5 sm:text-sm"
             >
               Start free trial
-              <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-1 sm:ml-2 sm:h-4 sm:w-4" />
             </Button>
             <Button 
               size="lg" 
               variant="outline" 
-            className="h-10 rounded-full border-foreground/20 px-4 text-xs hover:bg-foreground/5 sm:h-11 sm:px-5 sm:text-sm"
+            className="h-9 shrink-0 rounded-full border-foreground/20 px-3 text-[11px] hover:bg-foreground/5 sm:h-11 sm:px-5 sm:text-sm"
             >
               Watch demo
             </Button>
