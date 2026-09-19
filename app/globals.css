@@ -125,6 +125,49 @@
   *::-webkit-scrollbar-thumb:hover {
     background-color: color-mix(in srgb, var(--foreground) 42%, transparent);
   }
+
+  .app-shell select {
+    min-height: 2.25rem;
+    border-radius: 0.625rem;
+    border-color: color-mix(in srgb, var(--foreground) 14%, transparent);
+    background-color: var(--background);
+    padding-inline: 0.625rem 1.75rem;
+    color: var(--foreground);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .app-shell select:focus-visible {
+    border-color: color-mix(in srgb, var(--foreground) 40%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--foreground) 10%, transparent);
+  }
+
+  .app-shell input:not([type="checkbox"]):not([type="radio"]),
+  .app-shell textarea {
+    border-radius: 0.625rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .app-shell input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+  .app-shell textarea:focus-visible {
+    border-color: color-mix(in srgb, var(--foreground) 40%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--foreground) 10%, transparent);
+  }
+
+  /* Capability panels are intentionally single-view: the active tab owns the canvas. */
+  [data-capabilities] [data-capability-section] {
+    display: none !important;
+  }
+
+  [data-capabilities][data-active-tab="tools"] [data-capability-section="tools"],
+  [data-capabilities][data-active-tab="skills"] [data-capability-section="skills"],
+  [data-capabilities][data-active-tab="workers"] [data-capability-section="workers"],
+  [data-capabilities][data-active-tab="artifacts"] [data-capability-section="artifacts"],
+  [data-capabilities][data-active-tab="media"] [data-capability-section="media"],
+  [data-capabilities][data-active-tab="channels"] [data-capability-section="channels"],
+  [data-capabilities][data-active-tab="webhooks"] [data-capability-section="webhooks"] {
+    display: block !important;
+  }
 }
 
 @layer utilities {

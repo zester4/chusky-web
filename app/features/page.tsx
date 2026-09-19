@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { IntegrationsSection } from "@/components/landing/integrations-section";
+import { WorkModesSection } from "@/components/landing/work-modes-section";
 import { CtaSection } from "@/components/landing/cta-section";
 import { ProductPageHero, ProductPageShell } from "@/components/landing/product-page";
 
@@ -19,6 +20,7 @@ export default function FeaturesPage() {
         artwork={{ src: "/chusky/chusky-connected-tools.png", alt: "Chusky connecting work across apps and tools" }}
       />
       <FeaturesSection />
+      <WorkModesSection />
       <IntegrationsSection />
       <CtaSection />
     </ProductPageShell>

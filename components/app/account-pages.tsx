@@ -11,13 +11,13 @@ type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratc
 
 const copy: Record<PageKind, { eyebrow: string; title: string; description: string }> = {
   approvals: { eyebrow: "Safety center", title: "Approvals", description: "Review externally visible actions before Chusky executes them." },
-  apps: { eyebrow: "Composio connections", title: "Connected apps", description: "Connect and manage the external accounts Chusky can use through Composio." },
+  apps: { eyebrow: "Connected services", title: "Connected apps", description: "Connect and manage the external accounts your agent can use." },
   reminders: { eyebrow: "One-time automation", title: "Reminders", description: "Durable reminders delivered when they are due." },
   jobs: { eyebrow: "Scheduled automation", title: "Recurring jobs", description: "Recurring schedules currently stored for your account." },
   memory: { eyebrow: "Long-term context", title: "Memory", description: "Facts and preferences you explicitly asked Chusky to remember." },
   scratchpad: { eyebrow: "Private working notes", title: "Scratchpad", description: "Temporary notes saved in your private Chusky session." },
-  triggers: { eyebrow: "Real-time events", title: "Triggers", description: "Event trigger IDs owned by this account." },
-  workspace: { eyebrow: "Daytona workspace", title: "Workspace", description: "The isolated computer workspace attached to your account." },
+  triggers: { eyebrow: "Real-time events", title: "Triggers", description: "Connect live events to actions your agent can take for you." },
+  workspace: { eyebrow: "Agent workspace", title: "Workspace", description: "The private computer workspace your agent can use for files, commands, and generated work." },
   devices: { eyebrow: "CLI access", title: "Devices", description: "Terminals currently linked to your Chusky account." },
   settings: { eyebrow: "Account configuration", title: "Settings", description: "Live account defaults and runtime preferences." },
 };
@@ -46,7 +46,7 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "scratchpad") return <Card>{data.scratchpad.length ? data.scratchpad.map((item) => <Row key={item.key} icon={<ExternalLink size={15} />} title={item.key} detail={item.content} meta={`Updated ${date(item.updatedAt)}`} />) : <Empty>Your scratchpad is empty.</Empty>}</Card>;
   if (kind === "triggers") return <ComprehensiveTriggersPanel />;
   if (kind === "devices") return <DevicesPanel initial={data.devices} />;
-  if (kind === "workspace") return <Card className="p-4">{data.workspace ? <div className="space-y-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center border border-foreground/10"><Laptop size={17} /></span><div className="min-w-0"><h2 className="truncate text-xs font-medium">{data.workspace.name}</h2><p className="mt-1 truncate text-[11px] text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-3 text-[11px] sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No Daytona workspace has been created for this account.</Empty>}</Card>;
+  if (kind === "workspace") return <Card className="p-4 sm:p-5">{data.workspace ? <div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-700"><Laptop size={17} /></span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{data.workspace.name}</h2><p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-2 sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No agent workspace has been created for this account.</Empty>}</Card>;
   return <div className="grid gap-4 lg:grid-cols-2"><SettingsPanel initialModel={data.model} initialVoice={data.voiceReplies} initialPreferences={data.voicePreferences} /><TelegramLink linked={data.telegramLink.linked} /><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
 }
 

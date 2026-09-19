@@ -51,6 +51,12 @@ const features = [
     description: "Turn ideas into images, audio, documents, spreadsheets, and PDFs—then keep the results ready when you need them.",
     visual: "collab",
   },
+  {
+    number: "09",
+    title: "Meetings and calls, with follow-through",
+    description: "Join supported meetings, handle approved phone calls, and turn the conversation into private recaps, tasks, and reminders.",
+    visual: "collab",
+  },
 ];
 
 function DeployVisual() {

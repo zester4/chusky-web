@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
-import { InfrastructureSection } from "@/components/landing/infrastructure-section";
+import { WorkModesSection } from "@/components/landing/work-modes-section";
 import { ProductPageHero, ProductPageShell } from "@/components/landing/product-page";
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ export default function HowItWorksPage() {
         artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky moving a request through a connected workflow" }}
       />
       <HowItWorksSection />
-      <InfrastructureSection />
+      <WorkModesSection />
     </ProductPageShell>
   );
 }

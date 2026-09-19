@@ -123,6 +123,16 @@ function formatCodeLanguage(className?: string) {
   return /language-([\w-]+)/.exec(className || "")?.[1]?.toLowerCase();
 }
 
+const codeTokenPattern = /(\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:as|async|await|break|case|catch|class|const|continue|def|else|export|extends|false|for|from|function|if|import|in|interface|let|new|null|of|private|protected|public|return|static|this|throw|true|try|type|typeof|var|while|with|yield)\b|\b\d+(?:\.\d+)?\b)/g;
+
+function highlightedCode(source: string, language: string) {
+  return source.split(codeTokenPattern).map((token, index) => {
+    if (!token) return null;
+    const className = /^(\/\/|#|\/\*)/.test(token) ? "text-slate-500" : /^("|'|`)/.test(token) ? "text-emerald-700" : /^(?:true|false|null|\d)/.test(token) ? "text-orange-700" : /^(?:as|async|await|break|case|catch|class|const|continue|def|else|export|extends|for|from|function|if|import|in|interface|let|new|of|private|protected|public|return|static|this|throw|try|type|typeof|var|while|with|yield)$/.test(token) ? "text-indigo-700" : "text-foreground";
+    return <span key={`${language}-${index}`} className={className}>{token}</span>;
+  });
+}
+
 const components: Components = {
   h1: ({ children, ...props }) => <h1 className="mt-3 text-sm font-semibold tracking-tight first:mt-0 sm:text-base" {...props}>{children}</h1>,
   h2: ({ children, ...props }) => <h2 className="mt-3 text-[13px] font-semibold tracking-tight first:mt-0 sm:text-sm" {...props}>{children}</h2>,
@@ -143,7 +153,7 @@ const components: Components = {
     const language = formatCodeLanguage(className);
     if (language === "mermaid" || language === "flowchart") return <MermaidBlock source={source} />;
     if (language === "chart" || language === "charts") return <DataChart source={source} />;
-    return <code className={`rounded bg-foreground/[0.06] px-1 py-0.5 font-mono text-[10px] ${className || ""}`} {...props}>{children}</code>;
+    return <code className={`rounded bg-foreground/[0.06] px-1 py-0.5 font-mono text-[10px] ${className || ""}`} {...props}>{language ? highlightedCode(source, language) : children}</code>;
   },
   pre: ({ children, ...props }) => {
     const child = React.isValidElement(children) ? children : undefined;
