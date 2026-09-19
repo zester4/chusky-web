@@ -1,3 +1,5 @@
+import { notifyChuskyDataChanged as notifyDataChanged } from "./live-sync";
+
 export type Page<T> = { data: T[]; nextCursor?: string };
 export type Thread = { id: string; externalId?: string; metadata: Record<string, unknown>; createdAt: string; updatedAt: string };
 export type UploadedFile = { id: string; name: string; contentType: string; size: number; status: "pending" | "available" | "rejected"; createdAt: number; downloadUrl?: string; expiresAt?: string };
@@ -44,7 +46,7 @@ export type AccountOverview = {
   channels: Array<{ id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
   reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
   jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string }>;
-  memory: Array<{ id: string; category: string; key: string; value: string; confidence: number; updatedAt: string }>;
+  memory: MemoryFact[];
   scratchpad: Array<{ key: string; content: string; updatedAt: string }>;
   triggers: string[];
   devices: Array<{ id: string; name: string; createdAt: string; lastSeenAt: string }>;
@@ -99,17 +101,23 @@ export class ChuskyApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${apiBaseURL}/v1${path}`, { ...init, credentials: "include", headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
+  const method = (init.method ?? "GET").toUpperCase();
+  const response = await fetch(`${apiBaseURL}/v1${path}`, { cache: "no-store", ...init, credentials: "include", headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { error?: { message?: string; code?: string } } | undefined;
     throw new ChuskyApiError(response.status, body?.error?.message || `Chusky returned HTTP ${response.status}`, body?.error?.code);
   }
-  if (response.status === 204) return undefined as T;
-  return await response.json() as T;
+  if (response.status === 204) {
+    if (method !== "GET" && method !== "HEAD") notifyDataChanged();
+    return undefined as T;
+  }
+  const result = await response.json() as T;
+  if (method !== "GET" && method !== "HEAD") notifyDataChanged();
+  return result;
 }
 
 async function publicRequest<T>(path: string): Promise<T> {
-  const response = await fetch(`${apiBaseURL}${path}`, { credentials: "include", headers: { Accept: "application/json" } });
+  const response = await fetch(`${apiBaseURL}${path}`, { cache: "no-store", credentials: "include", headers: { Accept: "application/json" } });
   if (!response.ok) throw new ChuskyApiError(response.status, `Chusky returned HTTP ${response.status}`);
   return await response.json() as T;
 }
@@ -138,7 +146,7 @@ function putUpload(url: string, file: File, onProgress?: (progress: number) => v
 }
 
 async function requestBytes(path: string): Promise<Blob> {
-  const response = await fetch(`${apiBaseURL}/v1${path}`, { credentials: "include", headers: { Accept: "application/octet-stream" } });
+  const response = await fetch(`${apiBaseURL}/v1${path}`, { cache: "no-store", credentials: "include", headers: { Accept: "application/octet-stream" } });
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { error?: { message?: string; code?: string } } | undefined;
     throw new ChuskyApiError(response.status, body?.error?.message || `Chusky returned HTTP ${response.status}`, body?.error?.code);
@@ -162,7 +170,7 @@ export const chuskyApi = {
     cancel: (threadId: string, runId: string) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     resume: (threadId: string, runId: string) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     async *stream(threadId: string, input: string, attachments: string[] = [], signal?: AbortSignal, options: { model?: string; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[] } = {}): AsyncIterable<RunStreamEvent> {
-      const response = await fetch(`${apiBaseURL}/v1/threads/${encodeURIComponent(threadId)}/runs/stream`, { method: "POST", credentials: "include", signal, headers: { Accept: "application/x-ndjson", "Content-Type": "application/json", "Idempotency-Key": idempotency() }, body: JSON.stringify({ input, attachments, ...options }) });
+      const response = await fetch(`${apiBaseURL}/v1/threads/${encodeURIComponent(threadId)}/runs/stream`, { method: "POST", cache: "no-store", credentials: "include", signal, headers: { Accept: "application/x-ndjson", "Content-Type": "application/json", "Idempotency-Key": idempotency() }, body: JSON.stringify({ input, attachments, ...options }) });
       if (!response.ok) {
         const body = await response.json().catch(() => undefined) as { error?: { message?: string; code?: string } } | undefined;
         throw new ChuskyApiError(response.status, body?.error?.message || `Chusky returned HTTP ${response.status}`, body?.error?.code);

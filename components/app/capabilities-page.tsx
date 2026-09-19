@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Download, FileArchive, FileText, LoaderCircle, Play, RefreshCw, Search, Square, Users, Video, Wrench, X } from "lucide-react";
 import { chuskyApi, type Artifact, type ChannelConnection, type Delivery, type Skill, type SkillFile, type Tool, type VideoJob, type Webhook, type Worker } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 
@@ -55,6 +56,7 @@ export function CapabilitiesPage() {
     if (results.every((result) => result.status === "rejected")) setError("The capabilities API is unavailable. Start the backend and retry.");
   };
   useEffect(() => { void load(""); }, []);
+  useLiveData(() => load(query));
 
   const openSkill = async (item: Skill) => {
     setBusy(`skill:${item.name}`); setError(undefined);

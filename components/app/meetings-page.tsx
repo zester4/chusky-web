@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, LoaderCircle, RefreshCw, Save, Users } from "lucide-react";
 import { chuskyApi, type Meeting, type MeetingContact, type MeetingRepresentativeProfile, type MeetingWorkspace } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -43,7 +44,8 @@ export function MeetingsPage() {
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load the meeting workspace."); }
   }, []);
-  useEffect(() => { void load(); const timer = window.setInterval(() => void load(false), 15_000); return () => window.clearInterval(timer); }, [load]);
+  useEffect(() => { void load(); }, [load]);
+  useLiveData(() => load(false), 15_000);
 
   const saveProfile = async () => {
     setBusy("profile"); setError(undefined); setNotice(undefined);

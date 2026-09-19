@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, LoaderCircle, Phone, RefreshCw, ShieldCheck } from "lucide-react";
-import { chuskyApi, type CallApproval, type CallCapability, type CallMode, type CallRecord, type CallTone } from "@/lib/chusky-api";
+import { chuskyApi, type Approval, type CallApproval, type CallCapability, type CallMode, type CallRecord, type CallTone } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 function statusTone(status: CallRecord["status"]): "green" | "amber" | "gray" { return status === "active" || status === "ended" ? "green" : status === "failed" ? "amber" : "gray"; }
+function pendingCallApproval(item: Approval): CallApproval | undefined {
+  if (item.toolSlug !== "CHUCK_START_PHONE_CALL" || item.status !== "pending") return undefined;
+  const args = item.args as Partial<CallApproval["args"]>;
+  if (typeof args.phoneNumber !== "string" || typeof args.purpose !== "string" || !args.profile || typeof args.profile !== "object") return undefined;
+  return { id: item.id, status: "pending", toolSlug: "CHUCK_START_PHONE_CALL", expiresAt: item.expiresAt, args: { phoneNumber: args.phoneNumber, purpose: args.purpose, profile: args.profile as CallApproval["args"]["profile"] } };
+}
 
 export function CallsPage() {
   const [calls, setCalls] = useState<CallRecord[]>(); const [available, setAvailable] = useState(false); const [provider, setProvider] = useState<"twilio" | "bland" | null>(null);
@@ -15,8 +22,9 @@ export function CallsPage() {
   const [identity, setIdentity] = useState("Chusky"); const [organization, setOrganization] = useState(""); const [mode, setMode] = useState<CallMode>("general"); const [tone, setTone] = useState<CallTone>("professional"); const [opening, setOpening] = useState(""); const [facts, setFacts] = useState(""); const [guardrails, setGuardrails] = useState(""); const [capabilities, setCapabilities] = useState<CallCapability[]>(["memory_lookup", "scratchpad_lookup", "schedule_lookup", "task_lookup", "call_history"]);
   const [approval, setApproval] = useState<CallApproval>(); const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState<"request" | "approve" | "deny">(); const [error, setError] = useState<string>();
-  const load = async () => { setError(undefined); try { const result = await chuskyApi.account.calls.list(); setCalls(result.data); setAvailable(result.available); setProvider(result.provider); } catch (cause) { setCalls([]); setError(cause instanceof Error ? cause.message : "Could not load calls."); } };
+  const load = async () => { setError(undefined); try { const [result, pending] = await Promise.all([chuskyApi.account.calls.list(), chuskyApi.approvals.list()]); setCalls(result.data); setAvailable(result.available); setProvider(result.provider); setApproval(pending.data.map(pendingCallApproval).find((item): item is CallApproval => Boolean(item))); } catch (cause) { setCalls([]); setError(cause instanceof Error ? cause.message : "Could not load calls."); } };
   useEffect(() => { void load(); }, []);
+  useLiveData(load);
   const requestCall = async () => { setBusy("request"); setError(undefined); try { const next = await chuskyApi.account.calls.request({ phoneNumber: phoneNumber.trim(), purpose: purpose.trim(), profile: { identity: identity.trim() || "Chusky", ...(organization.trim() ? { organization: organization.trim() } : {}), mode, tone, ...(opening.trim() ? { opening: opening.trim() } : {}), facts: facts.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), guardrails: guardrails.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), capabilities } }); setApproval(next); setPhoneNumber(""); setPurpose(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not request a call."); } finally { setBusy(undefined); } };
   const decide = async (decision: "approve" | "deny") => { if (!approval) return; setBusy(decision); setError(undefined); try { await chuskyApi.approvals.decide(approval.id, decision); setApproval(undefined); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update the approval."); } finally { setBusy(undefined); } };
   const setupRequired = error?.toLowerCase().includes("link your telegram") ?? false;

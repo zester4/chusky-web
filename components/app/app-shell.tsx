@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type AccountOverview, type CompanyBranding, type HealthSnapshot } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
 import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
 import type { ReactNode } from "react";
 
@@ -37,6 +38,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     void Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]).then(([nextAccount, nextHealth]) => { if (active) { setAccount(nextAccount); setHealth(nextHealth); } }).catch(() => undefined);
     return () => { active = false; };
   }, []);
+  useLiveData(async () => {
+    try {
+      const [nextAccount, nextHealth] = await Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]);
+      setAccount(nextAccount); setHealth(nextHealth);
+    } catch { /* Keep the shell usable while the API recovers. */ }
+  }, 10_000);
   useEffect(() => {
     let active = true;
     void chuskyApi.branding.public(window.location.hostname).then((result) => { if (active && result.data) setBranding(result.data); }).catch(() => undefined);

@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Activity, AlertTriangle, Check, CircleDot, Clock3, Database, ExternalLink, Gauge, Radio, RefreshCw, Server, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
 import { chuskyApi, type AccountOverview, type HealthSnapshot } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
 const labels: Record<string, string> = { redis: "Redis persistence", qstash: "QStash workflows", composioTriggers: "Composio triggers", sendblue: "Sendblue iMessage", twilio: "Twilio voice", twilioSms: "Twilio SMS", xchat: "X Chat", telegram: "Telegram bot" };
@@ -23,7 +24,8 @@ export function OperationsDashboard({ deliveryOnly = false }: { deliveryOnly?: b
   const [account, setAccount] = useState<AccountOverview>();
   const [offline, setOffline] = useState(false);
   const load = async () => { setOffline(false); try { const [nextHealth, nextAccount] = await Promise.all([chuskyApi.health.get(), chuskyApi.account.get()]); setHealth(nextHealth); setAccount(nextAccount); } catch { setOffline(true); } };
-  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 30_000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { void load(); }, []);
+  useLiveData(load, 30_000);
 
   return <>
     <PageHeading eyebrow={deliveryOnly ? "Delivery control" : "Operations center"} title={deliveryOnly ? "Delivery you can trust." : "Everything is in view."} description={deliveryOnly ? "Watch the channels and failure signals that move work from Chusky to your people." : "A live read on Chusky’s runtime, connected channels, and durable delivery path."} action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />

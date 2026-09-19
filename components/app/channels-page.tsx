@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
 import { chuskyApi, type ChannelConnection, type ChannelLinkCode } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -26,6 +27,7 @@ export function ChannelsPage() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load linked channels."); }
   };
   useEffect(() => { void load(); }, []);
+  useLiveData(load);
 
   const createCode = async () => {
     setBusy("link"); setError(undefined); setNotice(undefined);
@@ -47,7 +49,7 @@ export function ChannelsPage() {
   const unlink = async () => {
     if (!confirm) return;
     setBusy(confirm.id); setError(undefined);
-    try { await chuskyApi.channels.unlink(confirm); setChannels((current) => current?.filter((item) => item.id !== confirm.id)); setConfirm(undefined); }
+    try { await chuskyApi.channels.unlink(confirm); await load(); setConfirm(undefined); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not unlink this channel."); }
     finally { setBusy(undefined); }
   };

@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, RefreshCw, RotateCcw, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
 import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoicePreferences, type Model, type TelegramLinkCode, type Toolkit, type Trigger, type TriggerCatalogueItem, type TriggerToolkit, type VoiceOptions } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,6 +33,7 @@ export function AccountDataPage({ kind }: { kind: PageKind }) {
   const [busy, setBusy] = useState<string>();
   const load = async () => { setOffline(false); try { setData(await chuskyApi.account.get()); } catch { setOffline(true); } };
   useEffect(() => { void load(); }, []);
+  useLiveData(load);
   const decide = async (id: string, decision: "approve" | "deny") => { setBusy(id); try { await chuskyApi.approvals.decide(id, decision); await load(); } finally { setBusy(undefined); } };
   const heading = copy[kind];
   return <><PageHeading eyebrow={heading.eyebrow} title={heading.title} description={heading.description} action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />{offline ? <Offline retry={() => void load()} /> : !data ? <Card className="flex items-center gap-3 p-4 text-xs text-muted-foreground sm:p-5"><LoaderCircle size={15} className="animate-spin" /> Loading your saved data…</Card> : <Content kind={kind} data={data} decide={decide} busy={busy} />}</>;
@@ -52,6 +54,7 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
 
 function SettingsPanel({ initialModel, initialVoice, initialPreferences }: { initialModel: string; initialVoice: boolean; initialPreferences: LiveVoicePreferences }) {
   const [model, setModel] = useState(initialModel); const [voice, setVoice] = useState(initialVoice); const [models, setModels] = useState<Model[]>([]); const [voiceOptions, setVoiceOptions] = useState<VoiceOptions>(); const [preferences, setPreferences] = useState(initialPreferences); const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string>();
+  useEffect(() => { setModel(initialModel); setVoice(initialVoice); setPreferences(initialPreferences); }, [initialModel, initialVoice, initialPreferences]);
   useEffect(() => { void chuskyApi.account.models().then((result) => setModels(result.data)).catch(() => setMessage("Model list is temporarily unavailable.")); void chuskyApi.account.voiceOptions().then(setVoiceOptions).catch(() => setMessage("Voice options are temporarily unavailable.")); }, []);
   const update = async (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => { setBusy(true); setMessage(undefined); try { const next = await chuskyApi.account.updatePreferences(input); setModel(next.model); setVoice(next.voiceReplies); setPreferences(next.voicePreferences); setOpen(false); setMessage("Saved across supported Chusky channels."); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this preference."); } finally { setBusy(false); } };
   const fluxSelector = (provider: "twilio" | "meetings", label: string) => <label className="block text-xs text-muted-foreground">{label}<select disabled={busy} value={preferences[provider] ?? ""} onChange={(event) => void update({ liveVoice: { provider, voice: event.target.value || null } })} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Provider default</option>{preferences[provider] && !voiceOptions?.fluxVoices.some((item) => item.id === preferences[provider]) && <option value={preferences[provider]}>{preferences[provider]} · saved selection</option>}{voiceOptions?.fluxVoices.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.accent} ({item.id})</option>)}</select>{!voiceOptions && <span className="mt-1 block text-[10px]">Voice catalogue unavailable; existing selection can still be reset.</span>}</label>;
@@ -62,6 +65,7 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
   const [items, setItems] = useState<Toolkit[]>([]); const [connections, setConnections] = useState<ConnectedAccount[]>([]); const [aliases, setAliases] = useState<Record<string, string>>({}); const [authorizationLinks, setAuthorizationLinks] = useState<Record<string, string>>({}); const [busy, setBusy] = useState<string>(); const [error, setError] = useState<string>(); const [confirmId, setConfirmId] = useState<string>();
   const load = async () => { setError(undefined); try { const [apps, accounts] = await Promise.all([chuskyApi.apps.list(), chuskyApi.apps.connections()]); setItems(apps.data); setConnections(accounts.data); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load apps."); } };
   useEffect(() => { void load(); }, []);
+  useLiveData(load);
   const connect = async (slug: string) => { setBusy(slug); setError(undefined); try { const result = await chuskyApi.apps.connect(slug, aliases[slug]?.trim() || undefined); setAuthorizationLinks((current) => ({ ...current, [slug]: result.url })); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create a connection link."); } finally { setBusy(undefined); } };
   const disconnect = async (id: string) => { setBusy(id); setError(undefined); try { await chuskyApi.apps.disconnect(id); setConfirmId(undefined); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not disconnect this account."); } finally { setBusy(undefined); } };
   const connectedChannels = channels.map((item) => item.provider.toLowerCase());
@@ -70,6 +74,9 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
 
 function DevicesPanel({ initial }: { initial: AccountOverview["devices"] }) {
   const [devices, setDevices] = useState(initial); const [confirmId, setConfirmId] = useState<string>(); const [busy, setBusy] = useState(false); const [error, setError] = useState<string>();
+  const load = async () => { try { setDevices((await chuskyApi.devices.list()).data); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load CLI devices."); } };
+  useEffect(() => { setDevices(initial); }, [initial]);
+  useLiveData(load);
   const revoke = async (id: string) => { setBusy(true); setError(undefined); try { await chuskyApi.devices.revoke(id); setDevices((current) => current.filter((item) => item.id !== id)); setConfirmId(undefined); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not revoke this device."); } finally { setBusy(false); } };
   return <><Card>{devices.length ? devices.map((item) => <div key={item.id} className="flex flex-col gap-2 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Laptop size={15} className="shrink-0 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{item.name}</p><p className="mt-1 text-[11px] text-muted-foreground">Last seen {date(item.lastSeenAt)} · linked {date(item.createdAt)}</p></div><Button secondary disabled={busy} onClick={() => setConfirmId(item.id)}>Revoke access</Button></div>) : <Empty>No CLI devices are linked.</Empty>}{error && <p role="alert" className="p-3 text-xs text-amber-700">{error}</p>}</Card>{confirmId && <ConfirmDialog open onOpenChange={(open) => !open && setConfirmId(undefined)} title="Revoke this device?" description="Its CLI token will stop working immediately. The device can pair again later." confirmLabel="Revoke device" destructive onConfirm={() => revoke(confirmId)} />}</>;
 }
@@ -97,6 +104,7 @@ function ComprehensiveTriggersPanel() {
     }
   };
   useEffect(() => { void load(); }, []);
+  useLiveData(load);
   useEffect(() => {
     if (!toolkit) { setTypes([]); setTrigger(""); return; }
     let active = true;

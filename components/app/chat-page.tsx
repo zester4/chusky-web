@@ -21,6 +21,7 @@ import {
     X,
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Artifact, type DurationBudget, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 
@@ -128,6 +129,11 @@ export function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const noticeTimerRef = useRef<number | undefined>(undefined);
   const { setChatHeader } = useContext(AppShellContext);
+
+  useLiveData(() => chuskyApi.account.get().then((next) => {
+    setAccount(next);
+    if (!runModel) setRunModel(next.model);
+  }).catch(() => undefined), 10_000);
 
   useEffect(() => {
     setChatHeader({ title: thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky", status });
@@ -322,6 +328,10 @@ export function ChatPage() {
         } else if (typed.type === "run.tool_started") {
           updateLastAssistant({ pending: true, tool: typed.toolSlug });
         } else if (typed.type === "run.completed") {
+          // A run can change memory, approvals, calls, meetings, channels, or
+          // artifacts through native/Composio tools. Refresh every open surface
+          // from the backend instead of leaving sibling pages stale.
+          notifyChuskyDataChanged();
           const output = typed.run.output || "Done.";
           let latestArtifacts = artifactCatalog;
           try {
@@ -336,6 +346,7 @@ export function ChatPage() {
           const runArtifacts = typed.run.artifacts ?? [];
           updateLastAssistant({ text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, pending: false, tool: undefined });
         } else if (typed.type === "run.approval_required") {
+          notifyChuskyDataChanged();
           updateLastAssistant({ text: `Chusky needs your approval to use ${(typed.approval?.toolSlug || "this action").replaceAll("_", " ").toLowerCase()}.`, pending: false, tool: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {
           const detail = typed.error?.message || "";
