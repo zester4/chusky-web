@@ -24,6 +24,8 @@ import { chuskyApi, type AccountOverview, type Artifact, type DurationBudget, ty
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 
+type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
+
 type Message = {
   role: "user" | "assistant";
   text: string;
@@ -31,7 +33,7 @@ type Message = {
   pending?: boolean;
   tool?: string;
   attachments?: Array<{ id: string; name: string; contentType: string; size: number; downloadUrl?: string }>;
-  artifacts?: Artifact[];
+  artifacts?: ChatArtifact[];
   approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean };
 };
 
@@ -51,8 +53,8 @@ const normalizeArtifactText = (value: string) => {
   return decoded.toLowerCase().replace(/\.[a-z0-9]{2,8}$/i, "").replace(/[^a-z0-9]+/g, " ").trim();
 };
 const isArtifactLink = (href: string) => /^(sandbox:|file:|artifact:)|\/(?:mnt\/data|v1\/artifacts|artifacts)\//i.test(href);
-const artifactLinksInText = (content: string, artifacts: Artifact[]) => {
-  const matches: Artifact[] = [];
+const artifactLinksInText = (content: string, artifacts: ChatArtifact[]) => {
+  const matches: ChatArtifact[] = [];
   const linkPattern = /\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
   for (const match of content.matchAll(linkPattern)) {
     const label = normalizeArtifactText(match[1]);
@@ -71,12 +73,21 @@ const artifactLinksInText = (content: string, artifacts: Artifact[]) => {
   }
   return matches;
 };
-const stripArtifactLinks = (content: string, artifacts: Artifact[]) => {
+const artifactReferencesInText = (content: string, artifacts: ChatArtifact[]) => {
+  const matches = artifactLinksInText(content, artifacts);
+  const normalizedContent = normalizeArtifactText(content);
+  for (const artifact of artifacts) {
+    const normalizedName = normalizeArtifactText(artifact.name);
+    if (normalizedName && normalizedContent.includes(normalizedName) && !matches.some((candidate) => candidate.id === artifact.id)) matches.push(artifact);
+  }
+  return matches;
+};
+const stripArtifactLinks = (content: string, artifacts: ChatArtifact[]) => {
   if (!artifacts.length) return content;
   return content.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (full, label) => artifactLinksInText(full, artifacts).length ? label : full);
 };
 
-function ArtifactCard({ artifact, busy, onDownload }: { artifact: Artifact; busy: boolean; onDownload: (artifact: Artifact) => void }) {
+function ArtifactCard({ artifact, busy, onDownload }: { artifact: ChatArtifact; busy: boolean; onDownload: (artifact: ChatArtifact) => void }) {
   return <div className="mt-2 flex max-w-full items-center gap-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2.5">
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-foreground/10 bg-background text-muted-foreground"><FileText size={15} /></div>
     <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</p><p className="mt-0.5 text-[10px] capitalize text-muted-foreground">{artifact.type} · {formatArtifactSize(artifact.size)}</p></div>
@@ -139,7 +150,7 @@ export function ChatPage() {
           setStatus("ready");
         }
         const runs = await chuskyApi.threads.runs(current.id, { limit: 50 });
-        const artifactPage = await chuskyApi.artifacts.list().catch(() => ({ data: [] as Artifact[] }));
+        const artifactPage = await chuskyApi.artifacts.list({ limit: 100 }).catch(() => ({ data: [] as Artifact[] }));
         if (active) {
           setArtifactCatalog(artifactPage.data);
           const restored: Message[] = [];
@@ -150,7 +161,7 @@ export function ChatPage() {
                 ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
                 : undefined;
               const output = run.output || "This run is awaiting approval.";
-              restored.push({ role: "assistant", text: output, artifacts: artifactLinksInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
+              restored.push({ role: "assistant", text: output, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
             }
           }
           setMessages(restored);
@@ -269,7 +280,7 @@ export function ChatPage() {
     if (item.id) await chuskyApi.files.remove(item.id).catch(() => undefined);
   };
 
-  const downloadArtifact = async (artifact: Artifact) => {
+  const downloadArtifact = async (artifact: ChatArtifact) => {
     setDownloadingArtifactId(artifact.id);
     try {
       const blob = await chuskyApi.artifacts.download(artifact.id);
@@ -314,15 +325,16 @@ export function ChatPage() {
           const output = typed.run.output || "Done.";
           let latestArtifacts = artifactCatalog;
           try {
-            const page = await chuskyApi.artifacts.list();
+            const page = await chuskyApi.artifacts.list({ limit: 100 });
             latestArtifacts = page.data;
             setArtifactCatalog(latestArtifacts);
           } catch {
             // The run is complete even if the artifact catalogue is temporarily unavailable.
           }
           const createdArtifacts = latestArtifacts.filter((artifact) => !artifactIdsBefore.has(artifact.id));
-          const linkedArtifacts = artifactLinksInText(output, latestArtifacts);
-          updateLastAssistant({ text: output, artifacts: linkedArtifacts.length ? linkedArtifacts : createdArtifacts, pending: false, tool: undefined });
+          const linkedArtifacts = artifactReferencesInText(output, latestArtifacts);
+          const runArtifacts = typed.run.artifacts ?? [];
+          updateLastAssistant({ text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, pending: false, tool: undefined });
         } else if (typed.type === "run.approval_required") {
           updateLastAssistant({ text: `Chusky needs your approval to use ${(typed.approval?.toolSlug || "this action").replaceAll("_", " ").toLowerCase()}.`, pending: false, tool: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {

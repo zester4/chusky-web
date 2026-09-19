@@ -5,7 +5,8 @@ export type UploadIntent = UploadedFile & { uploadUrl: string; expiresAt: string
 export type DurationBudget = "5m" | "30m" | "1h" | "3h" | "6h" | "3d" | "1w";
 export type RunBudget = { duration?: DurationBudget; maxToolCalls?: number; maxCost?: number };
 export type RunToolPolicy = { allow?: string[]; deny?: string[]; requireApproval?: string[] };
-export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
+export type RunArtifact = { id: string; name: string; type: Artifact["type"]; contentType: string; size: number };
+export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
   | { type: "run.started"; run: Run }
@@ -297,7 +298,7 @@ export const chuskyApi = {
     read: (name: string, path = "SKILL.md", maxChars = 12000) => request<SkillFile>(`/skills/${encodeURIComponent(name)}/files/read?path=${encodeURIComponent(path)}&maxChars=${maxChars}`),
   },
   artifacts: {
-    list: (type?: Artifact["type"]) => request<Page<Artifact>>(`/artifacts${type ? `?type=${encodeURIComponent(type)}` : ""}`),
+    list: (options: { type?: Artifact["type"]; limit?: number } = {}) => { const params = new URLSearchParams(); if (options.type) params.set("type", options.type); if (options.limit) params.set("limit", String(options.limit)); return request<Page<Artifact>>(`/artifacts${params.size ? `?${params.toString()}` : ""}`); },
     get: (id: string) => request<Artifact>(`/artifacts/${encodeURIComponent(id)}`),
     download: (id: string) => requestBytes(`/artifacts/${encodeURIComponent(id)}/download`),
     remove: (id: string) => request<void>(`/artifacts/${encodeURIComponent(id)}`, { method: "DELETE" }),
