@@ -21,17 +21,20 @@ const chusky = new Chusky({
 })`,
   },
   {
-    label: "Deploy",
-    code: `const app = await chusky.deploy({
-  name: 'my-app',
-  region: 'auto',
-  scaling: {
-    min: 1,
-    max: 100
-  }
-})
+    label: "MCP",
+    code: `# Add Chusky to your MCP host
 
-console.log('Live at:', app.url)`,
+{
+  "mcpServers": {
+    "chusky": {
+      "url": "https://chusky-mcp.adesrnd.workers.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer \${CHUSKY_API_KEY}",
+        "X-Chusky-User-Id": "\${CHUSKY_END_USER_ID}"
+      }
+    }
+  }
+}`,
   },
 ];
 
@@ -219,11 +222,11 @@ export function DevelopersSection() {
             
             {/* Links */}
             <div className="mt-4 flex flex-wrap items-center gap-3 text-xs sm:mt-6 sm:gap-6 sm:text-sm">
-              <a href="#" className="text-foreground hover:underline underline-offset-4">
+              <a href="/docs/mcp" className="text-foreground hover:underline underline-offset-4">
                 Read the docs
               </a>
               <span className="text-foreground/20">|</span>
-              <a href="#" className="text-muted-foreground hover:text-foreground">
+              <a href="https://github.com/zester4/chusky-mcp" target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
                 View on GitHub
               </a>
             </div>
