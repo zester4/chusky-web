@@ -16,6 +16,44 @@ const capabilityTabs = [
 type CapabilityTab = (typeof capabilityTabs)[number][0];
 const date = (value?: string) => value ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
 const tone = (status: string): "green" | "amber" | "gray" => ["completed", "success", "delivered", "active", "connected"].includes(status.toLowerCase()) ? "green" : ["failed", "blocked", "requires_approval"].includes(status.toLowerCase()) ? "amber" : "gray";
+const toolLabels: Record<string, string> = {
+  CHUCK_SEARCH_SKILLS: "Search skills",
+  CHUCK_LIST_SKILL_FILES: "List skill files",
+  CHUCK_READ_SKILL_FILE: "Read skill file",
+  CHUCK_CREATE_PDF: "Create a PDF",
+  CHUCK_CREATE_DOCUMENT: "Create a document",
+  CHUCK_CREATE_PRESENTATION: "Create a presentation",
+  CHUCK_CREATE_SPREADSHEET: "Create a spreadsheet",
+  CHUCK_GENERATE_IMAGE: "Generate an image",
+  CHUCK_GENERATE_VIDEO: "Generate a video",
+  CHUCK_SAVE_MEMORY: "Save a memory",
+  CHUCK_SEARCH_MEMORY: "Search memories",
+  CHUCK_UPDATE_MEMORY: "Update a memory",
+  CHUCK_FORGET_MEMORY: "Forget a memory",
+  CHUCK_SCRATCHPAD_READ: "Read scratchpad",
+  CHUCK_SCRATCHPAD_WRITE: "Write to scratchpad",
+  CHUCK_SCRATCHPAD_CLEAR: "Clear scratchpad",
+  CHUCK_SET_REMINDER: "Set a reminder",
+  CHUCK_LIST_REMINDERS: "List reminders",
+  CHUCK_CANCEL_REMINDER: "Cancel a reminder",
+  CHUCK_SCHEDULE_JOB: "Schedule a recurring job",
+  CHUCK_LIST_JOBS: "List recurring jobs",
+  CHUCK_CANCEL_JOB: "Cancel a recurring job",
+  CHUCK_START_PHONE_CALL: "Start a phone call",
+  CHUCK_LIST_PHONE_CALLS: "List phone calls",
+  CHUCK_ARTIFACT: "Create an artifact",
+  CHUCK_CREATE_TRIGGER: "Create an app trigger",
+  CHUCK_DELEGATE_SUBAGENT: "Delegate to a worker",
+  CHUCK_GET_SUBAGENT_STATUS: "Check worker status",
+  CHUCK_LIST_SUBAGENTS: "List workers",
+  COMPOSIO_SEARCH_TOOL: "Search connected tools",
+  COMPOSIO_MANAGE_CONNECTIONS: "Manage app connections",
+  COMPOSIO_REMOTE_BASH_TOOL: "Run a remote shell command",
+  COMPOSIO_REMOTE_WORKBENCH: "Use a remote workbench",
+};
+const wordLabels: Record<string, string> = { api: "API", ai: "AI", cli: "CLI", crm: "CRM", daytona: "Daytona", git: "Git", id: "ID", mcp: "MCP", oauth: "OAuth", pdf: "PDF", pty: "PTY", r2: "R2", sms: "SMS", telegram: "Telegram", twilio: "Twilio", url: "URL", whatsapp: "WhatsApp", xchat: "XChat" };
+const humanizeTool = (slug: string) => toolLabels[slug] || slug.replace(/^(CHUCK|COMPOSIO|MCP)_/, "").split(/[_-]+/).filter(Boolean).map((word) => wordLabels[word.toLowerCase()] || word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ");
+const humanizeSource = (source?: string, toolkit?: string) => toolkit ? humanizeTool(toolkit) : source === "native" ? "Chusky native" : source === "composio" ? "Connected app" : humanizeTool(source || "tool");
 
 export function CapabilitiesPage() {
   const [tools, setTools] = useState<Tool[]>([]);
@@ -97,7 +135,7 @@ export function CapabilitiesPage() {
     <div className="mb-4 flex flex-col gap-2 sm:flex-row"><div className="flex min-h-9 flex-1 items-center gap-2 border border-foreground/15 bg-background px-2.5"><Search size={14} className="text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void load(query); }} placeholder="Search tools and skills" className="min-w-0 flex-1 bg-transparent text-xs outline-none" /><button type="button" onClick={() => void load(query)} className="text-[10px] text-muted-foreground hover:text-foreground">Search</button></div></div>
     <div className="mb-4 flex min-w-0 gap-1 overflow-x-auto border-b border-foreground/10" role="tablist" aria-label="Capability categories">{capabilityTabs.map(([value, label]) => <button key={value} id={`capability-tab-${value}`} type="button" role="tab" aria-selected={activeTab === value} aria-controls={`capability-panel-${value}`} onClick={() => setActiveTab(value)} className={`shrink-0 border-b-2 px-3 py-2 text-[11px] transition-colors ${activeTab === value ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{label}</button>)}</div>
     <div data-capabilities data-active-tab={activeTab} id={`capability-panel-${activeTab}`} role="tabpanel" aria-labelledby={`capability-tab-${activeTab}`} className="grid gap-4">
-      <Section visible={activeTab === "tools"} icon={<Wrench size={15} />} title="Tools" detail={`${tools.length} available · native and Composio actions`}><div className="max-h-80 overflow-y-auto">{tools.length ? tools.map((item) => <div key={`${item.source}-${item.slug}`} className="flex min-w-0 items-start gap-2.5 border-b border-foreground/10 p-3 last:border-0"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" /><div className="min-w-0 flex-1"><p className="break-all font-mono text-[10px] font-medium">{item.slug}</p><p className="mt-1 break-words text-[11px] text-muted-foreground">{item.description}</p></div><span className="shrink-0 text-[9px] text-muted-foreground">{item.toolkit || item.source}</span></div>) : <Empty>Search to load connected Composio actions, or start the backend.</Empty>}</div></Section>
+      <Section visible={activeTab === "tools"} icon={<Wrench size={15} />} title="Tools" detail={`${tools.length} available · native and connected-app actions`}><div className="max-h-80 overflow-y-auto">{tools.length ? tools.map((item) => <div key={`${item.source}-${item.slug}`} className="flex min-w-0 items-start gap-2.5 border-b border-foreground/10 p-3 last:border-0"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{humanizeTool(item.slug)}</p><p className="mt-1 break-words text-[11px] text-muted-foreground">{item.description}</p><p className="mt-1 truncate font-mono text-[9px] text-muted-foreground" title={item.slug}>Tool ID · {item.slug}</p></div><span className="shrink-0 text-[9px] text-muted-foreground">{humanizeSource(item.source, item.toolkit)}</span></div>) : <Empty>Search to load connected Composio actions, or start the backend.</Empty>}</div></Section>
       <Section visible={activeTab === "skills"} icon={<FileText size={15} />} title="Skills" detail={`${skills.length} installed · nested files are readable`}><div className="max-h-80 overflow-y-auto">{skills.length ? skills.map((item) => <button key={item.name} type="button" onClick={() => void openSkill(item)} className="flex w-full min-w-0 items-start gap-2.5 border-b border-foreground/10 p-3 text-left last:border-0 hover:bg-foreground/[0.03]"><FileText size={14} className="mt-0.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className="block text-xs font-medium">{item.name}</span><span className="mt-1 block break-words text-[11px] text-muted-foreground">{item.description}</span></span><span className="shrink-0 text-[9px] text-muted-foreground">Read</span></button>) : <Empty>No installed skills matched.</Empty>}</div></Section>
       <Section visible={activeTab === "workers"} icon={<Users size={15} />} title="Durable workers" detail="Supervisor-managed sub-agent runs with explicit budgets"><div className="border-b border-foreground/10 p-3"><div className="grid gap-2 sm:grid-cols-[auto_1fr_auto]"><select value={worker} onChange={(event) => setWorker(event.target.value)} className="min-h-9 border border-foreground/15 bg-background px-2 text-xs"><option value="maya">Maya · research</option><option value="leo">Leo · creative</option><option value="lucas">Lucas · engineering</option><option value="sasha">Sasha · operations</option></select><input value={objective} onChange={(event) => setObjective(event.target.value)} placeholder="What should the worker complete?" className="min-h-9 min-w-0 border border-foreground/15 bg-transparent px-2.5 text-xs outline-none" /><div className="flex gap-2"><select value={duration} onChange={(event) => setDuration(event.target.value as (typeof durations)[number])} className="min-h-9 border border-foreground/15 bg-background px-2 text-xs">{durations.map((item) => <option key={item}>{item}</option>)}</select><Button disabled={!objective.trim() || busy === "worker:create"} onClick={() => void createWorker()}>{busy === "worker:create" ? <LoaderCircle size={13} className="animate-spin" /> : <Play size={13} />} Start</Button></div></div></div><div className="max-h-72 overflow-y-auto">{workers.length ? workers.map((item) => <div key={item.id} className="border-b border-foreground/10 p-3 last:border-0"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{item.worker}</p><Status tone={tone(item.status)}>{item.status}</Status></div><p className="mt-1 break-words text-[11px] text-muted-foreground">{item.objective}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.id} · {date(item.timestamp)}</p></div>{!["success", "completed", "cancelled", "failed"].includes(item.status) && <Button secondary disabled={busy === `worker:${item.id}`} onClick={() => void cancelWorker(item)}>{busy === `worker:${item.id}` ? "…" : <Square size={12} />} Cancel</Button>}</div></div>) : <Empty>No durable workers yet.</Empty>}</div></Section>
       <Section visible={activeTab === "artifacts"} icon={<FileArchive size={15} />} title="Artifacts" detail="Download generated PDF, DOCX, PPTX, sheets, images, video, and ZIP files"><div className="max-h-72 overflow-y-auto">{artifacts.length ? artifacts.map((item) => <div key={item.id} className="flex min-w-0 items-center gap-2.5 border-b border-foreground/10 p-3 last:border-0"><FileText size={14} className="shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{item.name}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.type} · {Math.ceil(item.size / 1024)} KB · {date(item.updatedAt)}</p></div><Button secondary disabled={busy === `artifact:${item.id}`} onClick={() => void download(item)}><Download size={12} /> Download</Button></div>) : <Empty>No generated artifacts are linked to this account.</Empty>}</div></Section>
