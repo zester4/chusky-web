@@ -113,7 +113,7 @@ export function Navigation() {
                 key={link.name}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`text-4xl font-display text-foreground hover:text-muted-foreground transition-all duration-500 sm:text-5xl ${
+                className={`text-3xl font-display text-foreground hover:text-muted-foreground transition-all duration-500 sm:text-4xl ${
                   isMobileMenuOpen 
                     ? "opacity-100 translate-y-0" 
                     : "opacity-0 translate-y-4"

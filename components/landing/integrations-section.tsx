@@ -48,7 +48,7 @@ export function IntegrationsSection() {
             Integrations
             <span className="w-8 h-px bg-foreground/30" />
           </span>
-          <h2 className="mb-5 text-4xl font-display tracking-tight sm:mb-6 lg:text-6xl">
+          <h2 className="mb-5 text-3xl font-display tracking-tight sm:mb-6 lg:text-5xl">
             Works with everything
             <br />
             you already use.

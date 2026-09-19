@@ -51,7 +51,7 @@ export function CtaSection() {
             <div className="flex flex-col items-center justify-between gap-8 lg:flex-row lg:gap-12">
               {/* Left content */}
               <div className="flex-1">
-                <h2 className="mb-6 text-4xl font-display leading-[0.95] tracking-tight sm:mb-8 lg:text-7xl">
+                <h2 className="mb-6 text-3xl font-display leading-[0.95] tracking-tight sm:mb-8 lg:text-6xl">
                   Ready to build
                   <br />
                   something great?

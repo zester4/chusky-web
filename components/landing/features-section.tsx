@@ -358,7 +358,7 @@ export function FeaturesSection() {
             Capabilities
           </span>
           <h2
-            className={`text-3xl font-display tracking-tight transition-all duration-700 sm:text-4xl lg:text-5xl ${
+            className={`text-3xl font-display tracking-tight transition-all duration-700 sm:text-4xl lg:text-4xl ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >

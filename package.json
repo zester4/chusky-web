@@ -8,8 +8,7 @@
     "dev": "next dev --webpack",
     "lint": "eslint . --max-warnings=0",
     "smoke": "node scripts/production-smoke.mjs",
-    "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "start": "next start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

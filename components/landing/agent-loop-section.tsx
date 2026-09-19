@@ -15,7 +15,7 @@ export function AgentLoopSection() {
               <span className="h-px w-8 bg-foreground/30" />
               The agent loop
             </span>
-            <h2 className="mt-5 max-w-xl text-3xl font-display tracking-tight sm:text-4xl lg:text-5xl">More than a chat box.</h2>
+            <h2 className="mt-5 max-w-xl text-3xl font-display tracking-tight sm:text-4xl lg:text-4xl">More than a chat box.</h2>
             <p className="mt-4 max-w-md text-xs leading-6 text-muted-foreground sm:text-sm">Chusky connects conversation, context, tools, safety, and durable delivery into one personal operating layer.</p>
             <a href="#how-it-works" className="mt-6 inline-flex text-[11px] underline underline-offset-4">See how it works <span className="ml-2">↗</span></a>
           </div>

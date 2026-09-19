@@ -72,7 +72,7 @@ export function TestimonialsSection() {
                 isAnimating ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
               }`}
             >
-              <p className="font-display text-4xl md:text-5xl lg:text-6xl leading-[1.1] tracking-tight text-foreground">
+              <p className="font-display text-3xl md:text-4xl lg:text-5xl leading-[1.1] tracking-tight text-foreground">
                 "{activeTestimonial.quote}"
               </p>
             </blockquote>

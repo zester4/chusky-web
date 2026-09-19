@@ -38,7 +38,7 @@ function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffi
   }, [end, hasAnimated]);
 
   return (
-    <div ref={ref} className="font-display text-4xl tracking-tight sm:text-5xl lg:text-6xl">
+    <div ref={ref} className="font-display text-3xl tracking-tight sm:text-4xl lg:text-5xl">
       {prefix}{count.toLocaleString()}{suffix}
     </div>
   );
@@ -109,7 +109,7 @@ export function MetricsSection() {
               Live metrics
             </span>
             <h2
-              className={`font-display text-3xl tracking-tight transition-all duration-700 sm:text-4xl lg:text-6xl ${
+              className={`font-display text-2xl tracking-tight transition-all duration-700 sm:text-3xl lg:text-5xl ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
             >

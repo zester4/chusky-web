@@ -24,7 +24,7 @@ export function MascotStorySection() {
         </div>
         <div className="order-1 max-w-xl lg:order-2">
           <p className="font-mono text-xs text-muted-foreground">ONE CALM CONTROL ROOM</p>
-          <h2 className="mt-3 font-display text-4xl leading-[0.96] tracking-tight sm:text-5xl lg:text-6xl">A capable agent, without another complicated system.</h2>
+          <h2 className="mt-3 font-display text-3xl leading-[0.96] tracking-tight sm:text-4xl lg:text-5xl">A capable agent, without another complicated system.</h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">Bring Chusky a request in the flow of your day. It can connect the right app, carry context forward, and show its work as it goes.</p>
           <div className="mt-6 grid gap-2 sm:grid-cols-3">
             {moments.map(({ icon: Icon, label }) => (

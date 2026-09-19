@@ -64,7 +64,7 @@ export function PricingSection() {
           <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase block mb-6">
             Pricing
           </span>
-          <h2 className="mb-5 font-display text-4xl tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
+          <h2 className="mb-5 font-display text-3xl tracking-tight text-foreground sm:text-4xl md:text-5xl lg:text-6xl">
             Simple, transparent
             <br />
             <span className="text-stroke">pricing</span>

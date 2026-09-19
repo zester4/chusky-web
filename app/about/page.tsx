@@ -47,7 +47,7 @@ export default function AboutPage() {
                 <span className="h-px w-8 bg-foreground/30" />
                 About Chusky
               </span>
-              <h1 className="font-display text-5xl leading-[0.9] tracking-tight sm:text-6xl md:text-8xl lg:text-[9rem]">
+              <h1 className="font-display text-4xl leading-[0.9] tracking-tight sm:text-5xl md:text-7xl lg:text-[8rem]">
                 A calmer way<br />
                 <span className="text-muted-foreground">to put AI to work.</span>
               </h1>
@@ -79,7 +79,7 @@ export default function AboutPage() {
             </div>
           </div>
           <div>
-            <h2 className="max-w-3xl font-display text-4xl leading-tight tracking-tight md:text-6xl">
+            <h2 className="max-w-3xl font-display text-3xl leading-tight tracking-tight md:text-5xl">
               The best assistant is present when you need it and accountable when work matters.
             </h2>
             <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mt-8 sm:text-lg">
@@ -110,7 +110,7 @@ export default function AboutPage() {
         <div className="mx-auto flex max-w-[1400px] flex-col justify-between gap-7 px-4 sm:gap-10 sm:px-6 lg:flex-row lg:items-end lg:px-12">
           <div className="max-w-3xl">
             <p className="text-sm font-mono text-muted-foreground">The invitation</p>
-            <h2 className="mt-4 font-display text-4xl leading-[0.95] tracking-tight sm:mt-5 sm:text-5xl md:text-7xl">Bring your work into one thoughtful loop.</h2>
+            <h2 className="mt-4 font-display text-3xl leading-[0.95] tracking-tight sm:mt-5 sm:text-4xl md:text-6xl">Bring your work into one thoughtful loop.</h2>
           </div>
           <Button asChild className="h-11 rounded-full bg-foreground px-5 text-sm text-background hover:bg-foreground/90">
             <Link href="/start-creating">Start creating <ArrowRight className="h-4 w-4" /></Link>

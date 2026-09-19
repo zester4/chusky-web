@@ -58,7 +58,7 @@ export function SecuritySection() {
               <span className="w-8 h-px bg-foreground/30" />
               Security
             </span>
-            <h2 className="mb-6 text-4xl font-display tracking-tight sm:mb-8 lg:text-6xl">
+            <h2 className="mb-6 text-3xl font-display tracking-tight sm:mb-8 lg:text-5xl">
               Trust is
               <br />
               non-negotiable.

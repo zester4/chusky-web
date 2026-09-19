@@ -30,7 +30,7 @@ export function ProductPageHero({ eyebrow, title, description, artwork }: Produc
               <span className="h-px w-6 bg-foreground/30 sm:w-8" />
               {eyebrow}
             </span>
-            <h1 className="mb-6 text-4xl font-display leading-[0.92] tracking-tight sm:mb-7 sm:text-6xl md:text-7xl lg:mb-8 lg:text-[clamp(4.5rem,7vw,7rem)]">
+            <h1 className="mb-6 text-4xl font-display leading-[0.92] tracking-tight sm:mb-7 sm:text-5xl md:text-6xl lg:mb-8 lg:text-[clamp(4.25rem,6.5vw,6.5rem)]">
               {title}
             </h1>
             <p className="mb-6 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mb-7 sm:text-lg lg:mb-8 lg:text-xl">
