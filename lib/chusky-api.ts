@@ -85,6 +85,9 @@ export type CalendarPreparation = { id: string; sourceTriggerEventId: string; ca
 export type Meeting = { id: string; platform: string; interactionMode: "addressed" | "copilot" | "representative"; status: string; title?: string; joinAt?: string; error?: string; providerStatusAt?: string; participantRoster: Array<{ id: string; name: string; isHost?: boolean; status: "present" | "left"; updatedAt: string }>; speakerEvents: Array<{ type: "speech_on" | "speech_off"; participantId?: string; at: string }>; history: Array<{ role: "user" | "assistant"; content: string; createdAt?: string }>; outcome?: { title: string; summary: string; decisions: string[]; actionItems: Array<{ task: string; owner: string; dueDate?: string }>; openQuestions: string[] }; outcomeFollowThrough?: { notionSaved?: boolean; notionTool?: string; notionUrl?: string; completedTools?: string[] }; outcomeStatus?: "pending" | "completed"; outcomeNotificationStatus?: string; createdAt: string; updatedAt: string };
 export type MeetingContact = { id: string; meetingId: string; participantName: string; email?: string; phone?: string; contactPreference: "email" | "phone" | "unspecified"; interest: string; nextStep?: string; followUpAt?: string; followUpTaskId?: string; createdAt: string; updatedAt: string };
 export type MeetingWorkspace = { preparations: CalendarPreparation[]; meetings: Meeting[]; contacts: MeetingContact[] };
+export type MeetingCapability = { slug: string; description: string; toolkit?: string; toolkitPrefix: string; connected: boolean };
+export type MeetingNativeCapability = { slug: string; description: string };
+export type MeetingCapabilities = { composioTools: MeetingCapability[]; nativeTools: MeetingNativeCapability[]; connections: ConnectedAccount[]; composioAvailable: boolean };
 export type Delivery = { id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string };
 export type Webhook = { id: string; url: string; createdAt: string; disabledAt?: string };
 export type Reminder = { id: string; text: string; runAt: string; status: string; createdAt: string; deliveryError?: string };
@@ -282,6 +285,7 @@ export const chuskyApi = {
   meetings: {
     list: () => request<MeetingWorkspace>("/meetings"),
     profile: () => request<MeetingRepresentativeProfile>("/meetings/profile"),
+    capabilities: (query = "") => request<MeetingCapabilities>(`/meetings/capabilities${query ? `?query=${encodeURIComponent(query)}` : ""}`),
     updateProfile: (profile: Partial<MeetingRepresentativeProfile>) => request<MeetingRepresentativeProfile>("/meetings/profile", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(profile) }),
     deleteContact: (id: string) => request<void>(`/meetings/contacts/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },

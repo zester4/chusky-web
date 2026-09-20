@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, LoaderCircle, RefreshCw, Save, Users } from "lucide-react";
-import { chuskyApi, type Meeting, type MeetingContact, type MeetingRepresentativeProfile, type MeetingWorkspace } from "@/lib/chusky-api";
+import { CalendarClock, Check, ExternalLink, LoaderCircle, RefreshCw, Save, Users, X } from "lucide-react";
+import { chuskyApi, type ConnectedAccount, type Meeting, type MeetingCapability, type MeetingContact, type MeetingNativeCapability, type MeetingRepresentativeProfile, type MeetingWorkspace } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -13,34 +13,28 @@ const inputClass = "mt-1.5 min-h-9 w-full border border-foreground/15 bg-backgro
 const textClass = "mt-1.5 w-full resize-y border border-foreground/15 bg-background px-2.5 py-2 text-xs leading-5 outline-none focus:border-foreground/50";
 
 function date(value?: string) { if (!value) return "Time not provided"; const parsed = new Date(value); return Number.isNaN(parsed.valueOf()) ? "Time not provided" : new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(parsed); }
-function bullets(values: string[]) { return values.length ? values.join("\n") : ""; }
-function parseLines(value: string) { return [...new Set(value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))]; }
-function parseAliases(value: string): Record<string, string> {
-  return Object.fromEntries(parseLines(value).map((line) => {
-    const separator = line.indexOf("=");
-    if (separator < 1) throw new Error("Account aliases use one TOOLKIT=account label per line.");
-    return [line.slice(0, separator).trim(), line.slice(separator + 1).trim()];
-  }).filter(([key, alias]) => key && alias));
-}
+function titleCase(value: string) { return value.toLowerCase().split(/[_-]+/).filter(Boolean).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" "); }
+function humanToolLabel(tool: MeetingCapability) { const prefix = tool.toolkitPrefix ? `${tool.toolkitPrefix}_` : ""; const action = tool.slug.startsWith(prefix) ? tool.slug.slice(prefix.length) : tool.slug; return `${titleCase(tool.toolkit || tool.toolkitPrefix)} · ${titleCase(action)}`; }
+function humanNativeLabel(tool: MeetingNativeCapability) { return titleCase(tool.slug.replace(/^CHUCK_/, "")); }
+function accountPrefix(account: ConnectedAccount, tools: MeetingCapability[]) { return tools.find((tool) => tool.slug.startsWith(`${account.toolkit.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}_`))?.toolkitPrefix || account.toolkit.replace(/[^a-zA-Z0-9]/g, "").toUpperCase(); }
 
 export function MeetingsPage() {
   const router = useRouter();
   const [workspace, setWorkspace] = useState<MeetingWorkspace>();
   const [profile, setProfile] = useState<MeetingRepresentativeProfile>(initialProfile);
-  const [toolText, setToolText] = useState(""); const [nativeText, setNativeText] = useState(""); const [aliasText, setAliasText] = useState("");
+  const [composioTools, setComposioTools] = useState<MeetingCapability[]>([]); const [nativeTools, setNativeTools] = useState<MeetingNativeCapability[]>([]); const [connections, setConnections] = useState<ConnectedAccount[]>([]); const [composioAvailable, setComposioAvailable] = useState(true);
   const [busy, setBusy] = useState<string>(); const [error, setError] = useState<string>(); const [notice, setNotice] = useState<string>();
   const [removeContact, setRemoveContact] = useState<MeetingContact>();
 
   const load = useCallback(async (refreshProfile = true) => {
     setError(undefined);
     try {
-      const nextWorkspace = await chuskyApi.meetings.list();
+      const [nextWorkspace, capabilities] = await Promise.all([chuskyApi.meetings.list(), chuskyApi.meetings.capabilities()]);
       setWorkspace(nextWorkspace);
+      setComposioTools(capabilities.composioTools); setNativeTools(capabilities.nativeTools); setConnections(capabilities.connections); setComposioAvailable(capabilities.composioAvailable);
       if (refreshProfile) {
         const nextProfile = await chuskyApi.meetings.profile();
         setProfile(nextProfile);
-        setToolText(bullets(nextProfile.allowedComposioTools)); setNativeText(bullets(nextProfile.allowedNativeTools));
-        setAliasText(Object.entries(nextProfile.composioAccountAliases).map(([toolkit, alias]) => `${toolkit}=${alias}`).join("\n"));
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load the meeting workspace."); }
   }, []);
@@ -50,7 +44,7 @@ export function MeetingsPage() {
   const saveProfile = async () => {
     setBusy("profile"); setError(undefined); setNotice(undefined);
     try {
-      const next = await chuskyApi.meetings.updateProfile({ ...profile, allowedComposioTools: parseLines(toolText), allowedNativeTools: parseLines(nativeText), composioAccountAliases: parseAliases(aliasText) });
+      const next = await chuskyApi.meetings.updateProfile(profile);
       const { autoJoinReconciliation, ...savedProfile } = next;
       setProfile(savedProfile);
       setNotice(autoJoinReconciliation
@@ -70,6 +64,22 @@ export function MeetingsPage() {
     const prompt = `Join the calendar-prepared meeting with preparation ID ${preparationId}. Use the owner-scoped prepared-meeting join capability and its verified event brief; do not guess or ask me to paste the meeting URL. If this preparation is no longer joinable, explain why.`;
     router.push(`/app/chat?new=1&draft=${encodeURIComponent(prompt)}`);
   };
+  const addComposioTool = (slug: string) => { if (!slug) return; setProfile((current) => ({ ...current, allowedComposioTools: [...new Set([...current.allowedComposioTools, slug])] })); };
+  const removeComposioTool = (slug: string) => setProfile((current) => ({ ...current, allowedComposioTools: current.allowedComposioTools.filter((item) => item !== slug) }));
+  const addNativeTool = (slug: string) => { if (!slug) return; setProfile((current) => ({ ...current, allowedNativeTools: [...new Set([...current.allowedNativeTools, slug])] })); };
+  const removeNativeTool = (slug: string) => setProfile((current) => ({ ...current, allowedNativeTools: current.allowedNativeTools.filter((item) => item !== slug) }));
+  const addAccountAlias = (value: string) => {
+    if (!value) return;
+    const [prefix, accountId] = value.split("::");
+    const account = connections.find((item) => item.id === accountId);
+    if (!prefix || !account) return;
+    setProfile((current) => ({ ...current, composioAccountAliases: { ...current.composioAccountAliases, [prefix]: account.alias || account.id } }));
+  };
+  const removeAccountAlias = (prefix: string) => setProfile((current) => { const next = { ...current.composioAccountAliases }; delete next[prefix]; return { ...current, composioAccountAliases: next }; });
+  const activeConnections = connections.filter((item) => item.status.toUpperCase() === "ACTIVE");
+  const aliasOptions = activeConnections.map((account) => ({ account, prefix: accountPrefix(account, composioTools) }));
+  const selectedToolSet = new Set(profile.allowedComposioTools);
+  const selectedNativeSet = new Set(profile.allowedNativeTools);
 
   return <>
     <PageHeading eyebrow="Calendar & live sessions" title="Meetings" description="Review calendar meeting preparations, participant context, live-call outcomes, and the representative profile Chusky uses. Calendar triggers can also describe non-meeting events; only verified supported video links become meeting preparations." action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13}/></span> Refresh</Button>} />
@@ -90,7 +100,12 @@ export function MeetingsPage() {
     <section><div className="mb-2"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">How Chusky represents you</p><h2 className="mt-1 font-display text-2xl">Meeting profile</h2></div><Card className="p-4 sm:p-5"><p className="mb-4 text-xs leading-5 text-muted-foreground">This profile guides the meeting agent’s style and available tools. It does not make a calendar event joinable unless a verified meeting link exists. Connected app aliases refer to exact accounts you choose to make available.</p>
       <div className="grid gap-3 sm:grid-cols-2"><label className="flex min-h-10 items-center gap-2 text-xs"><input type="checkbox" checked={profile.enabled} onChange={(event) => setProfile({ ...profile, enabled: event.target.checked })} className="accent-foreground"/> Enable representative profile</label><label className="block text-xs text-muted-foreground">Representative name<input value={profile.representativeName} onChange={(event) => setProfile({ ...profile, representativeName: event.target.value })} maxLength={80} className={inputClass}/></label><label className="block text-xs text-muted-foreground">Organization<input value={profile.organizationName} onChange={(event) => setProfile({ ...profile, organizationName: event.target.value })} maxLength={120} className={inputClass}/></label><label className="block text-xs text-muted-foreground">Meeting role<select value={profile.role} onChange={(event) => setProfile({ ...profile, role: event.target.value as MeetingRepresentativeProfile["role"] })} className={inputClass}><option value="sales">Sales</option><option value="client_onboarding">Client onboarding</option><option value="employee_onboarding">Employee onboarding</option><option value="customer_success">Customer success</option><option value="custom">Custom</option></select></label></div>
       <label className="mt-3 block text-xs text-muted-foreground">General objective<textarea value={profile.objective} onChange={(event) => setProfile({ ...profile, objective: event.target.value })} rows={2} maxLength={1500} className={textClass}/></label><label className="mt-3 block text-xs text-muted-foreground">Communication style<textarea value={profile.communicationStyle} onChange={(event) => setProfile({ ...profile, communicationStyle: event.target.value })} rows={2} maxLength={1500} className={textClass}/></label><label className="mt-3 block text-xs text-muted-foreground">Approved company / product knowledge<textarea value={profile.approvedKnowledge} onChange={(event) => setProfile({ ...profile, approvedKnowledge: event.target.value })} rows={4} maxLength={12000} className={textClass}/></label><label className="mt-3 block text-xs text-muted-foreground">Authority guidance<textarea value={profile.authorityBoundaries} onChange={(event) => setProfile({ ...profile, authorityBoundaries: event.target.value })} rows={3} maxLength={3000} className={textClass}/></label>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="block text-xs text-muted-foreground">Allowed Composio tools<textarea value={toolText} onChange={(event) => setToolText(event.target.value)} placeholder="One exact tool slug per line" rows={4} className={`${textClass} font-mono`}/></label><label className="block text-xs text-muted-foreground">Connected account aliases<textarea value={aliasText} onChange={(event) => setAliasText(event.target.value)} placeholder="GOOGLECALENDAR=Work calendar" rows={4} className={`${textClass} font-mono`}/></label></div><label className="mt-3 block text-xs text-muted-foreground">Allowed native tools<textarea value={nativeText} onChange={(event) => setNativeText(event.target.value)} placeholder="One supported native tool per line" rows={3} className={`${textClass} font-mono`}/></label>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <CapabilityPicker label="Allowed connected-app actions" hint={composioAvailable ? "Choose verified, low-risk actions from connected Composio accounts." : "Connected-app capabilities are temporarily unavailable."} options={composioTools} selected={profile.allowedComposioTools} onAdd={addComposioTool} onRemove={removeComposioTool} renderOption={(option) => humanToolLabel(option as MeetingCapability)} empty="No safe connected-app actions are available yet." />
+        <AccountAliasPicker options={aliasOptions} selected={profile.composioAccountAliases} onAdd={addAccountAlias} onRemove={removeAccountAlias} onOpenApps={() => router.push("/app/apps")} />
+      </div>
+      <div className="mt-3"><CapabilityPicker label="Allowed Chusky actions" hint="These native actions are limited to the meeting representative allowlist." options={nativeTools} selected={profile.allowedNativeTools} onAdd={addNativeTool} onRemove={removeNativeTool} renderOption={(option) => humanNativeLabel(option as MeetingNativeCapability)} empty="No native meeting actions are available." /></div>
+      {(selectedToolSet.size > 0 || selectedNativeSet.size > 0) && <p className="mt-3 flex items-center gap-1.5 text-[10px] text-emerald-700"><Check size={12}/> Only the actions shown above will be available to this representative. Saving updates the private backend profile.</p>}
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 border-t border-foreground/10 pt-4"><Toggle label="Allow calendar scheduling tools" checked={profile.allowMeetingScheduling} onChange={(value) => setProfile({ ...profile, allowMeetingScheduling: value })}/><Toggle label="Automatically join eligible calendar meetings" checked={profile.autoJoinCalendar} onChange={(value) => setProfile({ ...profile, autoJoinCalendar: value })}/></div><p className="mt-2 text-[10px] leading-4 text-muted-foreground">Automatic joining applies only to eligible calendar meetings when the existing profile and calendar rules permit it. A regular calendar trigger is not blanket join authorization.</p>
       <div className="mt-4 flex flex-wrap items-center gap-3"><Button disabled={busy === "profile"} onClick={() => void saveProfile()}>{busy === "profile" ? <LoaderCircle size={13} className="animate-spin"/> : <Save size={13}/>} Save meeting profile</Button><span className="text-[10px] text-muted-foreground">Saved to your private Chusky account.</span></div>
     </Card></section>
@@ -99,6 +114,27 @@ export function MeetingsPage() {
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) { return <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="accent-foreground"/>{label}</label>; }
+
+type CapabilityOption = MeetingCapability | MeetingNativeCapability;
+
+function CapabilityPicker({ label, hint, options, selected, onAdd, onRemove, renderOption, empty }: { label: string; hint: string; options: CapabilityOption[]; selected: string[]; onAdd: (slug: string) => void; onRemove: (slug: string) => void; renderOption: (option: CapabilityOption) => string; empty: string }) {
+  const connected = options.filter((option) => !("connected" in option) || option.connected);
+  const unavailable = options.filter((option) => "connected" in option && !option.connected);
+  return <div className="border border-foreground/10 p-3">
+    <label className="block text-xs font-medium text-foreground">{label}<select aria-label={label} value="" onChange={(event) => onAdd(event.target.value)} className={inputClass}><option value="">Choose an action…</option>{connected.length ? <optgroup label="Available now">{connected.filter((option) => !selected.includes(option.slug)).map((option) => <option key={option.slug} value={option.slug}>{renderOption(option)}</option>)}</optgroup> : <option disabled>{empty}</option>}{unavailable.length ? <optgroup label="Unavailable · connect the app first">{unavailable.map((option) => <option key={option.slug} value={option.slug} disabled>{renderOption(option)} · not connected</option>)}</optgroup> : null}</select></label>
+    <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">{hint}</p>
+    <div className="mt-2 flex flex-wrap gap-1.5">{selected.length ? selected.map((slug) => { const option = options.find((item) => item.slug === slug); return <span key={slug} className="inline-flex max-w-full items-center gap-1 border border-foreground/15 bg-foreground/[0.03] px-2 py-1 text-[10px] text-foreground"><span className="max-w-[18rem] truncate">{option ? renderOption(option) : `${slug} · saved action`}</span><button type="button" aria-label={`Remove ${slug}`} onClick={() => onRemove(slug)} className="shrink-0 text-muted-foreground hover:text-foreground"><X size={12}/></button></span>; }) : <span className="text-[10px] text-muted-foreground">Nothing selected.</span>}</div>
+  </div>;
+}
+
+function AccountAliasPicker({ options, selected, onAdd, onRemove, onOpenApps }: { options: Array<{ account: ConnectedAccount; prefix: string }>; selected: Record<string, string>; onAdd: (value: string) => void; onRemove: (prefix: string) => void; onOpenApps: () => void }) {
+  return <div className="border border-foreground/10 p-3">
+    <label className="block text-xs font-medium text-foreground">Connected account routing<select aria-label="Connected account routing" value="" onChange={(event) => onAdd(event.target.value)} className={inputClass}><option value="">Choose a connected account…</option>{options.length ? options.map(({ account, prefix }) => <option key={`${prefix}::${account.id}`} value={`${prefix}::${account.id}`}>{titleCase(account.toolkit)} · {account.alias || account.id} · {prefix}</option>) : <option disabled>No connected accounts found</option>}</select></label>
+    <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">Chusky applies the selected account to matching actions. Credentials stay inside Composio.</p>
+    <div className="mt-2 space-y-1.5">{Object.entries(selected).length ? Object.entries(selected).map(([prefix, alias]) => <div key={prefix} className="flex items-center gap-2 border border-foreground/10 px-2 py-1.5 text-[10px]"><span className="font-mono text-muted-foreground">{prefix}</span><span className="min-w-0 flex-1 truncate">{alias}</span><button type="button" aria-label={`Remove ${prefix} account routing`} onClick={() => onRemove(prefix)} className="text-muted-foreground hover:text-foreground"><X size={12}/></button></div>) : <p className="text-[10px] text-muted-foreground">No account routing selected.</p>}</div>
+    <button type="button" onClick={onOpenApps} className="mt-2 inline-flex items-center gap-1 text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground">Connect another app <ExternalLink size={11}/></button>
+  </div>;
+}
 
 function MeetingCard({ meeting }: { meeting: Meeting }) {
   return <Card className="p-4 sm:p-5"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-medium">{meeting.title || `${meeting.platform} meeting`}</h3><Status tone={meeting.status === "in_call" || meeting.status === "joining" ? "green" : meeting.error ? "amber" : "gray"}>{meeting.status.replaceAll("_", " ")}</Status><span className="text-[10px] text-muted-foreground">{meeting.interactionMode} · {date(meeting.joinAt || meeting.createdAt)}</span></div>{meeting.error && <p className="mt-2 text-xs text-amber-800">{meeting.error}</p>}{meeting.participantRoster.length > 0 && <div className="mt-3"><p className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.15em] text-muted-foreground"><Users size={12}/> Participants</p><p className="mt-1.5 text-[11px]">{meeting.participantRoster.map((item) => `${item.name}${item.isHost ? " (host)" : ""}${item.status === "left" ? " · left" : ""}`).join(" · ")}</p></div>}{meeting.history.length > 0 && <div className="mt-3 max-h-48 space-y-2 overflow-y-auto border-t border-foreground/10 pt-3">{meeting.history.slice(-6).map((item, index) => <p key={`${item.createdAt ?? index}-${index}`} className="text-[11px] leading-5"><span className="font-medium">{item.role === "assistant" ? "Chusky" : "Meeting context"}: </span>{item.content}</p>)}</div>}{meeting.outcome && <div className="mt-3 border-t border-foreground/10 pt-3"><p className="text-xs font-medium">Outcome · {meeting.outcome.title}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{meeting.outcome.summary}</p>{meeting.outcome.decisions.length > 0 && <p className="mt-2 text-[11px]">Decisions: {meeting.outcome.decisions.join(" · ")}</p>}{meeting.outcome.actionItems.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-4 text-[11px] text-muted-foreground">{meeting.outcome.actionItems.map((item, index) => <li key={`${item.task}-${index}`}>{item.task} — {item.owner}{item.dueDate ? ` · ${item.dueDate}` : ""}</li>)}</ul>}<p className="mt-2 text-[10px] text-muted-foreground">Follow-through: {meeting.outcomeStatus || "pending"}{meeting.outcomeNotificationStatus ? ` · notification ${meeting.outcomeNotificationStatus}` : ""}</p></div>}</Card>;

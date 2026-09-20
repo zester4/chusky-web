@@ -166,10 +166,20 @@ status badges, cards, buttons, and a consistent Chusky visual system.
   Calendar trigger types are explained as event notifications, not blanket
   meeting authorization. Preparation join actions prefill a new chat and still
   require the user to send the request.
+- The Meetings page refreshes its workspace and profile from the authenticated
+  API on load and through live polling. Calendar preparations, Recall records,
+  outcomes, contacts, profile saves, and contact deletion are all owner-scoped
+  backend operations; “Ask Chusky to join” only creates a chat draft and does
+  not claim that a bot has joined.
 - The meeting representative profile edits the existing account-scoped profile
   through `/v1/meetings/profile`: role, objective, communication style,
   approved knowledge, authority guidance, exact connected-app tool slugs,
   aliases, native tools, scheduling, and optional calendar auto-join.
+- `/v1/meetings/capabilities` supplies the profile editor with the server’s exact
+  safe Composio action catalogue, connected-account metadata, and native meeting
+  allowlist. The dashboard uses selectors and removable selections instead of
+  asking people to type opaque slugs; unavailable connected-app actions are
+  visibly disabled, and account routing is built from real active connections.
 - Settings loads the server-curated Flux voice list for Twilio and Recall
   meetings, including `flux-haley-en`, and the available curated Bland list
   when configured. Preferences persist per owner and can be reset to a
