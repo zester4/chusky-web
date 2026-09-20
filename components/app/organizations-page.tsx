@@ -328,7 +328,10 @@ export function OrganizationsPage() {
                 const checked = choice.slugs.every((slug) => allow.includes(slug));
                 return <label key={choice.name} className="flex min-h-9 items-center gap-2.5 border border-foreground/10 px-2.5 py-2 text-xs"><input type="checkbox" checked={checked} onChange={(event) => {
                   const next = new Set(allow);
-                  for (const slug of choice.slugs) event.target.checked ? next.add(slug) : next.delete(slug);
+                  for (const slug of choice.slugs) {
+                    if (event.target.checked) next.add(slug);
+                    else next.delete(slug);
+                  }
                   setPolicy({ ...policy, tools: { ...policy.tools, allow: [...next] } });
                 }} className="h-4 w-4 accent-foreground" />{choice.name}</label>;
               })}

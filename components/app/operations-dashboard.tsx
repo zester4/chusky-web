@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Activity, AlertTriangle, Check, CircleDot, Clock3, Database, ExternalLink, Gauge, Radio, RefreshCw, Server, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
+import { Activity, Clock3, Database, ExternalLink, Gauge, Radio, RefreshCw, Server, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
 import { chuskyApi, type AccountOverview, type HealthSnapshot } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
-const labels: Record<string, string> = { redis: "Redis persistence", qstash: "QStash workflows", composioTriggers: "Composio triggers", sendblue: "Sendblue iMessage", twilio: "Twilio voice", twilioSms: "Twilio SMS", xchat: "X Chat", telegram: "Telegram bot" };
+const labels: Record<string, string> = { redis: "Redis persistence", qstash: "QStash workflows", vector: "Semantic memory search", composioTriggers: "Composio triggers", sendblue: "Sendblue iMessage", twilio: "Twilio voice", twilioSms: "Twilio SMS", xchat: "X Chat", telegram: "Telegram bot" };
 const channelLabels: Record<string, string> = { telegram: "Telegram", cli: "CLI", slack: "Slack", whatsapp: "WhatsApp", sendblue: "Sendblue", sms: "SMS", xchat: "X Chat" };
 
 function tone(value: string): "green" | "amber" | "gray" { return value === "ok" || value === "configured" ? "green" : value === "disabled" ? "gray" : "amber"; }

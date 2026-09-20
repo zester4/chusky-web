@@ -19,6 +19,8 @@ export type RunStreamEvent =
   | { type: "run.failed"; run: Run; error: { code: string; message: string } }
   | { type: "run.cancelled"; run: Run };
 export type Task = { id: string; status: "queued" | "running" | "blocked" | "completed" | "failed" | "cancelled"; title: string; objective: string; checkpoint?: string; nextAction?: string; result?: string; error?: string; attempt?: number; maxAttempts?: number; sdkRunId?: string; sdkThreadId?: string; sdkBudget?: RunBudget; sdkModel?: string; sdkSkills?: string[]; events?: Array<{ id: string; type: string; message: string; at: number; attempt: number }>; createdAt: string; updatedAt: string };
+export type ComposerStage = { id: string; title: string; objective: string; dependsOn: string[]; status: "pending" | "running" | "completed" | "blocked" | "failed" | "cancelled"; requiresApproval: boolean; retryLimit: number; budgetSeconds?: number; result?: string };
+export type ComposerWorkflow = { id: string; name: string; description?: string; stages: ComposerStage[]; status: "draft" | "queued" | "running" | "completed" | "failed" | "cancelled"; taskId?: string; workflowRunId?: string; createdAt: number; updatedAt: number };
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
 export type Approval = { id: string; status?: "pending" | "approved" | "denied" | "consumed"; toolSlug: string; args: Record<string, unknown>; request?: string; channelProvider?: string; handoffId?: string; createdAt?: string; expiresAt: string };
 export type ApprovalDecision = { id: string; status: "denied" | "consumed"; text?: string };
@@ -39,7 +41,7 @@ export type CompanyUsagePeriod = { month: string; completedRuns: number; costUsd
 export type CompanyUsage = { currentMonth: CompanyUsagePeriod; periods: CompanyUsagePeriod[]; runs: { indexed: number; active: number } };
 export type CompanyBranding = { organizationId: string; displayName: string; logoUrl?: string; accentColor: string; backgroundColor: string; customDomain?: string; customDomainStatus: "not_configured" | "pending_dns"; updatedAt?: string };
 export type Activity = { now: number; approvals: Approval[]; tasks: Task[]; reminders: Array<{ id: string; text: string; createdAt: number }>; jobs: Array<{ id: string; text: string; cron: string; createdAt: number }> };
-export type HealthSnapshot = { ok: boolean; status: "operational" | "degraded"; persistence: "redis" | "memory"; checks: Record<string, string>; channels: Record<string, boolean>; monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string; message?: string } | null } };
+export type HealthSnapshot = { ok: boolean; status: "operational" | "degraded"; persistence: "redis" | "memory"; checks: Record<string, string>; channels: Record<string, boolean>; monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string; message?: string } | null; vector: { failures: number; degraded: boolean; lastFailure: { at: string; message?: string } | null } } };
 export type AccountOverview = {
   model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences;
   approvals: Array<{ id: string; toolSlug: string; request: string; status: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
@@ -254,6 +256,12 @@ export const chuskyApi = {
       },
     },
   },
+  composer: {
+    list: () => request<{ data: ComposerWorkflow[] }>("/workflows/composer"),
+    create: (input: { name: string; description?: string; stages: Array<{ id: string; title: string; objective: string; dependsOn?: string[]; requiresApproval?: boolean; retryLimit?: number; budgetSeconds?: number }> }) => request<ComposerWorkflow>("/workflows/composer", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    update: (id: string, input: { name?: string; description?: string; stages?: Array<{ id: string; title: string; objective: string; dependsOn?: string[]; requiresApproval?: boolean; retryLimit?: number; budgetSeconds?: number }> }) => request<ComposerWorkflow>(`/workflows/composer/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    start: (id: string) => request<ComposerWorkflow>(`/workflows/composer/${encodeURIComponent(id)}/start`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+  },
   branding: {
     public: (hostname: string) => publicRequest<{ data: CompanyBranding | null }>(`/public/company-branding?hostname=${encodeURIComponent(hostname)}`),
   },
@@ -261,6 +269,7 @@ export const chuskyApi = {
   mcp: {
     catalog: () => request<{ data: McpCatalogEntry[]; errors?: string[] }>("/mcp/catalog"),
     connections: () => request<{ data: McpConnection[] }>("/mcp/connections"),
+    oauthStart: (serverId: string) => request<{ authorizationUrl: string; state: string; expiresAt: number }>("/mcp/oauth/start", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ serverId }) }),
     connect: (serverId: string, credential?: { accessToken: string; refreshToken?: string; expiresAt?: number }) => request<McpConnection>("/mcp/connections", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ serverId, ...(credential ? { ...credential } : {}) }) }),
     disconnect: (serverId: string) => request<void>(`/mcp/connections/${encodeURIComponent(serverId)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },

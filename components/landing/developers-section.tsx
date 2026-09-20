@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { Copy, Check } from "lucide-react";
 
 const codeExamples = [
@@ -222,9 +223,9 @@ export function DevelopersSection() {
             
             {/* Links */}
             <div className="mt-4 flex flex-wrap items-center gap-3 text-xs sm:mt-6 sm:gap-6 sm:text-sm">
-              <a href="/docs/mcp" className="text-foreground hover:underline underline-offset-4">
+              <Link href="/docs/mcp" className="text-foreground hover:underline underline-offset-4">
                 Read the docs
-              </a>
+              </Link>
               <span className="text-foreground/20">|</span>
               <a href="https://github.com/zester4/chusky-mcp" target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
                 View on GitHub

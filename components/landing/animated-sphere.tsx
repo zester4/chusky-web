@@ -43,7 +43,6 @@ export function AnimatedSphere() {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const step = 12;
       const points: { x: number; y: number; z: number; char: string }[] = [];
 
       // Generate sphere points

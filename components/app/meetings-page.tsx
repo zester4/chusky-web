@@ -68,7 +68,7 @@ export function MeetingsPage() {
   };
   const startJoinDraft = (preparationId: string) => {
     const prompt = `Join the calendar-prepared meeting with preparation ID ${preparationId}. Use the owner-scoped prepared-meeting join capability and its verified event brief; do not guess or ask me to paste the meeting URL. If this preparation is no longer joinable, explain why.`;
-    router.push(`/app/chat?new=1&nonce=${Date.now()}&draft=${encodeURIComponent(prompt)}`);
+    router.push(`/app/chat?new=1&draft=${encodeURIComponent(prompt)}`);
   };
 
   return <>

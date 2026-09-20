@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, LoaderCircle, ShieldCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 type InvitationInfo = { id: string; email: string; role: string; status: string; organizationId: string; organization?: { name?: string } };
 
 export default function AcceptInvitationPage() {
+  const router = useRouter();
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const [invitationId, setInvitationId] = useState("");
   const [invitation, setInvitation] = useState<InvitationInfo>();
@@ -39,7 +41,7 @@ export default function AcceptInvitationPage() {
       const activeResult = await authClient.organization.setActive({ organizationId: invitation.organizationId });
       if (activeResult.error) throw new Error(activeResult.error.message || "Invitation accepted, but workspace switching failed. Open Organizations to continue.");
       setAccepted(true);
-      window.location.assign("/app/organizations");
+      router.push("/app/organizations");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "The invitation could not be accepted."); }
     finally { setBusy(false); }
   };

@@ -27,6 +27,23 @@ import { MarkdownMessage } from "./markdown-message";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
 
+type SpeechRecognitionEventLike = {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+};
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
 type Message = {
   role: "user" | "assistant";
   text: string;
@@ -218,13 +235,14 @@ export function ChatPage() {
   };
 
   const toggleVoiceInput = () => {
-    const Recognition = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+    const speechWindow = window as SpeechWindow;
+    const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!Recognition) { showNotice("Voice input is not supported in this browser.", "info"); return; }
     if (listening) { setListening(false); return; }
     const recognition = new Recognition();
     recognition.lang = navigator.language || "en-US";
     recognition.interimResults = false;
-    recognition.onresult = (event: any) => setInput((current) => `${current}${current ? " " : ""}${event.results[0][0].transcript}`);
+    recognition.onresult = (event) => setInput((current) => `${current}${current ? " " : ""}${event.results[0][0].transcript}`);
     recognition.onend = () => setListening(false);
     recognition.onerror = () => setListening(false);
     setListening(true);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
+import { Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
 import { chuskyApi, type ChannelConnection, type ChannelLinkCode } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
