@@ -148,6 +148,33 @@
     transition: border-color 150ms ease, box-shadow 150ms ease;
   }
 
+  .app-shell button,
+  .app-shell a,
+  .app-shell input,
+  .app-shell select,
+  .app-shell textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .app-shell :where(p, span, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+  }
+
+  .app-shell pre,
+  .app-shell table {
+    max-width: 100%;
+  }
+
+  .app-shell pre {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .app-shell :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--foreground) 55%, transparent);
+    outline-offset: 2px;
+  }
+
   .app-shell input:not([type="checkbox"]):not([type="radio"]):focus-visible,
   .app-shell textarea:focus-visible {
     border-color: color-mix(in srgb, var(--foreground) 40%, transparent);
@@ -167,6 +194,37 @@
   [data-capabilities][data-active-tab="channels"] [data-capability-section="channels"],
   [data-capabilities][data-active-tab="webhooks"] [data-capability-section="webhooks"] {
     display: block !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-shell main {
+    padding-inline: 0.75rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .app-shell header button {
+    min-height: 2.5rem;
+    min-width: 2.5rem;
+  }
+
+  .app-shell [data-slot="drawer-content"] button,
+  .app-shell [data-slot="drawer-content"] a {
+    min-height: 2.5rem;
+  }
+
+  .app-shell [role="dialog"] {
+    max-width: calc(100vw - 1rem);
+  }
+
+  .app-shell h2.font-display {
+    font-size: 1.35rem;
+    line-height: 1.05;
+  }
+
+  .app-shell [role="alert"],
+  .app-shell [role="status"] {
+    max-width: 100%;
   }
 }
 
