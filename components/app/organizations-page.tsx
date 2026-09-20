@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Building2, Check, CircleDollarSign, Copy, LoaderCircle, Pencil, Plus, RefreshCw, ScrollText, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Activity, Building2, Check, CircleDollarSign, Copy, FolderKanban, KeyRound, LoaderCircle, Pencil, Plus, RefreshCw, ScrollText, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type CompanyAgent, type CompanyAgentTemplate, type CompanyAuditEvent, type CompanyBranding, type CompanyPolicy, type CompanyRun, type CompanyUsage, type CreatedDeveloperProject, type DeveloperProject } from "@/lib/chusky-api";
@@ -10,6 +10,7 @@ import { ConfirmDialog } from "./confirm-dialog";
 type Workspace = { id: string; name: string; slug: string };
 type Member = { id: string; userId: string; role: string; user?: { name?: string; email?: string } };
 type Invitation = { id: string; email: string; role: string; status: string; expiresAt: string };
+type OrganizationPanel = "overview" | "members" | "projects" | "access" | "branding" | "activity";
 
 export function OrganizationsPage() {
   const organizations = authClient.useListOrganizations();
@@ -43,6 +44,7 @@ export function OrganizationsPage() {
   const [createdKey, setCreatedKey] = useState<CreatedDeveloperProject>();
   const [copied, setCopied] = useState(false);
   const [copiedMcp, setCopiedMcp] = useState(false);
+  const [activePanel, setActivePanel] = useState<OrganizationPanel>("overview");
 
   const workspaceList = (organizations.data ?? []) as Workspace[];
   const active = activeOrganization.data as (Workspace & { members?: Member[]; invitations?: Invitation[] }) | null | undefined;
@@ -53,6 +55,15 @@ export function OrganizationsPage() {
   const currentRole = members.find((member) => member.userId === session.data?.user.id)?.role;
   const canManage = currentRole === "owner" || currentRole === "admin";
   const chosenProject = useMemo(() => projects?.find((item) => item.id === selectedProjectId), [projects, selectedProjectId]);
+  const pendingInvitations = invitations.filter((item) => item.status === "pending");
+  const panelTabs: Array<{ id: OrganizationPanel; label: string; description: string }> = [
+    { id: "overview", label: "Overview", description: "Workspace identity and setup" },
+    { id: "members", label: "Members", description: "People and invitations" },
+    { id: "projects", label: "Projects & agents", description: "Runtime configuration" },
+    { id: "access", label: "Access & policy", description: "MCP and guardrails" },
+    { id: "branding", label: "Branding", description: "Appearance and domain" },
+    { id: "activity", label: "Activity", description: "Runs, usage, and audit" },
+  ];
 
   const loadProjects = async (id: string) => {
     if (!id) { setProjects(undefined); setAgents(undefined); return; }
@@ -264,18 +275,27 @@ export function OrganizationsPage() {
     <PageHeading eyebrow="Company platform" title="Organizations" description="Create a shared workspace, invite teammates, and configure company-scoped agent projects. Connected apps and OAuth accounts remain managed by Composio." action={<Button secondary onClick={() => void refresh()} disabled={busy !== ""}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />
     {error && <div role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900">{error}</div>}
     {notice && <div role="status" className="mb-4 border border-emerald-300 bg-emerald-50 p-3.5 text-xs text-emerald-900">{notice}</div>}
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(19rem,0.8fr)]">
+    <div className="mb-4 overflow-x-auto border-b border-foreground/10" role="tablist" aria-label="Organization settings">
+      <div className="flex min-w-max gap-1">
+        {panelTabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={activePanel === tab.id} disabled={!organizationId && tab.id !== "overview"} onClick={() => setActivePanel(tab.id)} className={`group min-h-12 border-b-2 px-3 text-left transition-colors first:pl-1 disabled:cursor-not-allowed disabled:opacity-40 ${activePanel === tab.id ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:border-foreground/20 hover:text-foreground"}`}>
+          <span className="block text-[11px] font-medium">{tab.label}</span><span className="mt-0.5 block text-[9px] text-muted-foreground">{tab.description}</span>
+        </button>)}
+      </div>
+    </div>
+    {!organizationId && activePanel === "overview" && <Card className="mb-4 border-dashed p-5 sm:p-7"><div className="flex max-w-2xl items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Building2 size={17} /></span><div><h2 className="text-sm font-medium">Start with a company workspace</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Create a workspace to give your team a shared boundary for projects, agent policies, MCP access, and audit activity. Personal Chusky data remains separate.</p></div></div></Card>}
+    <div className="grid gap-4">
       <section className="space-y-4">
-        <Card className="p-4 sm:p-5">
+        {activePanel === "overview" && <Card className="p-4 sm:p-5">
           <div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center border border-foreground/10"><Building2 size={17} /></span><div className="min-w-0 flex-1"><h2 className="text-sm font-medium">Workspace</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Membership and invitations are handled by Chusky accounts. Each workspace has isolated projects and policies.</p>
             {workspaceList.length > 0 && <label className="mt-3 block text-[10px] text-muted-foreground">Select organization<select value={organizationId} onChange={(event) => void chooseWorkspace(event.target.value)} disabled={busy === "switch"} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs text-foreground"><option value="">Choose a workspace</option>{workspaceList.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
             {!workspaceList.length && organizations.isPending && <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={13} className="animate-spin" /> Loading workspaces…</p>}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} maxLength={100} aria-label="New workspace name" placeholder="e.g. Acme Sales" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-transparent px-2.5 text-xs outline-none focus:border-foreground/50" /><Button disabled={!workspaceName.trim() || busy === "workspace"} onClick={() => void createWorkspace()}>{busy === "workspace" ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} Create workspace</Button></div>
             {organization && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-foreground/10 pt-3"><span className="text-xs font-medium">{organization.name}</span><Status tone={currentRole ? "green" : "gray"}>{currentRole ?? "Loading role"}</Status><span className="font-mono text-[10px] text-muted-foreground">{members.length} member{members.length === 1 ? "" : "s"}</span></div>}
+            {organization && <div className="mt-4 grid grid-cols-3 gap-2" aria-label="Workspace summary"><div className="border border-foreground/10 p-2.5"><Users size={13} className="text-muted-foreground" /><p className="mt-2 text-base tabular-nums">{members.length}</p><p className="text-[9px] text-muted-foreground">Members</p></div><div className="border border-foreground/10 p-2.5"><FolderKanban size={13} className="text-muted-foreground" /><p className="mt-2 text-base tabular-nums">{projects?.length ?? "—"}</p><p className="text-[9px] text-muted-foreground">Projects</p></div><div className="border border-foreground/10 p-2.5"><KeyRound size={13} className="text-muted-foreground" /><p className="mt-2 text-base tabular-nums">{pendingInvitations.length}</p><p className="text-[9px] text-muted-foreground">Pending invites</p></div></div>}
           </div></div>
-        </Card>
+        </Card>}
 
-        {organizationId && <Card>
+        {organizationId && activePanel === "members" && <Card>
           <div className="border-b border-foreground/10 p-4 sm:p-5"><h2 className="text-sm font-medium">Team members</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Invite teammates as members. Only workspace owners and admins can create project keys or change agent rules.</p>
             {canManage && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} aria-label="Teammate email" placeholder="teammate@company.com" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-transparent px-2.5 text-xs outline-none focus:border-foreground/50" /><Button disabled={!inviteEmail.includes("@") || busy === "invite"} onClick={() => void inviteMember()}>{busy === "invite" ? <LoaderCircle size={13} className="animate-spin" /> : <UserPlus size={13} />} Invite member</Button></div>}
           </div>
@@ -283,7 +303,7 @@ export function OrganizationsPage() {
           {invitations.filter((item) => item.status === "pending").map((invitation) => <div key={invitation.id} className="flex items-center justify-between gap-3 border-t border-dashed border-foreground/15 px-4 py-3 sm:px-5"><div><p className="text-xs">{invitation.email}</p><p className="text-[10px] text-muted-foreground">Invitation expires {new Date(invitation.expiresAt).toLocaleDateString()}</p></div><Status tone="amber">Invited</Status></div>)}
         </Card>}
 
-        {organizationId && brandingDraft && <Card className="p-4 sm:p-5">
+        {organizationId && activePanel === "branding" && brandingDraft && <Card className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3"><div><h2 className="text-sm font-medium">Branding and custom domain</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Customize the dashboard shell for this workspace. DNS and TLS stay with your domain provider; Chusky only stores the verified hostname mapping.</p></div><Status tone={branding?.customDomainStatus === "pending_dns" ? "amber" : "gray"}>{branding?.customDomainStatus === "pending_dns" ? "DNS pending" : "Default host"}</Status></div>
           <fieldset disabled={!canManage || busy === "branding"} className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="text-[10px] text-muted-foreground sm:col-span-2">Display name<input value={brandingDraft.displayName} onChange={(event) => setBrandingDraft({ ...brandingDraft, displayName: event.target.value })} maxLength={120} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-transparent px-2.5 text-xs text-foreground outline-none focus:border-foreground/50" /></label>
@@ -297,20 +317,20 @@ export function OrganizationsPage() {
       </section>
 
       <section className="space-y-4">
-        {organizationId && <Card className="p-4 sm:p-5">
+        {organizationId && activePanel === "projects" && <Card className="p-4 sm:p-5">
           <h2 className="text-sm font-medium">Company API project</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Project keys are hashed at rest and shown once. Defaults support agent runs, Composio connections/triggers, read-only approval status, tasks, webhooks, audit, and usage. Human approval decisions stay outside the project key.</p>
           {canManage && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={projectName} onChange={(event) => setProjectName(event.target.value)} maxLength={100} aria-label="API project name" placeholder="e.g. Salesforce production" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-transparent px-2.5 text-xs outline-none focus:border-foreground/50" /><Button disabled={!projectName.trim() || busy === "project"} onClick={() => void createProject()}>{busy === "project" ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} Create project</Button></div>}
           {projects === undefined ? <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={13} className="animate-spin" /> Loading projects…</p> : projects.length ? <div className="mt-3 space-y-2">{projects.map((project) => <button type="button" key={project.id} onClick={() => setSelectedProjectId(project.id)} className={`block w-full border p-3 text-left transition-colors ${selectedProjectId === project.id ? "border-foreground/50 bg-foreground/[0.03]" : "border-foreground/10 hover:border-foreground/30"}`}><span className="flex items-center justify-between gap-2"><span className="truncate text-xs font-medium">{project.name}</span><Status>{project.scopes.length} scopes</Status></span><span className="mt-1 block break-all font-mono text-[10px] text-muted-foreground">{project.keyPrefix}…</span></button>)}</div> : <p className="mt-4 border border-dashed border-foreground/20 p-3 text-xs text-muted-foreground">No company projects yet. Create one to attach agent profiles and issue a scoped server key.</p>}
         </Card>}
 
-        {chosenProject && <Card className="p-4 sm:p-5">
+        {chosenProject && activePanel === "projects" && <Card className="p-4 sm:p-5">
           <div className="flex items-start gap-2.5"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><div><h2 className="text-sm font-medium">Agent templates</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">External Composio executions are approval-gated by policy. A caller can further restrict tools and budgets, but cannot widen the project grant.</p></div></div>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row"><select value={templateSlug} onChange={(event) => setTemplateSlug(event.target.value)} aria-label="Agent template" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Choose a specialist template</option>{(templates ?? []).map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}</select><Button disabled={!templateSlug || busy === "agent" || !canManage} onClick={() => void createAgent()}>{busy === "agent" ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} Add agent</Button></div>
           {templateSlug && <label className="mt-3 block text-[10px] text-muted-foreground">Company-specific instructions (optional)<textarea value={agentGuidance} onChange={(event) => setAgentGuidance(event.target.value)} maxLength={5000} rows={3} placeholder="For lead research: only target companies with 50+ employees; cite the source for headcount and prepare follow-up drafts for review." className="mt-1.5 min-h-20 w-full resize-y border border-foreground/15 bg-transparent p-2.5 text-xs leading-5 text-foreground outline-none focus:border-foreground/50" /></label>}
            {agents === undefined ? <p className="mt-4 text-xs text-muted-foreground">Loading agent profiles…</p> : agents.length ? <div className="mt-3 border-t border-foreground/10">{agents.map((agent) => <div key={agent.id} className="border-b border-foreground/10 py-3 last:border-0"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs font-medium">{agent.name}</p><p className="mt-1 text-[10px] leading-5 text-muted-foreground">{templates?.find((item) => item.slug === agent.template)?.outcome ?? agent.template}</p></div><div className="flex shrink-0 flex-wrap gap-2"><Status tone="amber">Approval before external action</Status>{canManage && <><Button secondary disabled={busy === `agent:${agent.id}`} onClick={() => startAgentEdit(agent)}><Pencil size={11} /> Edit</Button><Button secondary disabled={busy === `agent:${agent.id}`} onClick={() => setRemovingAgent(agent)}><Trash2 size={11} /> Remove</Button></>}</div></div><p className="mt-1 font-mono text-[9px] text-muted-foreground">ID: {agent.id} · max {agent.budget.maxToolCalls ?? "project limit"} tool calls · ${agent.budget.maxCost ?? "project limit"} run cost</p>{editingAgent?.id === agent.id && <div className="mt-3 border-t border-foreground/10 pt-3"><label className="block text-[10px] text-muted-foreground">Instructions<textarea value={editingInstructions} onChange={(event) => setEditingInstructions(event.target.value)} maxLength={5000} rows={4} className="mt-1.5 min-h-20 w-full resize-y border border-foreground/15 bg-transparent p-2.5 text-xs leading-5 text-foreground outline-none focus:border-foreground/50" /></label><div className="mt-2 flex flex-wrap gap-2"><Button disabled={busy === `agent:${agent.id}`} onClick={() => void saveAgent()}>{busy === `agent:${agent.id}` ? <LoaderCircle size={13} className="animate-spin" /> : <Check size={13} />} Save instructions</Button><Button secondary disabled={busy === `agent:${agent.id}`} onClick={() => setEditingAgent(undefined)}>Cancel</Button></div></div>}</div>)}</div> : <p className="mt-4 border border-dashed border-foreground/20 p-3 text-xs text-muted-foreground">No agents configured for this project. Choose a template to create one.</p>}
         </Card>}
 
-        {chosenProject && <Card className="p-4 sm:p-5">
+        {chosenProject && activePanel === "access" && <Card className="p-4 sm:p-5">
           <div className="flex items-start gap-2.5"><ShieldCheck size={16} className="mt-0.5 shrink-0" /><div><h2 className="text-sm font-medium">Connect through MCP</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Use Chusky from Claude, Cursor, ChatGPT, or another MCP host. The host sends your project key and a stable customer identity to the remote Worker.</p></div></div>
           <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"><label className="text-[10px] text-muted-foreground">Remote MCP endpoint<code className="mt-1.5 block break-all border border-foreground/15 bg-foreground/[0.03] px-2.5 py-2 font-mono text-[11px] text-foreground">{mcpEndpoint}</code></label><Button secondary onClick={() => void copyMcpConfig()}>{copiedMcp ? <Check size={13} /> : <Copy size={13} />}{copiedMcp ? "Copied config" : "Copy config"}</Button></div>
           <pre className="mt-3 max-h-44 overflow-auto border border-foreground/10 bg-foreground/[0.03] p-3 text-[10px] leading-5 text-muted-foreground"><code>{mcpConfig}</code></pre>
@@ -318,7 +338,7 @@ export function OrganizationsPage() {
           <p className="mt-3 text-[10px] leading-5 text-muted-foreground">MCP can start and monitor policy-governed work, but it cannot approve its own external actions. Human approvals remain in Chusky or your authorized host.</p>
         </Card>}
 
-        {chosenProject && <Card className="p-4 sm:p-5">
+        {chosenProject && activePanel === "access" && <Card className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3"><div><h2 className="text-sm font-medium">Project policy</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">These server-enforced ceilings apply to every run. Agents and callers can narrow them, never expand them.</p></div><Status tone="amber">Human approval stays on</Status></div>
           {policy === undefined ? <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={13} className="animate-spin" /> Loading policy…</p> : <>
             <fieldset className="mt-4 space-y-2" disabled={!canManage || savingPolicy}>
@@ -346,7 +366,7 @@ export function OrganizationsPage() {
           </>}
         </Card>}
 
-        {chosenProject && canManage && <Card className="p-4 sm:p-5">
+        {chosenProject && canManage && activePanel === "activity" && <Card className="p-4 sm:p-5">
           <div className="flex items-start gap-3"><Activity size={16} className="mt-0.5 shrink-0" /><div><h2 className="text-sm font-medium">Company activity</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Run status and model spend are shared across callers of this project key. Prompts, outputs, and connected-account details stay with each caller.</p></div></div>
           {telemetryLoading && <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><LoaderCircle size={13} className="animate-spin" /> Loading company activity…</p>}
           {!telemetryLoading && companyUsage && <>

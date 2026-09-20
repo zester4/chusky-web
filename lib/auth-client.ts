@@ -10,6 +10,6 @@ const authBaseURL = typeof window === "undefined"
 
 export const authClient = createAuthClient({
   baseURL: authBaseURL,
-  plugins: [organizationClient()],
+  plugins: [organizationClient({ teams: { enabled: true } })],
   fetchOptions: { credentials: "include" },
 });

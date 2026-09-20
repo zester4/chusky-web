@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Check, ExternalLink, LoaderCircle, RefreshCw, Save, Users, X } from "lucide-react";
-import { chuskyApi, type ConnectedAccount, type Meeting, type MeetingCapability, type MeetingContact, type MeetingNativeCapability, type MeetingRepresentativeProfile, type MeetingWorkspace } from "@/lib/chusky-api";
+import { Building2, CalendarClock, Check, ExternalLink, LoaderCircle, Plus, RefreshCw, Save, Users, Video, X } from "lucide-react";
+import { chuskyApi, type ConnectedAccount, type Meeting, type MeetingCapability, type MeetingContact, type MeetingNativeCapability, type MeetingRepresentativeProfile, type MeetingRoom, type MeetingRoomPolicy, type MeetingWorkspace } from "@/lib/chusky-api";
+import { authClient } from "@/lib/auth-client";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -20,16 +21,29 @@ function accountPrefix(account: ConnectedAccount, tools: MeetingCapability[]) { 
 
 export function MeetingsPage() {
   const router = useRouter();
+  const activeOrganization = authClient.useActiveOrganization();
+  const activeWorkspace = activeOrganization.data as ({ id: string; name?: string; teams?: Array<{ id: string; name: string }> } | null | undefined);
+  const organizationId = activeWorkspace?.id ?? "";
   const [workspace, setWorkspace] = useState<MeetingWorkspace>();
   const [profile, setProfile] = useState<MeetingRepresentativeProfile>(initialProfile);
   const [composioTools, setComposioTools] = useState<MeetingCapability[]>([]); const [nativeTools, setNativeTools] = useState<MeetingNativeCapability[]>([]); const [connections, setConnections] = useState<ConnectedAccount[]>([]); const [composioAvailable, setComposioAvailable] = useState(true);
   const [busy, setBusy] = useState<string>(); const [error, setError] = useState<string>(); const [notice, setNotice] = useState<string>();
   const [removeContact, setRemoveContact] = useState<MeetingContact>();
+  const [roomName, setRoomName] = useState(""); const [roomDescription, setRoomDescription] = useState(""); const [roomTeamId, setRoomTeamId] = useState(""); const [roomVisibility, setRoomVisibility] = useState<MeetingRoomPolicy["visibility"]>("team"); const [roomMode, setRoomMode] = useState<MeetingRoomPolicy["defaultMode"]>("addressed"); const [roomAllowedComposioTools, setRoomAllowedComposioTools] = useState<string[]>([]); const [roomAllowedNativeTools, setRoomAllowedNativeTools] = useState<string[]>([]);
+  const [meetingUrl, setMeetingUrl] = useState(""); const [selectedRoomId, setSelectedRoomId] = useState(""); const [joinMode, setJoinMode] = useState<Meeting["interactionMode"]>("addressed");
 
   const load = useCallback(async (refreshProfile = true) => {
     setError(undefined);
     try {
-      const [nextWorkspace, capabilities] = await Promise.all([chuskyApi.meetings.list(), chuskyApi.meetings.capabilities()]);
+      const [privateWorkspace, capabilities] = await Promise.all([chuskyApi.meetings.list(), chuskyApi.meetings.capabilities()]);
+      let nextWorkspace = privateWorkspace;
+      if (organizationId) {
+        try {
+          const shared = await chuskyApi.meetings.list(organizationId);
+          const known = new Set(privateWorkspace.meetings.map((item) => item.id));
+          nextWorkspace = { ...privateWorkspace, rooms: shared.rooms, meetings: [...shared.meetings.filter((item) => !known.has(item.id)), ...privateWorkspace.meetings] };
+        } catch { /* Personal meetings remain usable if the active workspace is unavailable. */ }
+      }
       setWorkspace(nextWorkspace);
       setComposioTools(capabilities.composioTools); setNativeTools(capabilities.nativeTools); setConnections(capabilities.connections); setComposioAvailable(capabilities.composioAvailable);
       if (refreshProfile) {
@@ -37,7 +51,7 @@ export function MeetingsPage() {
         setProfile(nextProfile);
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load the meeting workspace."); }
-  }, []);
+  }, [organizationId]);
   useEffect(() => { void load(); }, [load]);
   useLiveData(() => load(false), 15_000);
 
@@ -68,6 +82,29 @@ export function MeetingsPage() {
   const removeComposioTool = (slug: string) => setProfile((current) => ({ ...current, allowedComposioTools: current.allowedComposioTools.filter((item) => item !== slug) }));
   const addNativeTool = (slug: string) => { if (!slug) return; setProfile((current) => ({ ...current, allowedNativeTools: [...new Set([...current.allowedNativeTools, slug])] })); };
   const removeNativeTool = (slug: string) => setProfile((current) => ({ ...current, allowedNativeTools: current.allowedNativeTools.filter((item) => item !== slug) }));
+  const addRoomComposioTool = (slug: string) => { if (slug) setRoomAllowedComposioTools((current) => [...new Set([...current, slug])]); };
+  const removeRoomComposioTool = (slug: string) => setRoomAllowedComposioTools((current) => current.filter((item) => item !== slug));
+  const addRoomNativeTool = (slug: string) => { if (slug) setRoomAllowedNativeTools((current) => [...new Set([...current, slug])]); };
+  const removeRoomNativeTool = (slug: string) => setRoomAllowedNativeTools((current) => current.filter((item) => item !== slug));
+  const createRoom = async () => {
+    if (!organizationId || !roomName.trim()) return;
+    setBusy("room"); setError(undefined); setNotice(undefined);
+    try {
+      const policy: MeetingRoomPolicy = { defaultMode: roomMode, visibility: roomVisibility, allowScreenUnderstanding: false, requireApprovalForExternalActions: true, allowedComposioTools: roomAllowedComposioTools, allowedNativeTools: roomAllowedNativeTools };
+      const room = await chuskyApi.meetings.rooms.create({ organizationId, name: roomName.trim(), ...(roomDescription.trim() ? { description: roomDescription.trim() } : {}), ...(roomTeamId ? { teamId: roomTeamId } : {}), policy });
+      setWorkspace((current) => current ? { ...current, rooms: [room, ...(current.rooms ?? [])] } : current); setRoomName(""); setRoomDescription(""); setRoomAllowedComposioTools([]); setRoomAllowedNativeTools([]); setNotice(`Meeting room “${room.name}” created.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the meeting room."); }
+    finally { setBusy(undefined); }
+  };
+  const joinMeeting = async () => {
+    if (!meetingUrl.trim()) return;
+    setBusy("join"); setError(undefined); setNotice(undefined);
+    try {
+      const meeting = await chuskyApi.meetings.join({ meetingUrl: meetingUrl.trim(), interactionMode: joinMode, ...(selectedRoomId ? { roomId: selectedRoomId } : {}) });
+      setWorkspace((current) => current ? { ...current, meetings: [meeting, ...current.meetings.filter((item) => item.id !== meeting.id)] } : current); setMeetingUrl(""); setNotice("Chusky is joining the meeting. The session will appear below as its provider status changes.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not join this meeting."); }
+    finally { setBusy(undefined); }
+  };
   const addAccountAlias = (value: string) => {
     if (!value) return;
     const [prefix, accountId] = value.split("::");
@@ -80,10 +117,16 @@ export function MeetingsPage() {
   const aliasOptions = activeConnections.map((account) => ({ account, prefix: accountPrefix(account, composioTools) }));
   const selectedToolSet = new Set(profile.allowedComposioTools);
   const selectedNativeSet = new Set(profile.allowedNativeTools);
+  const rooms = workspace?.rooms ?? [];
 
   return <>
     <PageHeading eyebrow="Calendar & live sessions" title="Meetings" description="Review calendar meeting preparations, participant context, live-call outcomes, and the representative profile Chusky uses. Calendar triggers can also describe non-meeting events; only verified supported video links become meeting preparations." action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13}/></span> Refresh</Button>} />
     {error && <div role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">{error}</div>}{notice && <p role="status" className="mb-3 text-xs text-emerald-700">{notice}</p>}
+
+    <section className="mb-5"><div className="mb-2 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Workspace meeting rooms</p><h2 className="mt-1 font-display text-2xl">Bring a team into the room</h2></div><span className="text-[10px] text-muted-foreground">Shared metadata · private owner context</span></div>
+      {!organizationId ? <Card className="p-4 text-xs leading-5 text-muted-foreground"><Building2 size={15} className="mb-2"/>Create or select a workspace in Organizations to create department rooms for Marketing, Finance, Sales, or any other team. Personal meetings continue to work without a workspace.</Card> : <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"><Card className="p-4 sm:p-5"><div className="flex items-start gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Building2 size={15}/></span><div><p className="text-sm font-medium">{activeWorkspace?.name || "Active workspace"}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">A room defines who can see meeting outcomes and which department policy applies. Participant speech never becomes workspace identity.</p></div></div><div className="mt-4 space-y-3"><label className="block text-xs text-muted-foreground">Room name<input value={roomName} onChange={(event) => setRoomName(event.target.value)} placeholder="Marketing weekly" maxLength={120} className={inputClass}/></label><label className="block text-xs text-muted-foreground">Purpose<textarea value={roomDescription} onChange={(event) => setRoomDescription(event.target.value)} placeholder="Shared outcomes and follow-ups for the marketing team" rows={2} maxLength={1000} className={textClass}/></label><div className="grid gap-3 sm:grid-cols-3"><label className="block text-xs text-muted-foreground">Department team<select value={roomTeamId} onChange={(event) => { setRoomTeamId(event.target.value); if (event.target.value) setRoomVisibility("team"); }} className={inputClass}><option value="">Workspace-wide</option>{activeWorkspace?.teams?.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label className="block text-xs text-muted-foreground">Visibility<select value={roomVisibility} onChange={(event) => setRoomVisibility(event.target.value as MeetingRoomPolicy["visibility"])} className={inputClass}><option value="team" disabled={!roomTeamId}>Team members</option><option value="organization">Everyone in workspace</option><option value="private">Room creator only</option></select></label><label className="block text-xs text-muted-foreground">Default behavior<select value={roomMode} onChange={(event) => setRoomMode(event.target.value as MeetingRoomPolicy["defaultMode"])} className={inputClass}><option value="addressed">Answer when addressed</option><option value="copilot">Proactive copilot</option><option value="representative">Company representative</option></select></label></div><div className="mt-3 space-y-2"><CapabilityPicker label="Room connected-app actions" hint="Optional: grant only the exact connected actions this department room may use." options={composioTools} selected={roomAllowedComposioTools} onAdd={addRoomComposioTool} onRemove={removeRoomComposioTool} renderOption={(option) => humanToolLabel(option as MeetingCapability)} empty="No connected actions available."/><CapabilityPicker label="Room Chusky actions" hint="Room grants are intersected with the private representative profile before execution." options={nativeTools} selected={roomAllowedNativeTools} onAdd={addRoomNativeTool} onRemove={removeRoomNativeTool} renderOption={(option) => humanNativeLabel(option as MeetingNativeCapability)} empty="No native actions available."/></div><Button className="mt-3" disabled={busy === "room" || !roomName.trim() || (roomVisibility === "team" && !roomTeamId)} onClick={() => void createRoom()}>{busy === "room" ? <LoaderCircle size={13} className="animate-spin"/> : <Plus size={13}/>} Create room</Button></div></Card><Card className="p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium">Join a live meeting</p><p className="mt-1 text-[11px] text-muted-foreground">Paste a verified Google Meet, Zoom, Teams, or Webex link and choose the department room.</p></div><Video size={17} className="text-muted-foreground"/></div><div className="mt-4 space-y-3"><label className="block text-xs text-muted-foreground">Meeting link<input value={meetingUrl} onChange={(event) => setMeetingUrl(event.target.value)} placeholder="https://meet.google.com/..." className={inputClass}/></label><div className="grid gap-3 sm:grid-cols-2"><label className="block text-xs text-muted-foreground">Shared room<select value={selectedRoomId} onChange={(event) => setSelectedRoomId(event.target.value)} className={inputClass}><option value="">Personal meeting</option>{workspace?.rooms.map((room) => <option key={room.id} value={room.id}>{room.name} · {room.policy.visibility}</option>)}</select></label><label className="block text-xs text-muted-foreground">Interaction<select value={joinMode} onChange={(event) => setJoinMode(event.target.value as Meeting["interactionMode"])} className={inputClass}><option value="addressed">Answer when addressed</option><option value="copilot">Proactive copilot</option><option value="representative">Company representative</option></select></label></div><Button disabled={busy === "join" || !meetingUrl.trim()} onClick={() => void joinMeeting()}>{busy === "join" ? <LoaderCircle size={13} className="animate-spin"/> : <Video size={13}/>} Join meeting</Button></div></Card></div>}
+      {rooms.length ? <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{rooms.map((room) => <Card key={room.id} className="p-3"><div className="flex items-start justify-between gap-2"><div><p className="text-xs font-medium">{room.name}</p><p className="mt-1 text-[10px] text-muted-foreground">{room.teamId ? "Department team" : "Workspace-wide"} · {room.policy.defaultMode} · {room.meetingCount} session{room.meetingCount === 1 ? "" : "s"}</p></div><Status tone={room.policy.visibility === "private" ? "gray" : "green"}>{room.policy.visibility}</Status></div>{room.description && <p className="mt-2 text-[11px] leading-4 text-muted-foreground">{room.description}</p>}</Card>)}</div> : null}
+    </section>
 
     <section className="mb-5"><div className="mb-2 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Calendar briefings</p><h2 className="mt-1 font-display text-2xl">Prepared events</h2></div><span className="text-[10px] text-muted-foreground">Refreshes every 15 seconds</span></div>
       {!workspace ? <Card className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin"/> Loading meeting data…</Card> : workspace.preparations.length ? <div className="grid gap-3">{workspace.preparations.map((item) => <Card key={item.id} className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><CalendarClock size={15} className="text-muted-foreground"/><h3 className="break-words text-sm font-medium">{item.title || "Calendar event"}</h3><Status tone={item.status === "cancelled" || item.status === "expired" ? "gray" : item.status === "prepared" || item.status === "auto_scheduled" ? "green" : "amber"}>{item.status.replaceAll("_", " ")}</Status></div><p className="mt-1.5 text-[11px] text-muted-foreground">{date(item.startAt)}{item.endAt ? ` – ${date(item.endAt)}` : ""} · {item.lifecycle.replaceAll("_", " ")}</p></div>{(item.status === "prepared" || item.status === "auto_scheduled") && item.meetingUrlAvailable && <Button onClick={() => startJoinDraft(item.id)}>Ask Chusky to join</Button>}</div>
