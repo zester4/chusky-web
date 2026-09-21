@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, RefreshCw, RotateCcw, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
 import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoicePreferences, type Model, type TelegramLinkCode, type Toolkit, type Trigger, type TriggerCatalogueItem, type TriggerToolkit, type VoiceOptions } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
@@ -61,17 +61,172 @@ function SettingsPanel({ initialModel, initialVoice, initialPreferences }: { ini
   return <Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Runtime preferences</p><div className="mt-4 space-y-4"><div><label className="text-xs text-muted-foreground">Selected model</label><div className="relative mt-1.5"><Popover open={open} onOpenChange={setOpen}><PopoverTrigger asChild><button type="button" disabled={busy} aria-expanded={open} className="flex min-h-9 w-full items-center justify-between border border-foreground/15 px-2.5 py-2 text-left text-xs hover:border-foreground/40"><span className="truncate">{model}</span><ChevronDown size={14} /></button></PopoverTrigger><PopoverContent align="start" sideOffset={5} className="max-h-64 w-[min(24rem,calc(100vw-1rem))] overflow-auto p-1">{models.map((item) => <button key={item.id} type="button" onClick={() => void update({ model: item.id })} className="block min-h-8 w-full px-2.5 py-2 text-left text-xs hover:bg-foreground/5"><span className="block truncate">{item.name}</span><span className="mt-0.5 block truncate font-mono text-[9px] text-muted-foreground">{item.id}</span></button>)}{!models.length && <p className="p-3 text-xs text-muted-foreground">Loading models…</p>}</PopoverContent></Popover></div></div><div className="flex items-center justify-between gap-3 border-t border-foreground/10 pt-3"><div className="min-w-0"><p className="text-xs">Voice replies</p><p className="mt-1 text-[10px] text-muted-foreground">Read Chusky responses aloud where supported.</p></div><button type="button" role="switch" aria-checked={voice} disabled={busy} onClick={() => void update({ voiceReplies: !voice })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${voice ? "bg-foreground" : "bg-foreground/15"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-background transition-transform ${voice ? "translate-x-6" : "translate-x-1"}`} /></button></div><div className="space-y-3 border-t border-foreground/10 pt-3"><p className="text-xs font-medium">Voice selection by provider</p>{fluxSelector("twilio", "Twilio / phone calls")}{fluxSelector("meetings", "Recall meetings")}{voiceOptions?.blandAvailable ? <label className="block text-xs text-muted-foreground">Bland<select disabled={busy} value={preferences.bland?.id ?? ""} onChange={(event) => { const selected = voiceOptions.blandVoices.find((item) => item.id === event.target.value); if (!event.target.value || selected) void update({ liveVoice: { provider: "bland", voice: selected ? { id: selected.id, name: selected.name } : null } }); }} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Provider default{preferences.bland ? ` · current ${preferences.bland.name}` : ""}</option>{preferences.bland && !voiceOptions.blandVoices.some((item) => item.id === preferences.bland?.id) && <option value={preferences.bland.id}>{preferences.bland.name} · saved selection</option>}{voiceOptions.blandVoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="mt-1 block text-[10px]">{voiceOptions.blandCatalogueAvailable ? "Applies to Bland calls." : "Bland voice catalogue is temporarily unavailable; existing selection can still be reset."}</span></label> : <p className="text-[10px] text-muted-foreground">Bland voice is not configured on this deployment.</p>}</div>{message && <p role="status" className="text-[11px] text-muted-foreground">{message}</p>}</div></Card>;
 }
 
-function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
-  const [items, setItems] = useState<Toolkit[]>([]); const [connections, setConnections] = useState<ConnectedAccount[]>([]); const [aliases, setAliases] = useState<Record<string, string>>({}); const [authorizationLinks, setAuthorizationLinks] = useState<Record<string, string>>({}); const [busy, setBusy] = useState<string>(); const [error, setError] = useState<string>(); const [confirmId, setConfirmId] = useState<string>();
-  const load = async () => { setError(undefined); try { const [apps, accounts] = await Promise.all([chuskyApi.apps.list(), chuskyApi.apps.connections()]); setItems(apps.data); setConnections(accounts.data); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load apps."); } };
-  useEffect(() => { void load(); }, []);
-  useLiveData(load);
-  const connect = async (slug: string) => { setBusy(slug); setError(undefined); try { const result = await chuskyApi.apps.connect(slug, aliases[slug]?.trim() || undefined); setAuthorizationLinks((current) => ({ ...current, [slug]: result.url })); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create a connection link."); } finally { setBusy(undefined); } };
-  const disconnect = async (id: string) => { setBusy(id); setError(undefined); try { await chuskyApi.apps.disconnect(id); setConfirmId(undefined); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not disconnect this account."); } finally { setBusy(undefined); } };
-  const connectedChannels = channels.map((item) => item.provider.toLowerCase());
-  return <div className="space-y-3.5"><Card><div className="border-b border-foreground/10 px-3.5 py-2.5 text-[11px] text-muted-foreground sm:px-4">Composio connections are account-scoped. Connect more than one account when the provider supports it.</div>{items.length ? items.map((item) => { const accounts = connections.filter((connection) => connection.toolkit.toLowerCase() === item.slug.toLowerCase()); return <div key={item.slug} className="flex min-w-0 flex-col gap-2.5 border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex min-w-0 items-center gap-2.5"><div className="flex h-8 w-8 shrink-0 items-center justify-center border border-foreground/10 text-xs">{item.name.slice(0, 1)}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{item.name}</p><p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{item.slug}</p></div><Status>{accounts.length ? `${accounts.length} connected` : "Not connected"}</Status></div>{accounts.map((account) => <div key={account.id} className="ml-10 flex min-w-0 flex-wrap items-center gap-2 border-l border-foreground/10 pl-3"><span className="min-w-0 flex-1 truncate text-[11px]">{account.alias || account.status}</span><Button secondary disabled={busy === account.id} onClick={() => setConfirmId(account.id)}><Unplug size={12} /> Disconnect</Button></div>)}<div className="ml-10 flex flex-wrap items-center gap-2"><input aria-label={`${item.name} account label`} value={aliases[item.slug] ?? ""} onChange={(event) => setAliases((current) => ({ ...current, [item.slug]: event.target.value }))} maxLength={80} placeholder={accounts.length ? "Label another account (optional)" : "Account label (optional)"} className="min-h-8 min-w-0 flex-1 border border-foreground/15 bg-background px-2 text-[11px]"/><Button secondary disabled={busy === item.slug} onClick={() => void connect(item.slug)}>{busy === item.slug ? "Preparing…" : accounts.length ? "Add account" : "Connect"}</Button></div>{authorizationLinks[item.slug] && <div className="ml-10 border-l border-emerald-600/30 pl-3 text-[11px]"><p className="text-muted-foreground">Connection link ready. Open it to authorize this account:</p><a href={authorizationLinks[item.slug]} target="_blank" rel="noreferrer" onClick={() => window.setTimeout(() => void load(), 5000)} className="mt-1 inline-block break-all underline underline-offset-2">Continue {item.name} authorization</a></div>}</div>; }) : <Empty>{error || "Loading connected apps…"}</Empty>}{error && <p role="alert" className="p-3 text-xs text-amber-700">{error}</p>}</Card><Card className="p-4 text-xs text-muted-foreground sm:p-5">{connectedChannels.length ? `${connectedChannels.length} verified channel identity${connectedChannels.length === 1 ? "" : "ies"} are managed on the Channels page.` : "Channel identities are managed separately from Composio app accounts."}</Card>{confirmId && <ConfirmDialog open onOpenChange={(open) => !open && setConfirmId(undefined)} title="Disconnect this connected account?" description="Chusky will stop using this account's Composio tools. This does not uninstall or change access inside the provider itself." confirmLabel="Disconnect account" destructive onConfirm={() => disconnect(confirmId)} />}</div>;
+function ToolkitLogo({ item }: { item: Toolkit }) {
+  const [failed, setFailed] = useState(false);
+  return <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.04] text-sm font-medium">
+    {item.logo && !failed ? <img src={item.logo} alt="" loading="lazy" className="h-8 w-8 object-contain" onError={() => setFailed(true)} /> : <span aria-hidden="true">{item.name.slice(0, 1).toUpperCase()}</span>}
+  </div>;
 }
 
+function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
+  const [items, setItems] = useState<Toolkit[]>([]);
+  const [connections, setConnections] = useState<ConnectedAccount[]>([]);
+  const [aliases, setAliases] = useState<Record<string, string>>({});
+  const [authorizationLinks, setAuthorizationLinks] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [confirmId, setConfirmId] = useState<string>();
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string>();
+  const [cursorByPage, setCursorByPage] = useState<Array<string | undefined>>([undefined]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async (requestedPage = page, cursor = cursorByPage[requestedPage - 1], query = search) => {
+    setError(undefined);
+    setLoading(true);
+    try {
+      const [apps, accounts] = await Promise.all([
+        chuskyApi.apps.list({ search: query.trim(), cursor, limit: 30 }),
+        chuskyApi.apps.connections(),
+      ]);
+      setItems(apps.data);
+      setConnections(accounts.data);
+      setPage(apps.currentPage || requestedPage);
+      setTotalPages(Math.max(1, apps.totalPages || 1));
+      setTotal(apps.total);
+      setNextCursor(apps.nextCursor);
+      if (apps.nextCursor) setCursorByPage((current) => { const next = [...current]; next[apps.currentPage || requestedPage] = apps.nextCursor; return next; });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load Composio apps.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(1, undefined, ""); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setCursorByPage([undefined]);
+      void load(1, undefined, search);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+  useLiveData(() => load(page, cursorByPage[page - 1], search));
+
+  const connect = async (slug: string) => {
+    setBusy(slug);
+    setError(undefined);
+    try {
+      const result = await chuskyApi.apps.connect(slug, aliases[slug]?.trim() || undefined);
+      setAuthorizationLinks((current) => ({ ...current, [slug]: result.url }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not create a connection link.");
+    } finally {
+      setBusy(undefined);
+    }
+  };
+  const disconnect = async (id: string) => {
+    setBusy(id);
+    setError(undefined);
+    try {
+      await chuskyApi.apps.disconnect(id);
+      setConfirmId(undefined);
+      await load(page, cursorByPage[page - 1], search);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not disconnect this account.");
+    } finally {
+      setBusy(undefined);
+    }
+  };
+  const goNext = () => {
+    if (!nextCursor || page >= totalPages) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    void load(nextPage, nextCursor, search);
+  };
+  const goPrevious = () => {
+    if (page <= 1) return;
+    const previousPage = page - 1;
+    setPage(previousPage);
+    void load(previousPage, cursorByPage[previousPage - 1], search);
+  };
+  const connectedChannels = channels.map((item) => item.provider.toLowerCase());
+
+  return <div className="space-y-4">
+    <Card className="p-3.5 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Composio catalogue</p>
+          <p className="mt-1 text-xs text-muted-foreground">Browse the official Composio toolkit directory, connect accounts, and see exactly what Chusky can use.</p>
+        </div>
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()} toolkits · page {page} of {totalPages}</span>
+      </div>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">Search Composio apps</span>
+          <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search apps, categories, or capabilities…" className="min-h-9 w-full border border-foreground/15 bg-background pl-8 pr-2.5 text-xs outline-none focus:border-foreground/40" />
+        </label>
+        <Button secondary onClick={() => void load(page, cursorByPage[page - 1], search)} disabled={loading}><RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh</Button>
+      </div>
+      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">Logos, descriptions, categories, and tool counts come directly from Composio. Connection status is scoped to your Chusky account.</p>
+    </Card>
+
+    <Card className="overflow-hidden">
+      {items.length ? <div className="grid divide-y divide-foreground/10 md:grid-cols-2 md:divide-x md:divide-y-0">
+        {items.map((item) => {
+          const accounts = connections.filter((connection) => connection.toolkit.toLowerCase() === item.slug.toLowerCase());
+          const canConnect = !item.noAuth;
+          return <article key={item.slug} className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <ToolkitLogo item={item} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h2 className="text-sm font-medium">{item.name}</h2>
+                  <Status tone={accounts.length ? "green" : "gray"}>{accounts.length ? `${accounts.length} connected` : item.noAuth ? "No sign-in required" : "Not connected"}</Status>
+                </div>
+                <p className="mt-1 truncate font-mono text-[9px] text-muted-foreground">{item.slug}</p>
+              </div>
+              {item.appUrl && <a href={item.appUrl} target="_blank" rel="noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground" aria-label={"Open " + item.name + " website"} title="Open provider website"><ExternalLink size={13} /></a>}
+            </div>
+            {item.description && <p className="line-clamp-2 text-[11px] leading-4 text-muted-foreground">{item.description}</p>}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {item.categories?.slice(0, 3).map((category) => <span key={category} className="rounded-full bg-foreground/[0.05] px-2 py-1 text-[9px] text-muted-foreground">{category}</span>)}
+              {typeof item.toolsCount === "number" && <span className="rounded-full bg-foreground/[0.05] px-2 py-1 text-[9px] text-muted-foreground">{item.toolsCount.toLocaleString()} tools</span>}
+              {typeof item.triggersCount === "number" && item.triggersCount > 0 && <span className="rounded-full bg-foreground/[0.05] px-2 py-1 text-[9px] text-muted-foreground">{item.triggersCount.toLocaleString()} triggers</span>}
+            </div>
+            {accounts.map((account) => <div key={account.id} className="flex min-w-0 flex-wrap items-center gap-2 border-l border-emerald-600/30 pl-3">
+              <span className="min-w-0 flex-1 truncate text-[11px]">{account.alias || account.status}</span>
+              <Button secondary disabled={busy === account.id} onClick={() => setConfirmId(account.id)}><Unplug size={12} /> Disconnect</Button>
+            </div>)}
+            {canConnect && <div className="flex flex-wrap items-center gap-2">
+              <input aria-label={item.name + " account label"} value={aliases[item.slug] ?? ""} onChange={(event) => setAliases((current) => ({ ...current, [item.slug]: event.target.value }))} maxLength={80} placeholder={accounts.length ? "Label another account (optional)" : "Account label (optional)"} className="min-h-8 min-w-0 flex-1 border border-foreground/15 bg-background px-2 text-[11px]" />
+              <Button secondary disabled={busy === item.slug} onClick={() => void connect(item.slug)}>{busy === item.slug ? "Preparing…" : accounts.length ? "Add account" : "Connect"}</Button>
+            </div>}
+            {authorizationLinks[item.slug] && <div className="border-l border-emerald-600/30 pl-3 text-[11px]">
+              <p className="text-muted-foreground">Connection link ready. Open it to authorize this account:</p>
+              <a href={authorizationLinks[item.slug]} target="_blank" rel="noreferrer" onClick={() => window.setTimeout(() => void load(page, cursorByPage[page - 1], search), 5000)} className="mt-1 inline-flex items-center gap-1 break-all underline underline-offset-2">Continue {item.name} authorization <ExternalLink size={11} /></a>
+            </div>}
+          </article>;
+        })}
+      </div> : <Empty>{error || (loading ? "Loading Composio apps…" : "No Composio apps matched your search.")}</Empty>}
+      {error && <p role="alert" className="border-t border-amber-600/20 p-3 text-xs text-amber-700">{error}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-foreground/10 px-3.5 py-2.5 sm:px-4">
+        <span className="text-[10px] text-muted-foreground">Showing {items.length ? ((page - 1) * 30 + 1) + "–" + ((page - 1) * 30 + items.length) : "0"} of {total.toLocaleString()}</span>
+        <div className="flex items-center gap-1">
+          <Button secondary onClick={goPrevious} disabled={loading || page <= 1}><ChevronLeft size={13} /> Previous</Button>
+          <Button secondary onClick={goNext} disabled={loading || !nextCursor || page >= totalPages}>Next <ChevronRight size={13} /></Button>
+        </div>
+      </div>
+    </Card>
+    <Card className="p-4 text-xs text-muted-foreground sm:p-5">{connectedChannels.length ? connectedChannels.length + " verified channel identity" + (connectedChannels.length === 1 ? "" : "ies") + " are managed on the Channels page." : "Channel identities are managed separately from Composio app accounts."}</Card>
+    {confirmId && <ConfirmDialog open onOpenChange={(open) => !open && setConfirmId(undefined)} title="Disconnect this connected account?" description="Chusky will stop using the provider account." confirmLabel="Disconnect account" destructive onConfirm={() => disconnect(confirmId)} />}
+  </div>;
+}
 function DevicesPanel({ initial }: { initial: AccountOverview["devices"] }) {
   const [devices, setDevices] = useState(initial); const [confirmId, setConfirmId] = useState<string>(); const [busy, setBusy] = useState(false); const [error, setError] = useState<string>();
   const load = async () => { try { setDevices((await chuskyApi.devices.list()).data); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load CLI devices."); } };

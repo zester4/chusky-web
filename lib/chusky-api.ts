@@ -74,7 +74,7 @@ export type VoiceOptions = { fluxVoices: FluxVoice[]; blandVoices: BlandVoice[];
 export type VoiceSettings = { model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences };
 export type TelegramLinkCode = { code: string; expiresAt: string };
 export type Model = { id: string; name: string };
-export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string; accountCount?: number; aliases?: string[] };
+export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string; description?: string; appUrl?: string; categories?: string[]; toolsCount?: number; triggersCount?: number; authSchemes?: string[]; noAuth?: boolean; accountCount?: number; aliases?: string[] };
 export type ConnectedAccount = { id: string; alias?: string; toolkit: string; status: string; createdAt?: string; updatedAt?: string };
 export type Trigger = { id: string; slug: string; status: string; config: Record<string, unknown> };
 export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; instructions?: string; toolkit: { slug: string; name: string; logo?: string }; config: Record<string, unknown> };
@@ -320,7 +320,7 @@ export const chuskyApi = {
     disconnect: (serverId: string) => request<void>(`/mcp/connections/${encodeURIComponent(serverId)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   apps: {
-    list: () => request<Page<Toolkit>>("/apps"),
+    list: (options: { search?: string; cursor?: string; limit?: number } = {}) => { const params = new URLSearchParams(); if (options.search) params.set("search", options.search); if (options.cursor) params.set("cursor", options.cursor); params.set("limit", String(options.limit ?? 30)); return request<{ data: Toolkit[]; nextCursor?: string; currentPage: number; totalPages: number; total: number; pageSize: number }>(`/apps?${params.toString()}`); },
     connections: () => request<Page<ConnectedAccount>>("/apps/connections"),
     disconnect: (connectionId: string) => request<void>(`/apps/connections/${encodeURIComponent(connectionId)}`, { method: "DELETE" }),
     connect: (toolkit: string, alias?: string) => request<{ toolkit: string; alias?: string; url: string }>(`/apps/${encodeURIComponent(toolkit)}/connect`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(alias ? { alias } : {}) }),
