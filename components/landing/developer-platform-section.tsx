@@ -30,7 +30,7 @@ const entryPoints = [
 
 const platformCapabilities = [
   ["Durable threads and runs", "Keep conversation continuity and recover a run after a disconnected client."],
-  ["Tool orchestration", "Use native Chusky tools and owner-approved Composio connections through one agent loop."],
+  ["Tool orchestration", "Use Chusky capabilities and owner-approved app connections through one agent loop."],
   ["Human approvals", "Pause before consequential actions and bind approval to the exact tool, arguments, owner, and expiry."],
   ["Files and artifacts", "Upload verified files and return generated reports, documents, PDFs, images, and other deliverables."],
   ["Tasks and webhooks", "Move long work into durable task state and receive signed completion or failure events."],

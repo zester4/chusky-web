@@ -6,27 +6,27 @@ import { Shield, Lock, Eye, FileCheck } from "lucide-react";
 const securityFeatures = [
   {
     icon: Shield,
-    title: "SOC 2 Type II",
-    description: "Independently audited security controls with continuous monitoring.",
+    title: "Private workspaces",
+    description: "Threads, notes, files, approvals, and connected identities stay scoped to the workspace that owns them.",
   },
   {
     icon: Lock,
-    title: "End-to-end encryption",
-    description: "AES-256 encryption for data at rest and TLS 1.3 in transit.",
+    title: "Server-side credentials",
+    description: "Provider credentials and project keys stay behind the service boundary instead of being exposed to browser code.",
   },
   {
     icon: Eye,
-    title: "Zero-trust architecture",
-    description: "Every request is authenticated and authorized. No exceptions.",
+    title: "Visible decisions",
+    description: "The agent shows what it is doing, pauses before consequential actions, and keeps the resulting state inspectable.",
   },
   {
     icon: FileCheck,
-    title: "GDPR & HIPAA",
-    description: "Full compliance with data protection and healthcare regulations.",
+    title: "Verified inputs",
+    description: "Uploaded files, channel identities, and external actions are checked before they become part of a run.",
   },
 ];
 
-const certifications = ["SOC 2", "ISO 27001", "HIPAA", "GDPR", "CCPA"];
+const certifications = ["Private by default", "Approval boundaries", "Verified inputs", "Recoverable work"];
 
 export function SecuritySection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -64,8 +64,7 @@ export function SecuritySection() {
               non-negotiable.
             </h2>
             <p className="mb-8 text-base leading-relaxed text-muted-foreground sm:mb-12 sm:text-xl">
-              Enterprise-grade security isn&apos;t optional. It&apos;s built into every layer 
-              of our platform, from infrastructure to application.
+              A useful agent needs clear boundaries. Chusky is designed so identity, context, capabilities, and approvals remain understandable as work moves from a message to a real-world result.
             </p>
 
             {/* Certifications */}

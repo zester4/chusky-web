@@ -4,32 +4,32 @@ import { useEffect, useState } from "react";
 
 const testimonials = [
   {
-    quote: "Chusky transformed the way we work. What used to take hours now happens in seconds.",
-    author: "Sarah Chen",
-    role: "CTO",
-    company: "Meridian Labs",
-    metric: "10x faster deployments",
+    quote: "Start with a question, gather the right context, and finish with a brief that is ready to share—not another tab full of research.",
+    author: "Research to brief",
+    role: "A practical Chusky workflow",
+    company: "",
+    metric: "Context carried forward",
   },
   {
-    quote: "The developer experience is unmatched. Our team's productivity has never been higher.",
-    author: "Marcus Webb",
-    role: "Engineering Lead",
-    company: "Flux Systems",
-    metric: "40% more features shipped",
+    quote: "Keep the objective intact while the agent moves through apps, files, and follow-up steps that would otherwise be scattered across a team.",
+    author: "Request to result",
+    role: "A practical Chusky workflow",
+    company: "",
+    metric: "One visible work loop",
   },
   {
-    quote: "Finally, infrastructure that scales with our ambition. Zero downtime since we switched.",
-    author: "Elena Rodriguez",
-    role: "VP Engineering",
-    company: "Beacon AI",
-    metric: "99.99% uptime",
+    quote: "Let the agent handle the preparation, then keep people in the decision whenever the action affects a customer, a system, or a commitment.",
+    author: "Prepare to approve",
+    role: "A practical Chusky workflow",
+    company: "",
+    metric: "Human control at the boundary",
   },
   {
-    quote: "The integrations are seamless. We connected our entire stack in a single afternoon.",
-    author: "James Liu",
-    role: "Founder",
-    company: "Prism Analytics",
-    metric: "50+ integrations used",
+    quote: "Turn a meeting or approved call into a recap, an action list, and a next step that remains available after the conversation ends.",
+    author: "Conversation to follow-through",
+    role: "A practical Chusky workflow",
+    company: "",
+    metric: "Work that continues",
   },
 ];
 
@@ -56,7 +56,7 @@ export function TestimonialsSection() {
         {/* Section Label */}
         <div className="flex items-center gap-4 mb-16">
           <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
-            What people say
+            In practice
           </span>
           <div className="flex-1 h-px bg-foreground/10" />
           <span className="font-mono text-xs text-muted-foreground">
@@ -91,7 +91,7 @@ export function TestimonialsSection() {
               <div>
                 <p className="text-lg font-medium text-foreground">{activeTestimonial.author}</p>
                 <p className="text-muted-foreground">
-                  {activeTestimonial.role}, {activeTestimonial.company}
+                  {activeTestimonial.role}
                 </p>
               </div>
             </div>

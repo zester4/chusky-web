@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function SignInForm() {
@@ -29,7 +30,7 @@ export function SignInForm() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <label htmlFor="password" className="block text-sm font-medium">Password</label>
-            <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Forgot password?</a>
+            <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Forgot password?</Link>
           </div>
           <input
             id="password"

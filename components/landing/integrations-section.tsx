@@ -54,7 +54,7 @@ export function IntegrationsSection() {
             you already use.
           </h2>
           <p className="text-xl text-muted-foreground">
-            200+ pre-built integrations. Connect your entire stack in minutes.
+            Connect the apps your work already touches, then let Chusky carry context between them.
           </p>
         </div>
 

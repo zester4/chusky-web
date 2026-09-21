@@ -172,8 +172,8 @@ export function PricingSection() {
 
         {/* Bottom Note */}
         <p className="mt-12 text-center text-sm text-muted-foreground">
-          All plans include automatic updates, HTTPS, and DDoS protection.{" "}
-          <a href="#" className="underline underline-offset-4 hover:text-foreground transition-colors">
+          All plans include access to the Chusky agent, workspace controls, and the capabilities described above.{" "}
+          <a href="/features" className="underline underline-offset-4 hover:text-foreground transition-colors">
             Compare all features
           </a>
         </p>

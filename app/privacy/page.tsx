@@ -1,0 +1,21 @@
+import type { Metadata } from "next";
+import { ContentPage, ContentSection } from "@/components/landing/content-page";
+
+export const metadata: Metadata = { title: "Privacy | Chusky", description: "How Chusky handles account, workspace, conversation, and connected-app data." };
+
+export default function PrivacyPage() {
+  return (
+    <ContentPage eyebrow="Privacy" title={<>Your work should<br /><span className="text-muted-foreground">remain yours.</span></>} description="This overview explains the way Chusky treats information needed to provide the agent, workspace, and connected work experience. It is written for people deciding whether Chusky fits their workflow.">
+      <ContentSection eyebrow="The short version" title="Chusky uses data to do the work you ask for." description="Your account identifies you, your workspace scopes your data, and your requests provide the context the agent needs to act. We aim to collect and retain what is necessary for those purposes, make important state visible, and avoid using your private workspace as a public showcase.">
+        <div className="space-y-3 text-sm leading-relaxed text-muted-foreground"><p>Conversation content, files, notes, tasks, approvals, connected identities, and generated artifacts are treated as workspace data. Keep sensitive information out of a workspace unless the people who own it have decided it belongs there.</p><p>When you connect another service, that service may apply its own privacy terms. Chusky only receives the access and content required for the capabilities you make available.</p></div>
+      </ContentSection>
+      <ContentSection eyebrow="What we handle" title="The information follows a clear purpose." description="The exact categories depend on how you use Chusky, but the product is organized around these areas.">
+        <div className="grid gap-3 sm:grid-cols-2"><div className="border border-foreground/10 p-5"><h3 className="text-sm font-medium">Account and identity</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Name, email, authentication records, and the workspace relationships needed to keep access private.</p></div><div className="border border-foreground/10 p-5"><h3 className="text-sm font-medium">Work you create</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Prompts, responses, files, artifacts, tasks, reminders, approvals, and delivery records that make the agent useful across time.</p></div><div className="border border-foreground/10 p-5"><h3 className="text-sm font-medium">Operational signals</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Errors, run state, timestamps, and service events used to keep work recoverable and explain what happened.</p></div><div className="border border-foreground/10 p-5"><h3 className="text-sm font-medium">Connected services</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">The provider, account, and content needed to perform an action you have enabled, subject to the permissions and policies of that service.</p></div></div>
+      </ContentSection>
+      <ContentSection eyebrow="Your controls" title="Access should be understandable and reversible." description="You can review connected channels and apps, inspect approvals, stop active work, remove devices, and manage account data from the authenticated workspace. If you need help understanding or removing information, use the contact path with the relevant workspace context.">
+        <ul className="grid gap-3 text-sm leading-relaxed text-muted-foreground sm:grid-cols-2"><li className="border-t border-foreground/10 pt-3">Review or disconnect linked services.</li><li className="border-t border-foreground/10 pt-3">Stop or cancel work that is still running.</li><li className="border-t border-foreground/10 pt-3">Keep project credentials on trusted servers.</li><li className="border-t border-foreground/10 pt-3">Ask for help with account or workspace data.</li></ul>
+      </ContentSection>
+      <section className="py-12"><div className="mx-auto max-w-6xl px-4 text-xs text-muted-foreground sm:px-6 lg:px-12">Last reviewed: September 2026. This product overview does not replace a written agreement or legal advice.</div></section>
+    </ContentPage>
+  );
+}

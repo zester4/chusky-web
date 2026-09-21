@@ -2,7 +2,7 @@ import { ArrowDown, Check, CircleDot, LockKeyhole, RefreshCw, Route, UserRound }
 
 const executionStages = [
   { icon: UserRound, label: "Identity", title: "The request enters an owned workspace", description: "A verified channel or trusted application maps the request to one Chusky account. That boundary determines which history, explicit memories, connected apps, files, and approvals are available." },
-  { icon: Route, label: "Intent", title: "The agent chooses a path", description: "Chusky interprets the outcome, reuses relevant context, and selects native capabilities or owner-approved Composio tools. It does not treat arbitrary text from a website, document, or tool result as permission." },
+  { icon: Route, label: "Intent", title: "The agent chooses a path", description: "Chusky interprets the outcome, reuses relevant context, and selects the capabilities your workspace has made available. It does not treat arbitrary text from a website, document, or tool result as permission." },
   { icon: LockKeyhole, label: "Control", title: "Risky work stops at a clear boundary", description: "Sending, publishing, deleting, spending, changing permissions, or placing a call can create an approval record. The record contains the exact action, arguments, owner, and expiry." },
   { icon: RefreshCw, label: "Durability", title: "Long work keeps its place", description: "Runs and tasks have durable IDs and observable states. If a stream disconnects or a worker restarts, the application can inspect the existing run instead of creating a duplicate." },
 ];

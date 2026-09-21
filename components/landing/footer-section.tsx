@@ -4,36 +4,35 @@ import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { AnimatedWave } from "./animated-wave";
 
-const footerLinks = {
+const footerLinks: Record<string, Array<{ name: string; href: string; badge?: string }>> = {
   Product: [
     { name: "Features", href: "/features" },
     { name: "How it works", href: "/how-it-works" },
     { name: "Pricing", href: "/pricing" },
-    { name: "Integrations", href: "/features#integrations" },
+    { name: "Integrations", href: "/integrations" },
   ],
   Developers: [
-    { name: "Documentation", href: "/developers" },
-    { name: "API Reference", href: "#" },
+    { name: "Documentation", href: "/docs" },
+    { name: "API Reference", href: "/api-reference" },
     { name: "SDK", href: "/developers" },
-    { name: "Status", href: "#" },
+    { name: "Status", href: "/status" },
   ],
   Company: [
     { name: "About", href: "/about" },
-    { name: "Blog", href: "#" },
-    { name: "Careers", href: "#", badge: "Hiring" },
-    { name: "Contact", href: "#" },
+    { name: "Blog", href: "/blog" },
+    { name: "Careers", href: "/careers" },
+    { name: "Contact", href: "/contact" },
   ],
   Legal: [
-    { name: "Privacy", href: "#" },
-    { name: "Terms", href: "#" },
-    { name: "Security", href: "#security" },
+    { name: "Privacy", href: "/privacy" },
+    { name: "Terms", href: "/terms" },
+    { name: "Security", href: "/security" },
   ],
 };
 
 const socialLinks = [
-  { name: "Twitter", href: "#" },
-  { name: "GitHub", href: "#" },
-  { name: "LinkedIn", href: "#" },
+  { name: "GitHub", href: "https://github.com/zester4/chusky-web" },
+  { name: "MCP source", href: "https://github.com/zester4/chusky-mcp" },
 ];
 
 export function FooterSection() {
@@ -81,7 +80,7 @@ export function FooterSection() {
                 <ul className="space-y-2.5 sm:space-y-3">
                   {links.map((link) => (
                     <li key={link.name}>
-                      <a
+                      <Link
                         href={link.href}
                         className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
                       >
@@ -91,7 +90,7 @@ export function FooterSection() {
                             {link.badge}
                           </span>
                         )}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
