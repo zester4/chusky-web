@@ -19,7 +19,15 @@ export type RunStreamEvent =
   | { type: "run.failed"; run: Run; error: { code: string; message: string } }
   | { type: "run.cancelled"; run: Run };
 export type Task = { id: string; status: "queued" | "running" | "blocked" | "completed" | "failed" | "cancelled"; title: string; objective: string; checkpoint?: string; nextAction?: string; result?: string; error?: string; attempt?: number; maxAttempts?: number; sdkRunId?: string; sdkThreadId?: string; sdkBudget?: RunBudget; sdkModel?: string; sdkSkills?: string[]; events?: Array<{ id: string; type: string; message: string; at: number; attempt: number }>; createdAt: string; updatedAt: string };
-export type Mission = { id: string; title: string; objective: string; definitionOfDone: string; status: "queued" | "running" | "waiting" | "paused" | "blocked" | "completed" | "failed" | "cancelled"; currentStepId?: string; rootTaskId?: string; checkpoint?: string; nextAction?: string; waiting?: { kind: string; provider?: string; providerEventId?: string; expiresAt?: number }; budget: { maxDurationSeconds: number; maxSteps: number; maxToolCalls: number; maxCost: number }; consumedSteps: number; toolCalls: number; cost: number; steps: Array<{ id: string; title: string; objective: string; status: string; dependsOn: string[]; result?: string }>; events: Array<{ id: string; type: string; message: string; at: number }>; createdAt: number; updatedAt: number };
+export type MissionEvidence = { id: string; kind: string; summary: string; source?: string; ref?: string; hash?: string; verified: boolean; verifiedBy?: "agent" | "system" | "human"; createdAt?: number };
+export type Mission = { id: string; title: string; objective: string; definitionOfDone: string; status: "queued" | "running" | "waiting" | "paused" | "blocked" | "completed" | "failed" | "cancelled"; currentStepId?: string; activeStepIds?: string[]; rootTaskId?: string; checkpoint?: string; nextAction?: string; waiting?: { kind: string; provider?: string; providerEventId?: string; expiresAt?: number }; budget: { maxDurationSeconds: number; maxSteps: number; maxToolCalls: number; maxCost: number }; consumedSteps: number; toolCalls: number; cost: number; steps: Array<{ id: string; title: string; objective: string; status: string; dependsOn: string[]; result?: string; evidence?: MissionEvidence[]; evidenceRequired?: string[]; parallelGroup?: string }>; evidence?: MissionEvidence[]; verification?: { mode?: "legacy" | "strict"; verified: boolean; verifiedAt?: number; verifiedBy?: string; confidence?: number; evidenceIds?: string[]; reason?: string }; events: Array<{ id: string; type: string; message: string; at: number }>; createdAt: number; updatedAt: number };
+export type MissionProof = { missionId: string; objective: string; definitionOfDone: string; status: Mission["status"]; budget: Mission["budget"]; verification?: Mission["verification"]; steps: Mission["steps"]; evidence: MissionEvidence[]; events: Mission["events"] };
+export type ContextNode = { id: string; scope: string; scopeId?: string; kind: string; key: string; value: string; source?: string; sourceRef?: string; confidence: number; sensitivity: "normal" | "sensitive"; tags?: string[]; reviewAt?: number; expiresAt?: number; createdAt: number; updatedAt: number };
+export type DepartmentCatalogItem = { slug: string; name: string; mission: string; objectives: string[]; defaultPolicies: string[]; approvedTools: string[]; metrics: string[] };
+export type DepartmentSpace = { id: string; department: string; name: string; mission: string; objectives: string[]; policies: string[]; approvedTools: string[]; escalationOwner?: string; createdAt: number; updatedAt: number };
+export type WorkPacket = { id: string; department: string; objective: string; status: string; toAgent?: string; evidenceRequired: string[]; createdAt: number; updatedAt: number };
+export type OutcomePackage = { slug: string; name: string; department: string; description: string; requiredInputs: string[]; allowedTools: string[]; successCriteria: string[]; evidenceRequired: string[]; escalationRules: string[]; approvalPolicy: string; budget: Record<string, unknown>; slaSeconds: number; deliverable: string };
+export type OutcomePlan = { outcome: OutcomePackage; inputs: Record<string, unknown>; steps: Array<{ id: string; title: string; objective: string; dependsOn: string[]; evidenceRequired: string[] }>; approvalPolicy: string; budget: Record<string, unknown>; slaSeconds: number };
 export type ComposerStage = { id: string; title: string; objective: string; dependsOn: string[]; status: "pending" | "running" | "completed" | "blocked" | "failed" | "cancelled"; requiresApproval: boolean; retryLimit: number; budgetSeconds?: number; result?: string };
 export type ComposerWorkflow = { id: string; name: string; description?: string; stages: ComposerStage[]; status: "draft" | "queued" | "running" | "completed" | "failed" | "cancelled"; taskId?: string; workflowRunId?: string; createdAt: number; updatedAt: number };
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
@@ -269,9 +277,29 @@ export const chuskyApi = {
   missions: {
     list: () => request<{ data: Mission[] }>("/missions"),
     get: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}`),
+    events: (missionId: string) => request<{ data: Mission["events"] }>(`/missions/${encodeURIComponent(missionId)}/events`),
+    proof: (missionId: string) => request<MissionProof>(`/missions/${encodeURIComponent(missionId)}/proof`),
+    evidence: (missionId: string, input: { stepId?: string; evidence: MissionEvidence[] }) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/evidence`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    verify: (missionId: string, input: { evidenceIds?: string[]; confidence?: number; verifiedBy?: "human" | "agent" | "system" }) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/verify`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    repair: (missionId: string, input: { reason: string; nextAction?: string }) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/repair`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     pause: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/pause`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     resume: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     cancel: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+  },
+  context: {
+    list: (options: { query?: string; scope?: string; scopeId?: string; purpose?: string; limit?: number } = {}) => { const params = new URLSearchParams(); for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "") params.set(key, String(value)); return request<{ data: ContextNode[]; prompt: string }>(`/context${params.size ? `?${params.toString()}` : ""}`); },
+    save: (input: Omit<ContextNode, "id" | "createdAt" | "updatedAt">) => request<ContextNode>("/context", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+  },
+  departments: {
+    catalog: () => request<{ data: DepartmentCatalogItem[] }>("/departments/catalog"),
+    list: () => request<{ data: DepartmentSpace[] }>("/departments"),
+    create: (input: { department: string; name?: string; mission?: string; objectives?: string[]; policies?: string[]; approvedTools?: string[]; escalationOwner?: string }) => request<DepartmentSpace>("/departments", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    handoff: (department: string, input: { objective: string; inputs?: Record<string, unknown>; constraints?: string[]; evidenceRequired?: string[]; outputSchema?: Record<string, unknown>; toAgent?: string; deadline?: number; approvalBoundary?: string }) => request<WorkPacket>(`/departments/${encodeURIComponent(department)}/handoffs`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+  },
+  outcomes: {
+    list: () => request<{ data: OutcomePackage[] }>("/outcomes"),
+    get: (slug: string) => request<{ data: OutcomePackage }>(`/outcomes/${encodeURIComponent(slug)}`),
+    plan: (slug: string, input: Record<string, unknown>) => request<{ data: OutcomePlan }>(`/outcomes/${encodeURIComponent(slug)}/plan`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
   },
   composer: {
     list: () => request<{ data: ComposerWorkflow[] }>("/workflows/composer"),

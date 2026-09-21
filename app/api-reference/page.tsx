@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Braces, Check, KeyRound, Radio, ShieldCheck } from "lucide-react";
+import { ArrowRight, Braces, KeyRound, Radio, ShieldCheck } from "lucide-react";
 import { ContentCard, ContentPage, ContentSection } from "@/components/landing/content-page";
 
 export const metadata: Metadata = {

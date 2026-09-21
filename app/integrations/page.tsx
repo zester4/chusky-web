@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, GitBranch, LockKeyhole, Workflow } from "lucide-react";
+import { ArrowRight, Check, LockKeyhole, Workflow } from "lucide-react";
 import { ContentCard, ContentPage, ContentSection } from "@/components/landing/content-page";
 import { IntegrationsSection } from "@/components/landing/integrations-section";
 
