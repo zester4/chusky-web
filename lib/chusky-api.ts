@@ -12,6 +12,7 @@ export type Run = { id: string; threadId: string; status: "queued" | "running" |
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
   | { type: "run.started"; run: Run }
+  | { type: "run.status"; runId: string; text: string }
   | { type: "run.delta"; runId: string; text: string }
   | { type: "run.tool_started"; runId: string; toolSlug: string }
   | { type: "run.approval_required"; run: Run; approval?: Approval }

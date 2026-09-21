@@ -49,6 +49,7 @@ type Message = {
   text: string;
   time?: string;
   pending?: boolean;
+  statusText?: string;
   tool?: string;
   attachments?: Array<{ id: string; name: string; contentType: string; size: number; downloadUrl?: string }>;
   artifacts?: ChatArtifact[];
@@ -342,10 +343,12 @@ export function ChatPage() {
         const typed = event as RunStreamEvent;
         if (typed.type === "run.started" || typed.type === "run.queued") {
           updateLastAssistant({ pending: true });
+        } else if (typed.type === "run.status") {
+          updateLastAssistant({ pending: true, statusText: typed.text, tool: undefined });
         } else if (typed.type === "run.delta") {
           setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: false } : item));
         } else if (typed.type === "run.tool_started") {
-          updateLastAssistant({ pending: true, tool: typed.toolSlug });
+          updateLastAssistant({ pending: true, statusText: undefined, tool: typed.toolSlug });
         } else if (typed.type === "run.completed") {
           // A run can change memory, approvals, calls, meetings, channels, or
           // artifacts through native/Composio tools. Refresh every open surface
@@ -363,10 +366,10 @@ export function ChatPage() {
           const createdArtifacts = latestArtifacts.filter((artifact) => !artifactIdsBefore.has(artifact.id));
           const linkedArtifacts = artifactReferencesInText(output, latestArtifacts);
           const runArtifacts = typed.run.artifacts ?? [];
-          updateLastAssistant({ text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, pending: false, tool: undefined });
+          updateLastAssistant({ text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, pending: false, statusText: undefined, tool: undefined });
         } else if (typed.type === "run.approval_required") {
           notifyChuskyDataChanged();
-          updateLastAssistant({ text: `Chusky needs your approval to use ${(typed.approval?.toolSlug || "this action").replaceAll("_", " ").toLowerCase()}.`, pending: false, tool: undefined, approval: typed.approval });
+          updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", pending: false, statusText: undefined, tool: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {
           const detail = typed.error?.message || "";
           showNotice(/429|rate limit|quota|too many requests/i.test(detail)
@@ -374,7 +377,7 @@ export function ChatPage() {
             : "Chusky could not complete that run. Please try again.");
           removeActiveAssistant();
         } else if (typed.type === "run.cancelled") {
-          updateLastAssistant({ text: "Run cancelled.", pending: false, tool: undefined });
+          updateLastAssistant({ text: "Run cancelled.", pending: false, statusText: undefined, tool: undefined });
         }
       }
     } catch (error) {
@@ -412,7 +415,7 @@ export function ChatPage() {
                 <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
-                    {item.pending && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{isDelegation(item.tool) ? "Sub-agent working" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "Chusky is working"}</span></div>}
+                    {item.pending && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
                     {item.text ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} busy={downloadingArtifactId === artifact.id} onDownload={(candidate) => void downloadArtifact(candidate)} />)}</div> : null}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}
