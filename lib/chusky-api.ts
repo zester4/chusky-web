@@ -93,8 +93,12 @@ export type MeetingNativeCapability = { slug: string; description: string };
 export type MeetingCapabilities = { composioTools: MeetingCapability[]; nativeTools: MeetingNativeCapability[]; connections: ConnectedAccount[]; composioAvailable: boolean };
 export type Delivery = { id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string };
 export type Webhook = { id: string; url: string; createdAt: string; disabledAt?: string };
-export type Reminder = { id: string; text: string; runAt: string; status: string; createdAt: string; deliveryError?: string };
-export type Job = { id: string; text: string; cron: string; status: "active" | "cancelled"; scheduleId?: string; createdAt: string; deliveryError?: string };
+export type AutonomyMode = "notify" | "check_in" | "act" | "wait_until";
+export type AutonomyLinks = { taskId?: string; missionId?: string; missionStepId?: string; openLoopId?: string; attentionCandidateId?: string; projectId?: string; meetingId?: string; conversationId?: string };
+export type AutonomyContextSnapshot = { capturedAt: number; objective: string; summary?: string; nextAction?: string; links?: AutonomyLinks; freshnessMs?: number; source?: string };
+export type Reminder = { id: string; text: string; runAt: string; status: "scheduled" | "waiting" | "paused" | "sent" | "cancelled" | "failed"; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; pollEverySeconds?: number; deliveryError?: string };
+export type Job = { id: string; text: string; cron: string; status: "active" | "paused" | "cancelled"; scheduleId?: string; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; deliveryError?: string };
+export type JobOccurrence = { id: string; jobId: string; occurrenceId: string; status: string; mode: AutonomyMode; result?: string; nextAction?: string; waitReason?: string; error?: string; cost?: number; toolCalls?: number; startedAt?: string; completedAt?: string; createdAt: string; updatedAt: string; version: number };
 export type MemoryFact = { id: string; category: string; key: string; value: string; confidence: number; source?: string; sensitivity: "normal" | "sensitive"; createdAt: string; updatedAt: string; expiresAt?: string; reviewAt?: string };
 export type ScratchpadNote = { key: string; content: string; updatedAt: string };
 
@@ -362,12 +366,19 @@ export const chuskyApi = {
   },
   reminders: {
     list: () => request<{ data: Reminder[] }>("/reminders"),
-    create: (input: { text: string; delaySeconds?: number; runAt?: string }) => request<Reminder>("/reminders", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    create: (input: { text: string; delaySeconds?: number; runAt?: string; mode?: AutonomyMode; links?: AutonomyLinks; nextAction?: string; preconditions?: string[]; postconditions?: string[]; pollEverySeconds?: number }) => request<Reminder>("/reminders", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    pause: (id: string) => request<{ message: string; data: Reminder }>(`/reminders/${encodeURIComponent(id)}/pause`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    resume: (id: string) => request<{ message: string; data: Reminder }>(`/reminders/${encodeURIComponent(id)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    runNow: (id: string) => request<{ reminderId: string; workflowRunId: string; data: Reminder }>(`/reminders/${encodeURIComponent(id)}/run`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     cancel: (id: string) => request<void>(`/reminders/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   jobs: {
     list: () => request<{ data: Job[] }>("/jobs"),
-    create: (input: { text: string; cron: string }) => request<Job>("/jobs", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    create: (input: { text: string; cron: string; mode?: AutonomyMode; links?: AutonomyLinks; nextAction?: string; preconditions?: string[]; postconditions?: string[] }) => request<Job>("/jobs", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    pause: (id: string) => request<{ message: string; data: Job }>(`/jobs/${encodeURIComponent(id)}/pause`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    resume: (id: string) => request<{ message: string; data: Job }>(`/jobs/${encodeURIComponent(id)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    runNow: (id: string) => request<{ jobId: string; occurrenceId: string; workflowRunId: string; data: Job }>(`/jobs/${encodeURIComponent(id)}/run`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    occurrences: (id: string, limit = 50) => request<{ data: JobOccurrence[] }>(`/jobs/${encodeURIComponent(id)}/occurrences?limit=${Math.max(1, Math.min(100, Math.floor(limit)))}`),
     cancel: (id: string) => request<void>(`/jobs/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   memory: {

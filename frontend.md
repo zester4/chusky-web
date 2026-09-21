@@ -29,6 +29,14 @@ loading, offline, and empty states when a resource has no saved data.
 - `components/app/account-pages.tsx` powers Approvals, Channels, Reminders,
   Jobs, Memory, Scratchpad, Triggers, Workspace, Devices, and Settings from
   `GET /v1/account/overview`.
+
+Reminders and recurring jobs are live owner-scoped automation surfaces rather
+than static dashboard cards. `automation-pages.tsx` creates schedules with
+autonomy mode/context fields, reflects scheduled/paused/waiting/error state,
+and exposes pause, resume, run-now, cancel, and recurring occurrence history
+through the same `/v1` records used by Telegram, CLI, and the SDK. A failed
+request is shown as an actionable error; the UI does not fabricate execution
+history or connection state.
 - `components/app/mcp-page.tsx` powers `/app/mcp` from the authenticated MCP
   catalogue and connection APIs. It never displays stored credentials; token
   input is sent once to the backend, which encrypts it before use.
