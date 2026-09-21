@@ -97,6 +97,7 @@
   }
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--foreground) 24%, transparent) transparent;
   }
@@ -198,6 +199,15 @@
 }
 
 @media (max-width: 639px) {
+  /* iOS Safari zooms the page when a form control is smaller than 16px.
+     Keep compact desktop typography, but give mobile controls a native-size
+     input target so focusing the composer does not change the viewport scale. */
+  .app-shell input:not([type="checkbox"]):not([type="radio"]),
+  .app-shell textarea,
+  .app-shell select {
+    font-size: 16px;
+  }
+
   .app-shell main {
     padding-top: 0.75rem;
     padding-inline: 0.625rem;
