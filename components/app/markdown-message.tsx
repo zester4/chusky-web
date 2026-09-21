@@ -37,6 +37,18 @@ type ChartSpec = {
 
 const chartColors = ["#f6a400", "#0891b2", "#334155", "#16a34a", "#db2777"];
 let mermaidReady = false;
+const mermaidParser = mermaid as unknown as { parse: (text: string, options?: { suppressErrors?: boolean }) => Promise<unknown> };
+
+function normalizeMermaidSource(source: string) {
+  return source
+    .trim()
+    .replace(/^```(?:mermaid|flowchart)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .trim();
+}
 
 function MermaidBlock({ source }: { source: string }) {
   const rawId = useId();
@@ -44,6 +56,7 @@ function MermaidBlock({ source }: { source: string }) {
   const [svg, setSvg] = useState("");
   const [error, setError] = useState("");
   const renderVersion = useRef(0);
+  const normalizedSource = normalizeMermaidSource(source);
 
   useEffect(() => {
     const version = ++renderVersion.current;
@@ -64,19 +77,26 @@ function MermaidBlock({ source }: { source: string }) {
           secondaryColor: "#f1f5f9",
           tertiaryColor: "#ffffff",
         },
+        suppressErrorRendering: true,
       });
       mermaidReady = true;
     }
-    void mermaid.render(`${id}-${version}`, source).then((result: { svg: string }) => {
-      if (active && renderVersion.current === version) setSvg(result.svg);
-    }).catch(() => {
-      if (active && renderVersion.current === version) setError("This diagram could not be rendered.");
-    });
+    void (async () => {
+      try {
+        const parsed = await mermaidParser.parse(normalizedSource, { suppressErrors: true });
+        if (!parsed) throw new Error("Invalid Mermaid syntax");
+        const result = await mermaid.render(`${id}-${version}`, normalizedSource);
+        if (!result.svg || /syntax error in text|mermaid version/i.test(result.svg)) throw new Error("Invalid Mermaid output");
+        if (active && renderVersion.current === version) setSvg(result.svg);
+      } catch {
+        if (active && renderVersion.current === version) setError("This diagram could not be rendered. The original Mermaid source is available below.");
+      }
+    })();
     return () => { active = false; };
-  }, [id, source]);
+  }, [id, normalizedSource]);
 
-  return <figure className="my-2 max-w-full overflow-hidden rounded-md border border-foreground/10 bg-background p-2 sm:p-2.5">
-    {svg ? <div className="max-w-full overflow-x-auto [&>svg]:mx-auto [&>svg]:h-auto [&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg }} /> : error ? <figcaption className="text-[10px] text-amber-700">{error}</figcaption> : <figcaption className="flex items-center gap-2 text-[10px] text-muted-foreground">Rendering diagram…</figcaption>}
+  return <figure className="my-2 max-w-full overflow-hidden bg-background p-0">
+    {svg ? <div className="max-w-full overflow-x-auto [&>svg]:mx-auto [&>svg]:h-auto [&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg }} /> : error ? <div className="space-y-2"><figcaption className="text-[10px] text-amber-700">{error}</figcaption><details className="text-[10px] text-muted-foreground"><summary className="cursor-pointer font-medium text-foreground">View Mermaid source</summary><pre className="mt-1 max-w-full overflow-x-auto rounded border border-foreground/10 bg-foreground/[0.03] p-2 font-mono text-[9px] leading-4">{normalizedSource}</pre></details></div> : <figcaption className="flex items-center gap-2 text-[10px] text-muted-foreground">Rendering diagram…</figcaption>}
   </figure>;
 }
 
@@ -106,7 +126,7 @@ function DataChart({ source }: { source: string }) {
   const series = chartKeys(spec);
   const data = spec.data.map((item, index) => ({ ...item, [xKey]: item[xKey] ?? `Item ${index + 1}` }));
   const common = { data, margin: { top: 6, right: 8, left: -20, bottom: 0 } };
-  return <figure className="my-2 max-w-full overflow-hidden rounded-md border border-foreground/10 bg-background p-2 sm:p-2.5">
+  return <figure className="my-2 max-w-full overflow-hidden bg-background p-0">
     {spec.title && <figcaption className="mb-1.5 text-[10px] font-medium text-foreground">{spec.title}</figcaption>}
     <div className="h-44 min-w-0 w-full sm:h-48">
       <ResponsiveContainer width="100%" height="100%">
