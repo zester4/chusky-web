@@ -19,6 +19,7 @@ export type RunStreamEvent =
   | { type: "run.failed"; run: Run; error: { code: string; message: string } }
   | { type: "run.cancelled"; run: Run };
 export type Task = { id: string; status: "queued" | "running" | "blocked" | "completed" | "failed" | "cancelled"; title: string; objective: string; checkpoint?: string; nextAction?: string; result?: string; error?: string; attempt?: number; maxAttempts?: number; sdkRunId?: string; sdkThreadId?: string; sdkBudget?: RunBudget; sdkModel?: string; sdkSkills?: string[]; events?: Array<{ id: string; type: string; message: string; at: number; attempt: number }>; createdAt: string; updatedAt: string };
+export type Mission = { id: string; title: string; objective: string; definitionOfDone: string; status: "queued" | "running" | "waiting" | "paused" | "blocked" | "completed" | "failed" | "cancelled"; currentStepId?: string; rootTaskId?: string; checkpoint?: string; nextAction?: string; waiting?: { kind: string; provider?: string; providerEventId?: string; expiresAt?: number }; budget: { maxDurationSeconds: number; maxSteps: number; maxToolCalls: number; maxCost: number }; consumedSteps: number; toolCalls: number; cost: number; steps: Array<{ id: string; title: string; objective: string; status: string; dependsOn: string[]; result?: string }>; events: Array<{ id: string; type: string; message: string; at: number }>; createdAt: number; updatedAt: number };
 export type ComposerStage = { id: string; title: string; objective: string; dependsOn: string[]; status: "pending" | "running" | "completed" | "blocked" | "failed" | "cancelled"; requiresApproval: boolean; retryLimit: number; budgetSeconds?: number; result?: string };
 export type ComposerWorkflow = { id: string; name: string; description?: string; stages: ComposerStage[]; status: "draft" | "queued" | "running" | "completed" | "failed" | "cancelled"; taskId?: string; workflowRunId?: string; createdAt: number; updatedAt: number };
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
@@ -260,6 +261,13 @@ export const chuskyApi = {
         update: (organizationId: string, input: Pick<CompanyBranding, "displayName" | "logoUrl" | "accentColor" | "backgroundColor" | "customDomain">) => request<{ data: CompanyBranding }>(`/account/organizations/${encodeURIComponent(organizationId)}/branding`, { method: "PUT", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
       },
     },
+  },
+  missions: {
+    list: () => request<{ data: Mission[] }>("/missions"),
+    get: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}`),
+    pause: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/pause`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    resume: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    cancel: (missionId: string) => request<Mission>(`/missions/${encodeURIComponent(missionId)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
   },
   composer: {
     list: () => request<{ data: ComposerWorkflow[] }>("/workflows/composer"),

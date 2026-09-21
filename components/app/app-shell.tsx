@@ -14,7 +14,7 @@ import type { ReactNode } from "react";
 
 const primary = [
   ["Overview", "/app", "⌂"], ["Chat", "/app/chat", "✦"], ["Conversations", "/app/conversations", "◌"],
-  ["Approvals", "/app/approvals", "✓"], ["Calls", "/app/calls", "⌕"], ["Meetings", "/app/meetings", "◷"], ["Connected apps", "/app/apps", "⊞"], ["Channels", "/app/channels", "◉"], ["Capabilities", "/app/capabilities", "✧"], ["Workers", "/app/workers", "◈"], ["Tasks", "/app/tasks", "▣"], ["Operations", "/app/operations", "◉"], ["Delivery", "/app/delivery", "↗"],
+  ["Approvals", "/app/approvals", "✓"], ["Calls", "/app/calls", "⌕"], ["Meetings", "/app/meetings", "◷"], ["Connected apps", "/app/apps", "⊞"], ["Channels", "/app/channels", "◉"], ["Capabilities", "/app/capabilities", "✧"], ["Workers", "/app/workers", "◈"], ["Tasks", "/app/tasks", "▣"], ["Missions", "/app/missions", "↻"], ["Operations", "/app/operations", "◉"], ["Delivery", "/app/delivery", "↗"],
 ];
 const work = [["Organizations", "/app/organizations", "◫"], ["MCP connections", "/app/mcp", "⌁"], ["Workflow Composer", "/app/composer", "⌘"], ["Reminders", "/app/reminders", "◷"], ["Recurring jobs", "/app/jobs", "↻"], ["Skills", "/app/skills", "▱"], ["Memory", "/app/memory", "◇"], ["Scratchpad", "/app/scratchpad", "✎"], ["Triggers", "/app/triggers", "⌁"], ["Workspace", "/app/workspace", "▤"]];
 

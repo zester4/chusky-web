@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, CalendarClock, Check, ExternalLink, LoaderCircle, Plus, RefreshCw, Save, Users, Video, X } from "lucide-react";
-import { chuskyApi, type ConnectedAccount, type Meeting, type MeetingCapability, type MeetingContact, type MeetingNativeCapability, type MeetingRepresentativeProfile, type MeetingRoom, type MeetingRoomPolicy, type MeetingWorkspace } from "@/lib/chusky-api";
+import { chuskyApi, type ConnectedAccount, type Meeting, type MeetingCapability, type MeetingContact, type MeetingNativeCapability, type MeetingRepresentativeProfile, type MeetingRoomPolicy, type MeetingWorkspace } from "@/lib/chusky-api";
 import { authClient } from "@/lib/auth-client";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";

@@ -15,6 +15,7 @@ import { MeetingsPage } from "./meetings-page";
 import { ChannelsPage } from "./channels-page";
 import { McpPage } from "./mcp-page";
 import { ComposerPage } from "./composer-page";
+import { MissionsPage } from "./missions-page";
 
 export function AppPage({ section }: { section: string }) {
   if (section === "organizations") return <OrganizationsPage />;
@@ -37,6 +38,7 @@ export function AppPage({ section }: { section: string }) {
     return <AccountDataPage kind={section as "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings"} />;
   }
   if (section === "tasks") return <BackendTasksPage />;
+  if (section === "missions") return <MissionsPage />;
   if (section === "operations") return <OperationsDashboard />;
   if (section === "delivery") return <OperationsDashboard deliveryOnly />;
   return <BackendDashboardPage />;
