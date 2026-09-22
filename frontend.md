@@ -179,6 +179,13 @@ status badges, cards, buttons, and a consistent Chusky visual system.
   outcomes, contacts, profile saves, and contact deletion are all owner-scoped
   backend operations; “Ask Chusky to join” only creates a chat draft and does
   not claim that a bot has joined.
+- Meeting cards also expose the Meeting Runtime v2 contract from the backend:
+  provider capability levels, healthy/degraded/reconnecting/voice-unavailable
+  state, bounded turn and latency counters, sanitized lifecycle timeline,
+  language/keyterm configuration, and the post-meeting owner-review package.
+  The UI does not offer live escalation; when a meeting identifies a material
+  risk, the agent finishes within its granted authority and the owner receives
+  the review after the meeting.
 - The meeting representative profile edits the existing account-scoped profile
   through `/v1/meetings/profile`: role, objective, communication style,
   approved knowledge, authority guidance, exact connected-app tool slugs,
