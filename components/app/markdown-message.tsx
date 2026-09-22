@@ -119,6 +119,18 @@ function chartKeys(spec: ChartSpec) {
 
 function idSafe(value: string) { return value.replace(/[^a-zA-Z0-9_-]/g, "-"); }
 
+function normalizeMarkdownContent(content: string) {
+  return content
+    // Accept the LaTeX delimiters commonly returned by models in addition to remark-math's dollar syntax.
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_, expression: string) => `$$\n${expression.trim()}\n$$`)
+    .replace(/\\\(([\s\S]*?)\\\)/g, (_, expression: string) => `$${expression.trim()}$`)
+    // A price such as $500_{setup}+$750 is not an equation. Keep the labels and amounts as literal text.
+    .replace(/(?<!\\)\$(\d[\d,]*(?:\.\d+)?)_\{([^}\n]+)\}\s*\+\s*\$?(\d[\d,]*(?:\.\d+)?)(?:\$)?/g, (_, setup: string, label: string, monthly: string) => `\\$${setup} ${label} + \\$${monthly}`)
+    .replace(/(\\\$\d[\d,]*(?:\.\d+)?)_\{([^}\n]+)\}/g, "$1 $2")
+    // Protect ordinary dollar amounts from being consumed as inline math while preserving $x$, $E=mc^2$, etc.
+    .replace(/(?<!\\)\$(?=\s*(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(?=\s*(?:[-–—/,]|_\{|[A-Za-z]{2,}\b|$)))/g, "\\$");
+}
+
 function DataChart({ source }: { source: string }) {
   const spec = parseChart(source);
   if (!spec) return <pre className="my-2 max-w-full overflow-x-auto rounded-md border border-amber-200 bg-amber-50 p-2.5 font-mono text-[10px] leading-4 text-amber-900">{source}</pre>;
@@ -187,7 +199,7 @@ const components: Components = {
 };
 
 export function MarkdownMessage({ content }: { content: string }) {
-  return <div className="min-w-0 break-words text-foreground [&_.katex-display]:my-2 [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[0.9em]">
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>{content}</ReactMarkdown>
+  return <div className="min-w-0 break-words tabular-nums text-foreground [&_.katex-display]:my-2 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[0.9em]">
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>{normalizeMarkdownContent(content)}</ReactMarkdown>
   </div>;
 }
