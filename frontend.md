@@ -141,7 +141,7 @@ empty state; it does not fill resource pages with demo records.
 - `/app/devices` — connected CLI/device sessions
 - `/app/settings` — account and product settings
 - `/app/calls` — approval-gated Twilio or Bland call requests, provider readiness, and safe call outcomes
-- `/app/meetings` — calendar meeting preparations and briefs, Recall session roster/history/outcomes, saved participant follow-ups, and the meeting representative profile. A calendar item appears as joinable only if the backend verified a supported conferencing URL; the UI opens a drafted chat request rather than silently starting a bot.
+- `/app/meetings` — calendar meeting preparations and briefs, Recall session roster/history/outcomes, saved participant follow-ups, and the meeting representative profile. A calendar item appears as joinable only if the backend verified a supported conferencing URL. The UI offers an owner-only private-context preview before attaching that bounded brief to a join, with an explicit join-without-context option.
 - `/app/channels` — linked Telegram/Slack/WhatsApp/Sendblue identities, proactive-reply preferences, short-lived link flows, and owner-scoped unlink. Unlinking the Chusky identity does not uninstall a provider-side app.
 
 The app shell includes responsive navigation, a mobile menu, page headings,
