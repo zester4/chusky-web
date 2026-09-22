@@ -101,12 +101,14 @@ export function MeetingsPage() {
   };
   const joinMeeting = async () => {
     if (!meetingUrl.trim()) return;
+    const effectiveJoinMode = !profile.enabled && joinMode === "representative" ? "copilot" : joinMode;
+    if (effectiveJoinMode !== joinMode) setJoinMode(effectiveJoinMode);
     const hints = languageHints.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 8);
     const terms = keyterms.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 50);
     if (languageMode === "multilingual" && hints.length === 0) { setError("Choose at least one language hint for multilingual meeting audio."); return; }
     setBusy("join"); setError(undefined); setNotice(undefined);
     try {
-      const meeting = await chuskyApi.meetings.join({ meetingUrl: meetingUrl.trim(), interactionMode: joinMode, languageMode, ...(hints.length ? { languageHints: hints } : {}), ...(terms.length ? { keyterms: terms } : {}), ...(selectedRoomId ? { roomId: selectedRoomId } : {}) });
+      const meeting = await chuskyApi.meetings.join({ meetingUrl: meetingUrl.trim(), interactionMode: effectiveJoinMode, languageMode, ...(hints.length ? { languageHints: hints } : {}), ...(terms.length ? { keyterms: terms } : {}), ...(selectedRoomId ? { roomId: selectedRoomId } : {}) });
       setWorkspace((current) => current ? { ...current, meetings: [meeting, ...current.meetings.filter((item) => item.id !== meeting.id)] } : current); setMeetingUrl(""); setLanguageHints(""); setKeyterms(""); setNotice("Chusky is joining the meeting. The session will appear below as its provider status changes.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not join this meeting."); }
     finally { setBusy(undefined); }
