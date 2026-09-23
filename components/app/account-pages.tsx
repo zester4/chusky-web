@@ -166,22 +166,17 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
 
   return <div className="space-y-4">
     <Card className="p-3.5 sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Composio catalogue</p>
-          <p className="mt-1 text-xs text-muted-foreground">Browse the official Composio toolkit directory, connect accounts, and see exactly what Chusky can use.</p>
-        </div>
-        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()} toolkits · page {page} of {totalPages}</span>
+      <div className="flex justify-end">
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()} apps · page {page} of {totalPages}</span>
       </div>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <label className="relative min-w-0 flex-1">
-          <span className="sr-only">Search Composio apps</span>
+          <span className="sr-only">Search connected apps</span>
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search apps, categories, or capabilities…" className="min-h-9 w-full border border-foreground/15 bg-background pl-8 pr-2.5 text-xs outline-none focus:border-foreground/40" />
         </label>
         <Button secondary onClick={() => void load(page, cursorByPage[page - 1], search)} disabled={loading}><RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh</Button>
       </div>
-      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">Logos, descriptions, categories, and tool counts come directly from Composio. Connection status is scoped to your Chusky account.</p>
     </Card>
 
     <Card className="overflow-hidden">
