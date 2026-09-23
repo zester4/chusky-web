@@ -45,6 +45,8 @@ export type CreatedDeveloperProject = DeveloperProject & { key: string };
 export type CompanyAgentTemplate = { slug: string; name: string; outcome: string; allowedTools: string[]; requireApproval: string[] };
 export type CompanyAgent = { id: string; name: string; template: string; instructions: string; tools: RunToolPolicy; budget: RunBudget; createdAt: string; updatedAt: string };
 export type CompanyPolicy = { tools?: RunToolPolicy; budget?: RunBudget };
+export type AutonomyQueueItem = { id: string; kind: string; title: string; status: string; source: string; priority: number; nextAction?: string; nextCheckAt?: number; blockedReason?: string; updatedAt: number };
+export type AutonomySnapshot = { userId: number; mode: "personal" | "business"; profile: { enabled: boolean; defaultAuthority: string; maxChecksPerDay: number; maxAutonomousActionsPerDay: number; notifyOn: string }; watches: Array<{ id: string; name: string; domain: string; objective: string; status: string; nextCheckAt?: number; lastError?: string }>; queue: AutonomyQueueItem[]; counts: Record<string, number>; generatedAt: number };
 export type CompanyRun = { id: string; status: Run["status"]; agentId?: string; agentName?: string; cost?: number; errorCode?: string; createdAt: string; updatedAt: string };
 export type CompanyAuditEvent = { id: string; requestId: string; action: string; status: number; at: string };
 export type CompanyUsagePeriod = { month: string; completedRuns: number; costUsd: number };
@@ -243,6 +245,12 @@ export const chuskyApi = {
   health: { get: () => request<HealthSnapshot>("/ops/health") },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
+    autonomy: {
+      queue: (mode: "personal" | "business" = "personal") => request<AutonomySnapshot>(`/account/autonomy/queue?mode=${mode}`),
+      reconcile: (mode: "personal" | "business" = "personal", maxWatches = 8) => request<{ data: Array<Record<string, unknown>> }>("/account/autonomy/reconcile", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ mode, maxWatches }) }),
+      businessQueue: (projectId: string) => request<AutonomySnapshot>(`/account/projects/${encodeURIComponent(projectId)}/autonomy/queue`),
+      businessReconcile: (projectId: string, maxWatches = 8) => request<{ data: Array<Record<string, unknown>> }>(`/account/projects/${encodeURIComponent(projectId)}/autonomy/reconcile`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ maxWatches }) }),
+    },
     createTelegramLink: () => request<TelegramLinkCode>("/account/telegram-link", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     models: () => request<Page<Model>>("/account/models"),
     preferences: () => request<VoiceSettings>("/account/preferences"),

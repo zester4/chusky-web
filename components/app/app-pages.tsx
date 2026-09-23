@@ -16,6 +16,7 @@ import { ChannelsPage } from "./channels-page";
 import { McpPage } from "./mcp-page";
 import { ComposerPage } from "./composer-page";
 import { MissionsPage } from "./missions-page";
+import { AutonomyPage } from "./autonomy-page";
 
 export function AppPage({ section }: { section: string }) {
   if (section === "organizations") return <OrganizationsPage />;
@@ -39,6 +40,7 @@ export function AppPage({ section }: { section: string }) {
   }
   if (section === "tasks") return <BackendTasksPage />;
   if (section === "missions") return <MissionsPage />;
+  if (section === "autonomy") return <AutonomyPage />;
   if (section === "operations") return <OperationsDashboard />;
   if (section === "delivery") return <OperationsDashboard deliveryOnly />;
   return <BackendDashboardPage />;
