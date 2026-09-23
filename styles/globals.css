@@ -37,6 +37,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --depth-shadow-rgb: 42 34 22;
+  --depth-highlight: rgb(255 255 255 / 0.82);
+  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), 0 10px 26px rgb(var(--depth-shadow-rgb) / 0.055);
+  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.07), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.04);
+  --depth-floating-shadow: inset 0 1px 0 rgb(255 255 255 / 0.78), 0 14px 38px rgb(var(--depth-shadow-rgb) / 0.13), 0 3px 9px rgb(var(--depth-shadow-rgb) / 0.07);
 }
 
 .dark {
@@ -72,6 +77,11 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+  --depth-shadow-rgb: 0 0 0;
+  --depth-highlight: rgb(255 255 255 / 0.06);
+  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.32), 0 10px 28px rgb(var(--depth-shadow-rgb) / 0.24);
+  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.055), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.38), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.2);
+  --depth-floating-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 16px 40px rgb(var(--depth-shadow-rgb) / 0.42), 0 3px 10px rgb(var(--depth-shadow-rgb) / 0.3);
 }
 
 @theme inline {
@@ -121,5 +131,36 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .surface-3d {
+    border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+    background: var(--card);
+    box-shadow: var(--depth-surface-shadow);
+  }
+
+  .control-3d {
+    box-shadow: var(--depth-control-shadow);
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .control-3d:hover {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.82), 0 2px 3px rgb(var(--depth-shadow-rgb) / 0.075), 0 7px 15px rgb(var(--depth-shadow-rgb) / 0.055);
+  }
+
+  .control-3d:active {
+    box-shadow: inset 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.11), 0 1px 1px rgb(var(--depth-shadow-rgb) / 0.04);
+  }
+
+  .floating-3d {
+    box-shadow: var(--depth-floating-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-3d {
+    transition-duration: 0.01ms;
   }
 }

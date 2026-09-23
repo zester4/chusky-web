@@ -43,6 +43,11 @@
   --font-instrument: 'Instrument Sans', system-ui, sans-serif;
   --font-instrument-serif: 'Instrument Serif', Georgia, serif;
   --font-jetbrains: 'JetBrains Mono', ui-monospace, monospace;
+  --depth-shadow-rgb: 42 34 22;
+  --depth-highlight: rgb(255 255 255 / 0.82);
+  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), 0 10px 26px rgb(var(--depth-shadow-rgb) / 0.055);
+  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.07), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.04);
+  --depth-floating-shadow: inset 0 1px 0 rgb(255 255 255 / 0.78), 0 14px 38px rgb(var(--depth-shadow-rgb) / 0.13), 0 3px 9px rgb(var(--depth-shadow-rgb) / 0.07);
 }
 
 @theme inline {
@@ -198,6 +203,73 @@
   }
 }
 
+@layer components {
+  .app-depth-root {
+    min-height: 100svh;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 18% -8%, rgb(var(--chusky-amber-rgb) / 0.055), transparent 26rem),
+      linear-gradient(180deg, color-mix(in srgb, var(--background) 97%, white), var(--background) 26rem);
+  }
+
+  .app-depth-root .app-shell > aside,
+  .app-depth-root .app-shell > div > header {
+    box-shadow: 1px 0 0 rgb(255 255 255 / 0.6), 8px 0 24px rgb(var(--depth-shadow-rgb) / 0.035);
+  }
+
+  .app-depth-root .app-shell > div > header {
+    box-shadow: inset 0 1px 0 var(--depth-highlight), 0 5px 16px rgb(var(--depth-shadow-rgb) / 0.04);
+  }
+
+  .app-depth-root .app-card,
+  .app-depth-root [data-slot="card"],
+  .app-depth-root [data-slot="alert"] {
+    border-color: color-mix(in srgb, var(--foreground) 11%, transparent);
+    box-shadow: var(--depth-surface-shadow);
+  }
+
+  .app-depth-root .app-button,
+  .app-depth-root [data-slot="button"],
+  .app-depth-root [data-slot="select-trigger"],
+  .app-depth-root [data-slot="input-group"] {
+    box-shadow: var(--depth-control-shadow);
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .app-depth-root .app-button:hover,
+  .app-depth-root [data-slot="button"]:hover,
+  .app-depth-root [data-slot="select-trigger"]:hover {
+    transform: none;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.82), 0 2px 3px rgb(var(--depth-shadow-rgb) / 0.075), 0 7px 15px rgb(var(--depth-shadow-rgb) / 0.055);
+  }
+
+  .app-depth-root .app-button:active,
+  .app-depth-root [data-slot="button"]:active,
+  .app-depth-root [data-slot="select-trigger"]:active {
+    transform: none;
+    box-shadow: inset 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.11), 0 1px 1px rgb(var(--depth-shadow-rgb) / 0.04);
+  }
+
+  .app-depth-root .app-shell :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    box-shadow: inset 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), inset 0 -1px 0 rgb(255 255 255 / 0.72);
+  }
+
+  body:has(.app-depth-root) :is(
+    [data-slot="popover-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="select-content"],
+    [data-slot="hover-card-content"],
+    [data-slot="context-menu-content"],
+    [data-slot="dialog-content"],
+    [data-slot="alert-dialog-content"],
+    [data-slot="sheet-content"],
+    [data-slot="drawer-content"]
+  ) {
+    border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+    box-shadow: var(--depth-floating-shadow);
+  }
+}
+
 @media (max-width: 639px) {
   /* iOS Safari zooms the page when a form control is smaller than 16px.
      Keep compact desktop typography, but give mobile controls a native-size
@@ -283,6 +355,12 @@
   .app-shell [role="alert"],
   .app-shell [role="status"] {
     max-width: 100%;
+  }
+
+  .app-depth-root .app-card,
+  .app-depth-root [data-slot="card"],
+  .app-depth-root [data-slot="alert"] {
+    box-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), 0 5px 14px rgb(var(--depth-shadow-rgb) / 0.04);
   }
 }
 
@@ -393,6 +471,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-depth-root *,
+  .app-depth-root *::before,
+  .app-depth-root *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
   .chusky-orbit {
     animation: none;
   }
