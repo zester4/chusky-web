@@ -8,6 +8,7 @@ export type DurationBudget = "5m" | "30m" | "1h" | "3h" | "6h" | "3d" | "1w";
 export type RunBudget = { duration?: DurationBudget; maxToolCalls?: number; maxCost?: number };
 export type RunToolPolicy = { allow?: string[]; deny?: string[]; requireApproval?: string[] };
 export type RunArtifact = { id: string; name: string; type: Artifact["type"]; contentType: string; size: number };
+export type AccountHistoryMessage = { role: "user" | "assistant"; content: string; createdAt?: number };
 export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
@@ -245,6 +246,7 @@ export const chuskyApi = {
   health: { get: () => request<HealthSnapshot>("/ops/health") },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
+    history: () => request<{ data: AccountHistoryMessage[] }>("/account/history"),
     autonomy: {
       queue: (mode: "personal" | "business" = "personal") => request<AutonomySnapshot>(`/account/autonomy/queue?mode=${mode}`),
       reconcile: (mode: "personal" | "business" = "personal", maxWatches = 8) => request<{ data: Array<Record<string, unknown>> }>("/account/autonomy/reconcile", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ mode, maxWatches }) }),

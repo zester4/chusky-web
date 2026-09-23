@@ -20,7 +20,7 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { chuskyApi, type AccountHistoryMessage, type AccountOverview, type Artifact, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
@@ -172,22 +172,47 @@ export function ChatPage() {
           setThread(current);
           setStatus("ready");
         }
-        const runs = await chuskyApi.threads.runs(current.id, { limit: 50 });
-        const artifactPage = await chuskyApi.artifacts.list({ limit: 100 }).catch(() => ({ data: [] as Artifact[] }));
+        const [runs, artifactPage, accountHistory] = await Promise.all([
+          chuskyApi.threads.runs(current.id, { limit: 50 }),
+          chuskyApi.artifacts.list({ limit: 100 }).catch(() => ({ data: [] as Artifact[] })),
+          chuskyApi.account.history().catch(() => ({ data: [] as AccountHistoryMessage[] })),
+        ]);
         if (active) {
           setArtifactCatalog(artifactPage.data);
-          const restored: Message[] = [];
+          const threadMessages: Message[] = [];
           for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
-            if (run.input || run.attachments?.length) restored.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
+            if (run.input || run.attachments?.length) threadMessages.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
             if (run.output || run.status === "requires_approval") {
               const approval = run.status === "requires_approval" && run.approvalId
                 ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
                 : undefined;
               const output = run.output || "This run is awaiting approval.";
-              restored.push({ role: "assistant", text: output, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
+              threadMessages.push({ role: "assistant", text: output, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
             }
           }
-          setMessages(restored);
+          const projectedCounts = new Map<string, number>();
+          for (const message of threadMessages) {
+            const key = `${message.role}\u0000${message.text}`;
+            projectedCounts.set(key, (projectedCounts.get(key) ?? 0) + 1);
+          }
+          const privateHistory = accountHistory.data.map((message) => ({
+            role: message.role,
+            text: message.content,
+            ...(message.createdAt ? { time: new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) } : {}),
+          } satisfies Message));
+          const accountOnly = privateHistory.filter((message) => {
+            const key = `${message.role}\u0000${message.text}`;
+            const count = projectedCounts.get(key) ?? 0;
+            if (!count) return true;
+            projectedCounts.set(key, count - 1);
+            return false;
+          });
+          setMessages([...accountOnly, ...threadMessages.filter((message) => {
+            const key = `${message.role}\u0000${message.text}`;
+            const count = projectedCounts.get(key) ?? 0;
+            if (count > 0) { projectedCounts.set(key, count - 1); return false; }
+            return true;
+          })]);
         }
         void chuskyApi.account.get().then((next) => { if (active) { setAccount(next); setRunModel(next.model); } }).catch(() => undefined);
         void chuskyApi.account.models().then((next) => { if (active) setModels(next.data); }).catch(() => undefined);
