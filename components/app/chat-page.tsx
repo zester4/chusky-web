@@ -20,7 +20,7 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountHistoryMessage, type AccountOverview, type Artifact, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type Artifact, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
@@ -165,17 +165,18 @@ export function ChatPage() {
     (async () => {
       try {
         const page = await chuskyApi.threads.list({ limit: 50, includeArchived: true });
-        const current = requestedThreadId
-          ? await chuskyApi.threads.get(requestedThreadId)
-          : requestedNew ? await chuskyApi.threads.create({ source: "web-dashboard" }) : page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
+        // A fresh-chat request is authoritative even if a stale thread query
+        // parameter survives a client-side navigation or copied URL.
+        const current = requestedNew
+          ? await chuskyApi.threads.create({ source: "web-dashboard" })
+          : requestedThreadId ? await chuskyApi.threads.get(requestedThreadId) : page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
         if (active) {
           setThread(current);
           setStatus("ready");
         }
-        const [runs, artifactPage, accountHistory] = await Promise.all([
+        const [runs, artifactPage] = await Promise.all([
           chuskyApi.threads.runs(current.id, { limit: 50 }),
           chuskyApi.artifacts.list({ limit: 100 }).catch(() => ({ data: [] as Artifact[] })),
-          chuskyApi.account.history().catch(() => ({ data: [] as AccountHistoryMessage[] })),
         ]);
         if (active) {
           setArtifactCatalog(artifactPage.data);
@@ -190,29 +191,11 @@ export function ChatPage() {
               threadMessages.push({ role: "assistant", text: output, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
             }
           }
-          const projectedCounts = new Map<string, number>();
-          for (const message of threadMessages) {
-            const key = `${message.role}\u0000${message.text}`;
-            projectedCounts.set(key, (projectedCounts.get(key) ?? 0) + 1);
-          }
-          const privateHistory = accountHistory.data.map((message) => ({
-            role: message.role,
-            text: message.content,
-            ...(message.createdAt ? { time: new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) } : {}),
-          } satisfies Message));
-          const accountOnly = privateHistory.filter((message) => {
-            const key = `${message.role}\u0000${message.text}`;
-            const count = projectedCounts.get(key) ?? 0;
-            if (!count) return true;
-            projectedCounts.set(key, count - 1);
-            return false;
-          });
-          setMessages([...accountOnly, ...threadMessages.filter((message) => {
-            const key = `${message.role}\u0000${message.text}`;
-            const count = projectedCounts.get(key) ?? 0;
-            if (count > 0) { projectedCounts.set(key, count - 1); return false; }
-            return true;
-          })]);
+          // The account history is private model context, not a second UI
+          // transcript. Each saved dashboard thread must render only its own
+          // runs; the backend merges account history into the next run when a
+          // linked private-channel workspace needs shared context.
+          setMessages(threadMessages);
         }
         void chuskyApi.account.get().then((next) => { if (active) { setAccount(next); setRunModel(next.model); } }).catch(() => undefined);
         void chuskyApi.account.models().then((next) => { if (active) setModels(next.data); }).catch(() => undefined);
