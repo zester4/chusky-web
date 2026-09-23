@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
 import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoicePreferences, type Model, type TelegramLinkCode, type Toolkit, type Trigger, type TriggerCatalogueItem, type TriggerToolkit, type VoiceOptions } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
@@ -83,8 +83,10 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
   const [nextCursor, setNextCursor] = useState<string>();
   const [cursorByPage, setCursorByPage] = useState<Array<string | undefined>>([undefined]);
   const [loading, setLoading] = useState(false);
+  const requestId = useRef(0);
 
   const load = async (requestedPage = page, cursor = cursorByPage[requestedPage - 1], query = search) => {
+    const currentRequest = ++requestId.current;
     setError(undefined);
     setLoading(true);
     try {
@@ -92,17 +94,23 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
         chuskyApi.apps.list({ search: query.trim(), cursor, limit: 30 }),
         chuskyApi.apps.connections(),
       ]);
+      // Live refreshes and page changes can overlap. Ignore an older response so
+      // it cannot put the user back on a previous page or search result.
+      if (currentRequest !== requestId.current) return;
+      // Composio's cursor response may report currentPage as 1 even when a
+      // cursor was supplied. The cursor requested by the UI is authoritative.
+      const effectivePage = requestedPage;
       setItems(apps.data);
       setConnections(accounts.data);
-      setPage(apps.currentPage || requestedPage);
+      setPage(effectivePage);
       setTotalPages(Math.max(1, apps.totalPages || 1));
       setTotal(apps.total);
       setNextCursor(apps.nextCursor);
-      if (apps.nextCursor) setCursorByPage((current) => { const next = [...current]; next[apps.currentPage || requestedPage] = apps.nextCursor; return next; });
+      if (apps.nextCursor) setCursorByPage((current) => { const next = [...current]; next[effectivePage] = apps.nextCursor; return next; });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load Composio apps.");
+      if (currentRequest === requestId.current) setError(cause instanceof Error ? cause.message : "Could not load Composio apps.");
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   };
 
