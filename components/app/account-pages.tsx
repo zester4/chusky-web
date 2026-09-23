@@ -239,6 +239,10 @@ function DevicesPanel({ initial }: { initial: AccountOverview["devices"] }) {
   return <><Card>{devices.length ? devices.map((item) => <div key={item.id} className="flex flex-col gap-2 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Laptop size={15} className="shrink-0 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{item.name}</p><p className="mt-1 text-[11px] text-muted-foreground">Last seen {date(item.lastSeenAt)} · linked {date(item.createdAt)}</p></div><Button secondary disabled={busy} onClick={() => setConfirmId(item.id)}>Revoke access</Button></div>) : <Empty>No CLI devices are linked.</Empty>}{error && <p role="alert" className="p-3 text-xs text-amber-700">{error}</p>}</Card>{confirmId && <ConfirmDialog open onOpenChange={(open) => !open && setConfirmId(undefined)} title="Revoke this device?" description="Its CLI token will stop working immediately. The device can pair again later." confirmLabel="Revoke device" destructive onConfirm={() => revoke(confirmId)} />}</>;
 }
 
+function triggerRequiredFields(item: TriggerCatalogueItem): string[] {
+  return Array.isArray(item.config.required) ? item.config.required.filter((field): field is string => typeof field === "string") : [];
+}
+
 function ComprehensiveTriggersPanel() {
   const [items, setItems] = useState<Trigger[]>([]);
   const [toolkits, setToolkits] = useState<TriggerToolkit[]>([]);
@@ -259,7 +263,7 @@ function ComprehensiveTriggersPanel() {
       const [owned, catalogue] = await Promise.all([chuskyApi.triggers.list(), chuskyApi.triggers.catalogue.toolkits(false)]);
       setItems(owned.data);
       setToolkits(catalogue.data);
-      setToolkit((current) => current || catalogue.data[0]?.slug || "");
+      setToolkit((current) => current && catalogue.data.some((item) => item.slug === current) ? current : "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load the trigger catalogue.");
     } finally {
@@ -280,7 +284,7 @@ function ComprehensiveTriggersPanel() {
       if (!active) return;
       const allTypes = [result, ...remaining].flatMap((page) => page.data);
       setTypes(allTypes);
-      setTrigger(allTypes[0]?.token || "");
+      setTrigger("");
       setConfig("{}");
     }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Could not load trigger types."); });
     return () => { active = false; };
@@ -293,7 +297,9 @@ function ComprehensiveTriggersPanel() {
     return !query || `${item.name} ${item.slug}`.toLowerCase().includes(query);
   });
   const calendarGuidance = calendarTriggerGuidance(selectedType?.slug ?? "");
-  const required = Array.isArray(selectedType?.config.required) ? selectedType.config.required.filter((field): field is string => typeof field === "string") : [];
+  const required = selectedType ? triggerRequiredFields(selectedType) : [];
+  const selectTrigger = (item: TriggerCatalogueItem) => { setTrigger(item.token); setConfig("{}"); setError(undefined); };
+  const toggleToolkit = (slug: string) => { setToolkit((current) => current === slug ? "" : slug); setTrigger(""); setConfig("{}"); setError(undefined); };
   const create = async () => {
     if (!selectedType || !selectedToolkit?.connected) return;
     setBusy("create"); setError(undefined);
@@ -307,6 +313,19 @@ function ComprehensiveTriggersPanel() {
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Trigger configuration must be valid JSON.");
+    } finally { setBusy(undefined); }
+  };
+  const createFromCatalogue = async (item: TriggerCatalogueItem) => {
+    const fields = triggerRequiredFields(item);
+    selectTrigger(item);
+    if (fields.length) return;
+    if (!toolkits.find((candidate) => candidate.slug === item.toolkit.slug)?.connected) return;
+    setBusy(`create:${item.token}`); setError(undefined);
+    try {
+      await chuskyApi.triggers.create(item.slug, {});
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not create the trigger.");
     } finally { setBusy(undefined); }
   };
   const toggle = async (item: Trigger) => { setBusy(item.id); try { await chuskyApi.triggers.setEnabled(item.id, !["active", "enabled"].includes(item.status.toLowerCase())); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update trigger."); } finally { setBusy(undefined); } };
@@ -328,44 +347,54 @@ function ComprehensiveTriggersPanel() {
         <input value={toolkitSearch} onChange={(event) => setToolkitSearch(event.target.value)} placeholder="Search apps with triggers…" className="min-h-9 w-full border border-foreground/15 bg-background pl-8 pr-2.5 text-xs outline-none focus:border-foreground/40" />
       </label>
       {visibleToolkits.length ? <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleToolkits.map((item) => <article key={item.slug} className={`flex min-w-0 flex-col gap-3 border p-3.5 transition-colors ${item.slug === toolkit ? "border-foreground/45 bg-foreground/[0.03]" : "border-foreground/10"}`}>
-          <div className="flex min-w-0 items-start gap-3">
-            <ToolkitLogo item={item} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h3 className="truncate text-sm font-medium">{item.name}</h3>
-                <Status tone={item.connected ? "green" : "gray"}>{item.connected ? `${item.accountCount} connected` : "Connect first"}</Status>
+        {visibleToolkits.map((item) => {
+          const expanded = item.slug === toolkit;
+          return <article key={item.slug} className={`flex min-w-0 flex-col gap-3 border p-3.5 transition-colors ${expanded ? "border-foreground/45 bg-foreground/[0.03] sm:col-span-2 lg:col-span-3" : "border-foreground/10"}`}>
+            <button type="button" onClick={() => toggleToolkit(item.slug)} aria-expanded={expanded} aria-label={`${expanded ? "Hide" : "View"} ${item.name} triggers`} className="flex w-full min-w-0 items-start gap-3 text-left">
+              <ToolkitLogo item={item} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="truncate text-sm font-medium">{item.name}</h3>
+                  <Status tone={item.connected ? "green" : "gray"}>{item.connected ? `${item.accountCount} connected` : "Connect first"}</Status>
+                </div>
+                <p className="mt-1 truncate font-mono text-[9px] text-muted-foreground">{item.slug}</p>
               </div>
-              <p className="mt-1 truncate font-mono text-[9px] text-muted-foreground">{item.slug}</p>
+            </button>
+            <div className="flex items-center justify-between gap-2 border-t border-foreground/10 pt-2.5">
+              <span className="text-[10px] text-muted-foreground">{item.triggerCount} trigger {item.triggerCount === 1 ? "type" : "types"}</span>
+              <Button secondary onClick={() => toggleToolkit(item.slug)}><ChevronDown size={13} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />{expanded ? "Hide triggers" : "View triggers"}</Button>
             </div>
-          </div>
-          <div className="flex items-center justify-between gap-2 border-t border-foreground/10 pt-2.5">
-            <span className="text-[10px] text-muted-foreground">{item.triggerCount} trigger {item.triggerCount === 1 ? "type" : "types"}</span>
-            <Button secondary onClick={() => setToolkit(item.slug)}>{item.slug === toolkit ? "Selected" : "View triggers"}</Button>
-          </div>
-        </article>)}
+            {expanded && <div className="border-t border-foreground/10 pt-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-medium">{item.name} trigger types</p>
+                <span className="font-mono text-[9px] text-muted-foreground">{types.length ? `${types.length} available events` : "Loading events…"}</span>
+              </div>
+              {types.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {types.map((type) => {
+                  const fields = triggerRequiredFields(type);
+                  const creating = busy === `create:${type.token}`;
+                  return <div key={type.token} className={`flex min-w-0 flex-col gap-2 border p-2.5 ${type.token === trigger ? "border-foreground/35 bg-background" : "border-foreground/10 bg-background/60"}`}>
+                    <button type="button" onClick={() => selectTrigger(type)} className="flex min-w-0 items-start gap-2 text-left">
+                      <Webhook size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0"><span className="block truncate text-[11px] font-medium">{type.name}</span><span className="mt-1 block truncate font-mono text-[9px] text-muted-foreground">{type.slug}</span></span>
+                    </button>
+                    <Button secondary disabled={!item.connected || creating} onClick={() => void createFromCatalogue(type)}>{creating ? "Creating…" : fields.length ? "Configure" : "Create trigger"}</Button>
+                  </div>;
+                })}
+              </div> : <p className="border border-foreground/10 bg-background/60 p-3 text-[11px] text-muted-foreground">Loading this app’s trigger types…</p>}
+              {selectedType && <div className="mt-3 border border-foreground/15 bg-background p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-medium">{selectedType.name}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{selectedType.slug}</p></div><span className="text-[10px] text-muted-foreground">Configure before creating</span></div>
+                <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{selectedType.description}</p>
+                {selectedType.instructions && <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{selectedType.instructions}</p>}
+                {calendarGuidance && <p className="mt-2 border-l-2 border-sky-500 pl-2.5 text-[11px] leading-5 text-sky-900">{calendarGuidance}</p>}
+                <textarea value={config} onChange={(event) => setConfig(event.target.value)} placeholder='{"repo":"owner/name"}' rows={3} className="mt-2.5 w-full resize-y border border-foreground/15 bg-transparent px-2.5 py-2 font-mono text-xs outline-none focus:border-foreground/40" />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><span className="font-mono text-[9px] text-muted-foreground">{required.length ? `Required: ${required.join(", ")}` : "No required configuration"}</span><Button disabled={!item.connected || busy === "create"} onClick={() => void create()}>{busy === "create" ? "Creating…" : "Create trigger"}</Button></div>
+              </div>}
+              {error && <p role="alert" className="mt-2 text-[11px] text-amber-700">{error}</p>}
+            </div>}
+          </article>;
+        })}
       </div> : <Empty>{error || (loading ? "Loading trigger-enabled apps…" : "No trigger-enabled apps match your search.")}</Empty>}
-    </Card>
-    <Card className="p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Provider-backed trigger catalogue</p><p className="mt-1 text-xs text-muted-foreground">Choose an app above, then select one of its exact Composio trigger types.</p></div><span className="font-mono text-[10px] text-muted-foreground">{selectedToolkit ? `${selectedToolkit.name} · ${types.length} trigger types` : "Select an app above"}</span></div>
-      <div className="mt-4 grid gap-2.5 md:grid-cols-[1fr_1.4fr_auto]">
-        <select value={toolkit} onChange={(event) => setToolkit(event.target.value)} className="min-h-9 min-w-0 border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Choose an app</option>{toolkits.map((item) => <option key={item.slug} value={item.slug}>{item.name} · {item.triggerCount} triggers{item.connected ? " · connected" : " · connect first"}</option>)}</select>
-        <select value={trigger} onChange={(event) => { setTrigger(event.target.value); setConfig("{}"); }} disabled={!types.length} className="min-h-9 min-w-0 border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Choose an event</option>{types.map((item) => <option key={item.token} value={item.token}>{item.name}</option>)}</select>
-        <Button disabled={!selectedType || !selectedToolkit?.connected || busy === "create"} onClick={() => void create()}>{busy === "create" ? "Creating…" : "Create trigger"}</Button>
-      </div>
-      {selectedToolkit && types.length > 0 && <div className="mt-4 border-t border-foreground/10 pt-3">
-        <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[11px] font-medium">{selectedToolkit.name} trigger types</p><span className="font-mono text-[9px] text-muted-foreground">Select an event to configure</span></div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {types.map((item) => <button type="button" key={item.token} onClick={() => { setTrigger(item.token); setConfig("{}"); }} className={`flex min-w-0 items-start gap-2.5 border p-2.5 text-left transition-colors ${item.token === trigger ? "border-foreground/45 bg-foreground/[0.04]" : "border-foreground/10 hover:border-foreground/30"}`}>
-            <Webhook size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0"><span className="block truncate text-[11px] font-medium">{item.name}</span><span className="mt-1 block truncate font-mono text-[9px] text-muted-foreground">{item.slug}</span></span>
-          </button>)}
-        </div>
-      </div>}
-      {selectedType && <div className="mt-3 border border-foreground/10 bg-foreground/[0.02] p-3"><p className="text-xs font-medium">{selectedType.name}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{selectedType.description}</p>{selectedType.instructions && <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{selectedType.instructions}</p>}{calendarGuidance && <p className="mt-2 border-l-2 border-sky-500 pl-2.5 text-[11px] leading-5 text-sky-900">{calendarGuidance}</p>}<p className="mt-2 font-mono text-[9px] text-muted-foreground">{selectedType.slug}{required.length ? ` · required: ${required.join(", ")}` : " · no required configuration"}</p></div>}
-      <textarea value={config} onChange={(event) => setConfig(event.target.value)} disabled={!selectedType} placeholder='{"repo":"owner/name"}' rows={3} className="mt-2.5 w-full resize-y border border-foreground/15 bg-transparent px-2.5 py-2 font-mono text-xs outline-none disabled:opacity-50" />
-      {!selectedToolkit?.connected && toolkit && <p className="mt-2 text-[11px] text-amber-700">Connect this app from Connected apps before creating its trigger.</p>}
-      {error && <p className="mt-3 text-xs text-amber-700">{error}</p>}
     </Card>
     <Card>{items.length ? items.map((item) => <div key={item.id} className="flex min-w-0 flex-col gap-2.5 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Webhook size={15} className="shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="break-all text-xs font-medium">{item.slug || item.id}</p>{calendarTriggerGuidance(item.slug) && <p className="mt-1 text-[11px] leading-5 text-sky-900">{calendarTriggerGuidance(item.slug)}</p>}<p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">{item.id}</p></div><div className="flex flex-wrap items-center gap-2"><Status tone={["active", "enabled"].includes(item.status.toLowerCase()) ? "green" : "gray"}>{item.status}</Status><Button secondary disabled={busy === item.id} onClick={() => void toggle(item)}>{["active", "enabled"].includes(item.status.toLowerCase()) ? "Disable" : "Enable"}</Button><Button secondary disabled={busy === item.id} onClick={() => setConfirmId(item.id)}><Trash2 size={12} /> Delete</Button></div></div>) : <Empty>No triggers yet. Choose a provider-backed event above or ask Chusky in Telegram.</Empty>}</Card>
     {confirmedTrigger && <ConfirmDialog open={Boolean(confirmId)} onOpenChange={(open) => !open && setConfirmId(undefined)} title={`Delete ${confirmedTrigger.slug || confirmedTrigger.id}?`} description="This trigger and its configuration will be permanently removed." confirmLabel="Delete trigger" destructive onConfirm={() => { const id = confirmedTrigger.id; setConfirmId(undefined); return remove(id); }} />}
