@@ -387,6 +387,10 @@ export const chuskyApi = {
   artifacts: {
     list: (options: { type?: Artifact["type"]; limit?: number } = {}) => { const params = new URLSearchParams(); if (options.type) params.set("type", options.type); if (options.limit) params.set("limit", String(options.limit)); return request<Page<Artifact>>(`/artifacts${params.size ? `?${params.toString()}` : ""}`); },
     get: (id: string) => request<Artifact>(`/artifacts/${encodeURIComponent(id)}`),
+    // Keep downloads on the first-party origin so the browser sends the
+    // Better Auth session cookie through the Next.js /v1 rewrite. The server
+    // response supplies Content-Disposition and streams directly from Daytona.
+    downloadHref: (id: string) => `/v1/artifacts/${encodeURIComponent(id)}/download`,
     download: (id: string) => requestBytes(`/artifacts/${encodeURIComponent(id)}/download`),
     remove: (id: string) => request<void>(`/artifacts/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },

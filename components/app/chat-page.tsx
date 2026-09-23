@@ -107,11 +107,11 @@ const stripArtifactLinks = (content: string, artifacts: ChatArtifact[]) => {
 };
 const containsVisualBlock = (content: string) => /(?:```|~~~)\s*(?:mermaid|flowchart|chart|charts)\b/i.test(content);
 
-function ArtifactCard({ artifact, busy, onDownload }: { artifact: ChatArtifact; busy: boolean; onDownload: (artifact: ChatArtifact) => void }) {
+function ArtifactCard({ artifact }: { artifact: ChatArtifact }) {
   return <div className="mt-2 flex max-w-full items-center gap-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2.5">
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-foreground/10 bg-background text-muted-foreground"><FileText size={15} /></div>
     <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</p><p className="mt-0.5 text-[10px] capitalize text-muted-foreground">{artifact.type} · {formatArtifactSize(artifact.size)}</p></div>
-    <button type="button" onClick={() => onDownload(artifact)} disabled={busy} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-foreground/15 px-2.5 py-1.5 text-[10px] font-medium hover:bg-foreground/5 disabled:cursor-wait disabled:opacity-60" aria-label={`Download ${artifact.name}`}><Download size={12} />{busy ? "Preparing…" : "Download"}</button>
+    <a href={chuskyApi.artifacts.downloadHref(artifact.id)} download={artifact.name} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-foreground/15 px-2.5 py-1.5 text-[10px] font-medium hover:bg-foreground/5" aria-label={`Download ${artifact.name}`}><Download size={12} />Download</a>
   </div>;
 }
 
@@ -140,7 +140,6 @@ export function ChatPage() {
   const [editingMessageIndex, setEditingMessageIndex] = useState<number>();
   const [notice, setNotice] = useState<{ kind: "error" | "info"; message: string }>();
   const [artifactCatalog, setArtifactCatalog] = useState<Artifact[]>([]);
-  const [downloadingArtifactId, setDownloadingArtifactId] = useState<string>();
   const [listening, setListening] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -305,25 +304,6 @@ export function ChatPage() {
     if (item.id) await chuskyApi.files.remove(item.id).catch(() => undefined);
   };
 
-  const downloadArtifact = async (artifact: ChatArtifact) => {
-    setDownloadingArtifactId(artifact.id);
-    try {
-      const blob = await chuskyApi.artifacts.download(artifact.id);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = artifact.name;
-      anchor.style.display = "none";
-      document.body.appendChild(anchor);
-      anchor.click();
-      window.setTimeout(() => { URL.revokeObjectURL(url); anchor.remove(); }, 60_000);
-    } catch {
-      showNotice(`Could not download ${artifact.name}. Please try again.`);
-    } finally {
-      setDownloadingArtifactId(undefined);
-    }
-  };
-
   const send = async () => {
     const text = input.trim();
     const readyAttachments = attachments.filter((item) => item.status === "ready" && item.id) as Array<PendingAttachment & { id: string }>;
@@ -416,7 +396,7 @@ export function ChatPage() {
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
                     {item.text ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
-                    {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} busy={downloadingArtifactId === artifact.id} onDownload={(candidate) => void downloadArtifact(candidate)} />)}</div> : null}
+                    {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
