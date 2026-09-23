@@ -37,6 +37,10 @@ and exposes pause, resume, run-now, cancel, and recurring occurrence history
 through the same `/v1` records used by Telegram, CLI, and the SDK. A failed
 request is shown as an actionable error; the UI does not fabricate execution
 history or connection state.
+- `components/app/autonomy-page.tsx` powers `/app/autonomy` with the shared
+  personal/business queue, active watches, blockers, overdue checks, and a
+  bounded read-only reconciliation action. The sidebar exposes the route under
+  Workspace, and all mutations remain approval-gated by the backend.
 - `components/app/mcp-page.tsx` powers `/app/mcp` from the authenticated MCP
   catalogue and connection APIs. It never displays stored credentials; token
   input is sent once to the backend, which encrypts it before use.

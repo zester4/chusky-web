@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { chuskyApi, type AutonomySnapshot } from "@/lib/chusky-api";
+import { chuskyApi, type AutonomySnapshot, type DeveloperProject } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
 function date(value?: number): string {
@@ -11,6 +11,8 @@ function date(value?: number): string {
 export function AutonomyPage() {
   const [mode, setMode] = useState<"personal" | "business">("personal");
   const [snapshot, setSnapshot] = useState<AutonomySnapshot>();
+  const [projects, setProjects] = useState<DeveloperProject[]>([]);
+  const [projectId, setProjectId] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string>();
@@ -18,16 +20,24 @@ export function AutonomyPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(undefined);
-    try { setSnapshot(await chuskyApi.account.autonomy.queue(mode)); }
+    try { setSnapshot(mode === "business" && projectId ? await chuskyApi.account.autonomy.businessQueue(projectId) : await chuskyApi.account.autonomy.queue(mode)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Autonomy state could not be loaded."); }
     finally { setLoading(false); }
-  }, [mode]);
+  }, [mode, projectId]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (mode !== "business") return;
+    void chuskyApi.account.projects.list().then((page) => {
+      const companyProjects = page.data.filter((project) => Boolean(project.organizationId));
+      setProjects(companyProjects);
+      setProjectId((current) => current && companyProjects.some((project) => project.id === current) ? current : companyProjects[0]?.id);
+    }).catch(() => setProjects([]));
+  }, [mode]);
 
   const reconcile = async () => {
     setRunning(true); setError(undefined); setMessage(undefined);
     try {
-      const result = await chuskyApi.account.autonomy.reconcile(mode, 8);
+      const result = mode === "business" && projectId ? await chuskyApi.account.autonomy.businessReconcile(projectId, 8) : await chuskyApi.account.autonomy.reconcile(mode, 8);
       setMessage(`Checked ${result.data?.length ?? 0} due watch${result.data?.length === 1 ? "" : "es"}.`);
       await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Reconciliation could not be completed."); }
@@ -38,6 +48,7 @@ export function AutonomyPage() {
     <PageHeading eyebrow="Autonomy" title="Know what needs attention" description="A durable, owner-scoped queue across tasks, meetings, reminders, connected apps, and standing watches. Reads are automatic; external writes remain approval-gated." action={<Button onClick={() => void reconcile()} disabled={running || loading}>{running ? "Checking…" : "Reconcile now"}</Button>} />
     <div className="mb-4 flex gap-1 border-b border-foreground/10 pb-2">
       {(["personal", "business"] as const).map((item) => <button key={item} onClick={() => setMode(item)} className={`rounded-md px-3 py-1.5 text-[10px] font-medium ${mode === item ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/5"}`}>{item === "personal" ? "Personal" : "Business"}</button>)}
+      {mode === "business" && <select value={projectId ?? ""} onChange={(event) => setProjectId(event.target.value || undefined)} className="ml-auto min-h-7 rounded-md border border-foreground/15 bg-background px-2 text-[10px] text-foreground" aria-label="Business project"><option value="">All business activity</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>}
     </div>
     {error && <Card className="mb-4 border-red-500/20 p-3 text-[11px] text-red-700">{error} <button className="ml-2 underline" onClick={() => void load()}>Retry</button></Card>}
     {message && <Card className="mb-4 border-emerald-500/20 p-3 text-[11px] text-emerald-700">{message}</Card>}
