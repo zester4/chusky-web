@@ -20,7 +20,7 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type Model, type RunStreamEvent, type Thread } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type Artifact, type Model, type RunStreamEvent, type RunToolActivity, type Thread } from "@/lib/chusky-api";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
@@ -51,12 +51,17 @@ type Message = {
   pending?: boolean;
   statusText?: string;
   tool?: string;
+  activities?: RunToolActivity[];
   attachments?: Array<{ id: string; name: string; contentType: string; size: number; downloadUrl?: string }>;
   artifacts?: ChatArtifact[];
   approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean };
 };
 
-const formatToolLabel = (tool?: string) => tool ? tool.replaceAll("_", " ").toLowerCase() : "working";
+const formatToolLabel = (tool?: string) => tool ? tool.replace(/^(CHUCK|COMPOSIO)_/i, "").replaceAll("_", " ").toLowerCase() : "working";
+const formatToolDuration = (durationMs?: number) => {
+  if (durationMs === undefined || !Number.isFinite(durationMs)) return "";
+  return durationMs < 1000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1000).toFixed(1)} s`;
+};
 const isDelegation = (tool?: string) => Boolean(tool && /(sub.?agent|delegate|worker|handoff)/i.test(tool));
 const formatArtifactSize = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes < 1024) return `${Math.max(0, bytes || 0)} B`;
@@ -187,8 +192,19 @@ export function ChatPage() {
               const approval = run.status === "requires_approval" && run.approvalId
                 ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
                 : undefined;
+              const activities = (run.events ?? []).flatMap((event): RunToolActivity[] => {
+                if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status) return [];
+                return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, message: event.message, status: event.status, ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
+              });
               const output = run.output || "This run is awaiting approval.";
-              threadMessages.push({ role: "assistant", text: output, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
+              threadMessages.push({ role: "assistant", text: output, activities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
+            } else if (run.events?.some((event) => event.type === "run.tool_activity")) {
+              const activities = run.events.flatMap((event): RunToolActivity[] => {
+                if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status) return [];
+                return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, message: event.message, status: event.status, ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
+              });
+              const text = run.status === "cancelled" ? "This run was cancelled. Its completed steps are shown above." : "This run did not complete. Its recorded steps are shown above.";
+              threadMessages.push({ role: "assistant", text, activities, time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false });
             }
           }
           // The account history is private model context, not a second UI
@@ -336,6 +352,11 @@ export function ChatPage() {
           setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: false } : item));
         } else if (typed.type === "run.tool_started") {
           updateLastAssistant({ pending: true, statusText: undefined, tool: typed.toolSlug });
+        } else if (typed.type === "run.tool_activity") {
+          const activity: RunToolActivity = { id: typed.id, type: "run.tool_activity", at: typed.at, toolSlug: typed.toolSlug, message: typed.message, status: typed.status, ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
+          setMessages((current) => current.map((item, index) => index === current.length - 1 && item.role === "assistant"
+            ? { ...item, activities: [...(item.activities ?? []).filter((entry) => entry.id !== activity.id), activity], pending: activity.status === "started", statusText: undefined, tool: activity.toolSlug }
+            : item));
         } else if (typed.type === "run.completed") {
           // A run can change memory, approvals, calls, meetings, channels, or
           // artifacts through native/Composio tools. Refresh every open surface
@@ -362,9 +383,9 @@ export function ChatPage() {
           showNotice(/429|rate limit|quota|too many requests/i.test(detail)
             ? "The selected model is rate limited. Choose another model or try again in a moment."
             : "Chusky could not complete that run. Please try again.");
-          removeActiveAssistant();
+          updateLastAssistant({ text: "I couldn’t complete this run. The activity above shows which steps succeeded or need attention.", pending: false, statusText: undefined, tool: undefined });
         } else if (typed.type === "run.cancelled") {
-          updateLastAssistant({ text: "Run cancelled.", pending: false, statusText: undefined, tool: undefined });
+          updateLastAssistant({ text: "Run cancelled. The completed steps are shown above.", pending: false, statusText: undefined, tool: undefined });
         }
       }
     } catch (error) {
@@ -402,7 +423,21 @@ export function ChatPage() {
                 <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
-                    {item.pending && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
+                    {item.pending && !item.activities?.some((activity) => activity.status === "started") && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
+                    {item.activities?.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl rounded-md border border-foreground/10 bg-foreground/[0.025] p-2.5">
+                      <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-medium">Steps Chusky took</p><span className="text-[9px] text-muted-foreground">{item.activities.length} {item.activities.length === 1 ? "step" : "steps"}</span></div>
+                      <ol className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                        {item.activities.map((activity, activityIndex) => <li key={activity.id} className="flex min-w-0 gap-2 border-l border-foreground/15 pl-2.5">
+                          <span className="mt-0.5 shrink-0" aria-hidden="true">{activity.status === "started" ? <LoaderCircle size={12} className="animate-spin text-muted-foreground" /> : activity.status === "completed" ? <CheckCircle2 size={12} className="text-emerald-700" /> : activity.status === "approval_required" ? <ShieldCheck size={12} className="text-amber-700" /> : activity.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : <X size={12} className="text-rose-700" />}</span>
+                          <div className="min-w-0 flex-1 pb-1">
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5"><p className="text-[10px] leading-4">{activity.message}</p><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{formatToolLabel(activity.toolSlug)}</span></div>
+                            <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">{activity.status === "started" ? "In progress" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""} · ${activity.summary || "Result used in Chusky’s response below"}` : activity.status === "approval_required" ? "Waiting for your approval" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step"}</p>
+                          </div>
+                          <span className="sr-only">Step {activityIndex + 1}</span>
+                        </li>)}
+                      </ol>
+                      <p className="mt-1.5 border-t border-foreground/10 pt-1.5 text-[9px] leading-4 text-muted-foreground">The answer below contains the useful results. Private tool inputs and raw connected-app data are not shown here.</p>
+                    </section> : null}
                     {item.text ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} /> <span className="truncate">{file.name}</span></span>)}</div> : null}

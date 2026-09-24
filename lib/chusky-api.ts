@@ -9,13 +9,15 @@ export type RunBudget = { duration?: DurationBudget; maxToolCalls?: number; maxC
 export type RunToolPolicy = { allow?: string[]; deny?: string[]; requireApproval?: string[] };
 export type RunArtifact = { id: string; name: string; type: Artifact["type"]; contentType: string; size: number };
 export type AccountHistoryMessage = { role: "user" | "assistant"; content: string; createdAt?: number };
-export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
+export type RunToolActivity = { id: string; type: "run.tool_activity"; at: number; toolSlug: string; status: "started" | "completed" | "failed" | "approval_required" | "cancelled"; message: string; summary?: string; durationMs?: number };
+export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string; toolSlug?: string; status?: RunToolActivity["status"]; message?: string; summary?: string; durationMs?: number }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
   | { type: "run.started"; run: Run }
   | { type: "run.status"; runId: string; text: string }
   | { type: "run.delta"; runId: string; text: string }
   | { type: "run.tool_started"; runId: string; toolSlug: string }
+  | ({ type: "run.tool_activity"; runId: string } & Omit<RunToolActivity, "id" | "type" | "at"> & { id: string; at: number })
   | { type: "run.approval_required"; run: Run; approval?: Approval }
   | { type: "run.completed"; run: Run }
   | { type: "run.failed"; run: Run; error: { code: string; message: string } }
