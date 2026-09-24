@@ -21,6 +21,7 @@ import {
     X,
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunStreamEvent, type RunToolActivity, type Thread } from "@/lib/chusky-api";
+import { coalesceToolActivities, upsertToolActivity } from "@/lib/run-activity";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
@@ -64,10 +65,10 @@ const formatToolDuration = (durationMs?: number) => {
   return durationMs < 1000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1000).toFixed(1)} s`;
 };
 
-const runActivities = (run: Run): RunToolActivity[] => (run.events ?? []).flatMap((event): RunToolActivity[] => {
+const runActivities = (run: Run): RunToolActivity[] => coalesceToolActivities((run.events ?? []).flatMap((event): RunToolActivity[] => {
   if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status) return [];
   return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, message: event.message, status: event.status, ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
-});
+}));
 const hasCurrentToolActivity = (activities: RunToolActivity[] | undefined) => activities?.[activities.length - 1]?.status === "started";
 const runDeltaText = (run: Run) => (run.events ?? []).filter((event) => event.type === "run.delta" && typeof event.text === "string").map((event) => event.text).join("");
 const runStatusText = (run: Run) => {
@@ -407,7 +408,7 @@ export function ChatPage() {
         } else if (typed.type === "run.tool_activity") {
           const activity: RunToolActivity = { id: typed.id, type: "run.tool_activity", at: typed.at, toolSlug: typed.toolSlug, message: typed.message, status: typed.status, ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
           setMessages((current) => current.map((item, index) => index === current.length - 1 && item.role === "assistant"
-            ? { ...item, runId: typed.runId, activities: [...(item.activities ?? []).filter((entry) => entry.id !== activity.id), activity], pending: true, statusText: undefined, tool: activity.toolSlug }
+            ? { ...item, runId: typed.runId, activities: upsertToolActivity(item.activities ?? [], activity), pending: true, statusText: undefined, tool: activity.toolSlug }
             : item));
         } else if (typed.type === "run.completed") {
           // A run can change memory, approvals, calls, meetings, channels, or
@@ -486,19 +487,25 @@ export function ChatPage() {
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && !hasCurrentToolActivity(item.activities) && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
-                    {item.activities?.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl rounded-md border border-foreground/10 bg-foreground/[0.025] p-2.5">
-                      <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-medium">Steps Chusky took</p><span className="text-[9px] text-muted-foreground">{item.activities.length} {item.activities.length === 1 ? "step" : "steps"}</span></div>
-                      <ol className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
-                        {item.activities.map((activity, activityIndex) => <li key={activity.id} className="flex min-w-0 gap-2 border-l border-foreground/15 pl-2.5">
-                          <span className="mt-0.5 shrink-0" aria-hidden="true">{activity.status === "started" ? <LoaderCircle size={12} className="animate-spin text-muted-foreground" /> : activity.status === "completed" ? <CheckCircle2 size={12} className="text-emerald-700" /> : activity.status === "approval_required" ? <ShieldCheck size={12} className="text-amber-700" /> : activity.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : <X size={12} className="text-rose-700" />}</span>
-                          <div className="min-w-0 flex-1 pb-1">
-                            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5"><p className="text-[10px] leading-4">{activity.message}</p><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{formatToolLabel(activity.toolSlug)}</span></div>
-                            <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">{activity.status === "started" ? "In progress" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""} · ${activity.summary || "Result used in Chusky’s response below"}` : activity.status === "approval_required" ? "Waiting for your approval" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step"}</p>
-                          </div>
-                          <span className="sr-only">Step {activityIndex + 1}</span>
-                        </li>)}
+                    {item.activities?.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl">
+                      <div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-[10px] font-medium">Activity</p><span className="text-[9px] text-muted-foreground">{item.activities.length} {item.activities.length === 1 ? "step" : "steps"}</span></div>
+                      <ol className="space-y-2">
+                        {item.activities.map((activity, activityIndex) => {
+                          const isCurrent = item.pending && activity.status === "started" && activityIndex === item.activities!.length - 1;
+                          return <li key={activity.id} className="flex min-w-0 gap-2.5">
+                            <span className="mt-0.5 shrink-0" aria-hidden="true">{isCurrent ? <LoaderCircle size={12} className="animate-spin text-muted-foreground" /> : activity.status === "started" ? <span className="mt-1 block size-1.5 rounded-full bg-muted-foreground/45" /> : activity.status === "completed" ? <CheckCircle2 size={12} className="text-emerald-700" /> : activity.status === "approval_required" ? <ShieldCheck size={12} className="text-amber-700" /> : activity.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : <X size={12} className="text-rose-700" />}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] leading-4">{activity.message}</p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] leading-4 text-muted-foreground">
+                                <span className="font-mono">{formatToolLabel(activity.toolSlug)}</span>
+                                <span>{activity.status === "started" ? isCurrent ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for your approval" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step"}</span>
+                              </div>
+                            </div>
+                            <span className="sr-only">Step {activityIndex + 1}</span>
+                          </li>;
+                        })}
                       </ol>
-                      <p className="mt-1.5 border-t border-foreground/10 pt-1.5 text-[9px] leading-4 text-muted-foreground">The answer below contains the useful results. Private tool inputs and raw connected-app data are not shown here.</p>
+                      <p className="mt-2 text-[9px] leading-4 text-muted-foreground">Private tool inputs and raw connected-app data are not shown here.</p>
                     </section> : null}
                     {item.text ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
