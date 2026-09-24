@@ -48,7 +48,10 @@ history or connection state.
   from the authenticated threads, usage, and task APIs.
 - `components/app/operations-dashboard.tsx` powers Operations and Delivery
   from live health, failure counters, enabled-channel state, and recent
-  delivery records.
+  delivery records. Ambiguous channel sends show a destination-verification
+  warning and an owner confirmation action that only records the owner's
+  verified outcome; it never resends. Successful delivery duration is shown
+  where a provider receipt exists.
 - The chat context intentionally shows only channels that Chusky has actually
   verified. It does not invent Composio OAuth connections such as GitHub or
   Gmail when the backend has not exposed them.

@@ -68,7 +68,7 @@ export type AccountOverview = {
   workspace: { sandboxId: string; name: string; lastKnownState?: string; createdAt: string; updatedAt: string; ptySessions: number; lastUrl?: string } | null;
   webhooks: Array<{ id: string; url: string; createdAt: string }>;
   telegramLink: { linked: boolean };
-  deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string }>;
+  deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; durationMs?: number; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
 export type FluxVoice = { id: string; name: string; accent: string };
 export type BlandVoice = { id: string; name: string; description?: string };
@@ -109,7 +109,7 @@ export type MeetingWorkspace = { rooms: MeetingRoom[]; preparations: CalendarPre
 export type MeetingCapability = { slug: string; description: string; toolkit?: string; toolkitPrefix: string; connected: boolean };
 export type MeetingNativeCapability = { slug: string; description: string };
 export type MeetingCapabilities = { composioTools: MeetingCapability[]; nativeTools: MeetingNativeCapability[]; connections: ConnectedAccount[]; composioAvailable: boolean };
-export type Delivery = { id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; createdAt: string; updatedAt: string; deliveredAt?: string };
+export type Delivery = { id: string; provider: string; status: "queued" | "delivering" | "delivered" | "failed" | "ambiguous"; kind: string; attempts: number; providerStatus?: string; lastError?: string; durationMs?: number; createdAt: string; updatedAt: string; deliveredAt?: string };
 export type Webhook = { id: string; url: string; createdAt: string; disabledAt?: string };
 export type AutonomyMode = "notify" | "check_in" | "act" | "wait_until";
 export type AutonomyLinks = { taskId?: string; missionId?: string; missionStepId?: string; openLoopId?: string; attentionCandidateId?: string; projectId?: string; meetingId?: string; conversationId?: string };
@@ -408,7 +408,10 @@ export const chuskyApi = {
     get: (id: string) => request<Worker>(`/workers/${encodeURIComponent(id)}`),
     cancel: (id: string) => request<Worker>(`/workers/${encodeURIComponent(id)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
   },
-  deliveries: { list: () => request<{ data: Delivery[] }>("/deliveries") },
+  deliveries: {
+    list: () => request<{ data: Delivery[] }>("/deliveries"),
+    confirmDelivered: (id: string) => request<Delivery>(`/deliveries/${encodeURIComponent(id)}/confirm-delivered`, { method: "POST" }),
+  },
   webhooks: {
     list: () => request<{ data: Webhook[] }>("/webhooks"),
     create: (url: string) => request<Webhook & { secret?: string }>("/webhooks", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ url }) }),

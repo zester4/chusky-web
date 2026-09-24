@@ -23,7 +23,21 @@ export function OperationsDashboard({ deliveryOnly = false }: { deliveryOnly?: b
   const [health, setHealth] = useState<HealthSnapshot>();
   const [account, setAccount] = useState<AccountOverview>();
   const [offline, setOffline] = useState(false);
+  const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string>();
+  const [deliveryActionError, setDeliveryActionError] = useState<string>();
   const load = async () => { setOffline(false); try { const [nextHealth, nextAccount] = await Promise.all([chuskyApi.health.get(), chuskyApi.account.get()]); setHealth(nextHealth); setAccount(nextAccount); } catch { setOffline(true); } };
+  const confirmDelivered = async (id: string) => {
+    setConfirmingDeliveryId(id);
+    setDeliveryActionError(undefined);
+    try {
+      await chuskyApi.deliveries.confirmDelivered(id);
+      await load();
+    } catch {
+      setDeliveryActionError("Could not confirm this delivery. Refresh the page and check its current status.");
+    } finally {
+      setConfirmingDeliveryId(undefined);
+    }
+  };
   useEffect(() => { void load(); }, []);
   useLiveData(load, 30_000);
 
@@ -37,10 +51,22 @@ export function OperationsDashboard({ deliveryOnly = false }: { deliveryOnly?: b
         <Card className="p-4"><div className="mb-1 flex items-center justify-between"><div><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Connected channels</p><h2 className="mt-1.5 font-display text-xl">Where Chusky can reach you</h2></div><Gauge size={17} className="text-muted-foreground" /></div>{Object.entries(health.channels).map(([key, enabled]) => <div key={key} className="flex items-center justify-between border-b border-foreground/10 py-3 last:border-0"><div className="flex items-center gap-2.5"><span className={`h-2 w-2 rounded-full ${enabled ? "bg-emerald-500" : "bg-foreground/20"}`} /><span className="text-xs">{channelLabels[key] ?? key}</span></div><span className="text-[11px] text-muted-foreground">{enabled ? "Enabled" : "Not enabled"}</span></div>)}</Card>
       </div>
       <Card className="p-4"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Latest incident</p><h2 className="mt-1.5 font-display text-xl">{health.monitoring.lastFailure ? "Needs a closer look" : "Quiet by design"}</h2><p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">{health.monitoring.lastFailure ? `${health.monitoring.lastFailure.type ?? "Failure"} · ${health.monitoring.lastFailure.message ?? "See service logs for details."}` : "No runtime failures have been recorded by this process. Durable provider retries remain visible in the service logs."}</p></div><div className="shrink-0 text-left md:text-right"><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Last event</p><p className="mt-1.5 text-[11px]">{formatTime(health.monitoring.lastFailure?.at)}</p></div></div></Card>
-      {deliveryOnly && <Card className="p-4"><div className="mb-3 flex items-center justify-between"><div><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Recent deliveries</p><h2 className="mt-1.5 font-display text-xl">What actually left Chusky</h2></div><ExternalLink size={16} className="text-muted-foreground" /></div>{account?.deliveries.length ? <div className="divide-y divide-foreground/10">{account.deliveries.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-[11px]"><div><p className="font-medium">{item.provider} · {item.kind}</p><p className="mt-1 text-muted-foreground">{formatTime(item.deliveredAt || item.updatedAt)} · {item.attempts} attempt{item.attempts === 1 ? "" : "s"}</p></div><Status tone={item.status === "delivered" ? "green" : item.status === "failed" ? "amber" : "gray"}>{item.status}</Status></div>)}</div> : <p className="text-xs text-muted-foreground">No outbound deliveries have been recorded for this account yet.</p>}</Card>}
+      {deliveryOnly && <Card className="p-4">
+        <div className="mb-3 flex items-center justify-between"><div><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Recent deliveries</p><h2 className="mt-1.5 font-display text-xl">What actually left Chusky</h2></div><ExternalLink size={16} className="text-muted-foreground" /></div>
+        {deliveryActionError && <p role="alert" className="mb-3 border border-amber-300/70 bg-amber-50 px-3 py-2 text-xs text-amber-950">{deliveryActionError}</p>}
+        {account?.deliveries.length ? <div className="divide-y divide-foreground/10">{account.deliveries.map((item) => <div key={item.id} className="flex flex-col gap-2 py-3 text-[11px] sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{item.provider} · {item.kind}</p><Status tone={item.status === "delivered" ? "green" : item.status === "failed" || item.status === "ambiguous" ? "amber" : "gray"}>{item.status === "delivered" && item.providerStatus === "owner_confirmed_delivered" ? "confirmed by you" : item.status}</Status></div>
+            <p className="mt-1 text-muted-foreground">{formatTime(item.deliveredAt || item.updatedAt)} · {item.attempts} attempt{item.attempts === 1 ? "" : "s"}{item.durationMs !== undefined ? ` · delivered in ${formatLatency(item.durationMs)}` : item.status === "ambiguous" ? " · outcome uncertain" : ""}</p>
+            {item.lastError && <p className="mt-1 max-w-2xl break-words text-amber-900/80">{item.lastError}</p>}
+            {item.status === "ambiguous" && <p className="mt-2 max-w-xl text-muted-foreground">Check the destination first. Confirming records your verification; it does not send or retry the message.</p>}
+          </div>
+          {item.status === "ambiguous" && <Button secondary disabled={confirmingDeliveryId === item.id} onClick={() => void confirmDelivered(item.id)}>{confirmingDeliveryId === item.id ? "Confirming…" : "I checked — mark delivered"}</Button>}
+        </div>)}</div> : <p className="text-xs text-muted-foreground">No outbound deliveries have been recorded for this account yet.</p>}
+      </Card>}
       <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground"><ShieldCheck size={13} className="text-emerald-600" /> Secrets are never returned to the dashboard. <span className="mx-1">·</span> <ExternalLink size={12} /> Failure counters reset when the process restarts; durable workflow state remains in Redis.</div>
     </div>}
   </>;
 }
 
 function Metric({ label, value, detail, icon }: { label: string; value: string; detail: string; icon: ReactNode }) { return <Card className="p-4"><div className="flex items-center justify-between text-muted-foreground"><p className="font-mono text-[9px] uppercase tracking-[0.16em]">{label}</p>{icon}</div><p className="mt-3 font-display text-3xl">{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{detail}</p></Card>; }
+function formatLatency(value: number) { return value < 1_000 ? `${Math.round(value)} ms` : value < 60_000 ? `${(value / 1_000).toFixed(1)} s` : `${(value / 60_000).toFixed(1)} min`; }
