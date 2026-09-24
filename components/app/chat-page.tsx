@@ -20,7 +20,7 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type Model, type RunStreamEvent, type RunToolActivity, type Thread } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunStreamEvent, type RunToolActivity, type Thread } from "@/lib/chusky-api";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
@@ -49,6 +49,7 @@ type Message = {
   text: string;
   time?: string;
   pending?: boolean;
+  runId?: string;
   statusText?: string;
   tool?: string;
   activities?: RunToolActivity[];
@@ -61,6 +62,19 @@ const formatToolLabel = (tool?: string) => tool ? tool.replace(/^(CHUCK|COMPOSIO
 const formatToolDuration = (durationMs?: number) => {
   if (durationMs === undefined || !Number.isFinite(durationMs)) return "";
   return durationMs < 1000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1000).toFixed(1)} s`;
+};
+
+const runActivities = (run: Run): RunToolActivity[] => (run.events ?? []).flatMap((event): RunToolActivity[] => {
+  if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status) return [];
+  return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, message: event.message, status: event.status, ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
+});
+const hasCurrentToolActivity = (activities: RunToolActivity[] | undefined) => activities?.[activities.length - 1]?.status === "started";
+const runDeltaText = (run: Run) => (run.events ?? []).filter((event) => event.type === "run.delta" && typeof event.text === "string").map((event) => event.text).join("");
+const runStatusText = (run: Run) => {
+  if (run.status === "requires_approval") return "Chusky needs your approval to continue with this action.";
+  if (run.status === "failed") return "I couldn’t complete this run. The recorded steps remain above.";
+  if (run.status === "cancelled") return [...(run.events ?? [])].reverse().find((event) => event.type === "run.cancelled")?.text || "Run cancelled. The completed steps are shown above.";
+  return run.output ?? "";
 };
 const isDelegation = (tool?: string) => Boolean(tool && /(sub.?agent|delegate|worker|handoff)/i.test(tool));
 const formatArtifactSize = (bytes: number) => {
@@ -146,6 +160,9 @@ export function ChatPage() {
   const [notice, setNotice] = useState<{ kind: "error" | "info"; message: string }>();
   const [artifactCatalog, setArtifactCatalog] = useState<Artifact[]>([]);
   const [listening, setListening] = useState(false);
+  const activeRunIdRef = useRef<string | undefined>(undefined);
+  const messagesRef = useRef<Message[]>(messages);
+  messagesRef.current = messages;
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -167,6 +184,7 @@ export function ChatPage() {
     setStatus("loading");
     setThread(undefined);
     setMessages([]);
+    activeRunIdRef.current = undefined;
     (async () => {
       try {
         const page = await chuskyApi.threads.list({ limit: 50, includeArchived: true });
@@ -188,24 +206,14 @@ export function ChatPage() {
           const threadMessages: Message[] = [];
           for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
             if (run.input || run.attachments?.length) threadMessages.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
-            if (run.output || run.status === "requires_approval") {
-              const approval = run.status === "requires_approval" && run.approvalId
-                ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
-                : undefined;
-              const activities = (run.events ?? []).flatMap((event): RunToolActivity[] => {
-                if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status) return [];
-                return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, message: event.message, status: event.status, ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
-              });
-              const output = run.output || "This run is awaiting approval.";
-              threadMessages.push({ role: "assistant", text: output, activities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false, approval });
-            } else if (run.events?.some((event) => event.type === "run.tool_activity")) {
-              const activities = run.events.flatMap((event): RunToolActivity[] => {
-                if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status) return [];
-                return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, message: event.message, status: event.status, ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
-              });
-              const text = run.status === "cancelled" ? "This run was cancelled. Its completed steps are shown above." : "This run did not complete. Its recorded steps are shown above.";
-              threadMessages.push({ role: "assistant", text, activities, time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: false });
-            }
+            const approval = run.status === "requires_approval" && run.approvalId
+              ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
+              : undefined;
+            const activities = runActivities(run);
+            const active = run.status === "queued" || run.status === "running";
+            const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
+            if (active) activeRunIdRef.current = run.id;
+            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Reconnecting to this run…" : undefined, approval });
           }
           // The account history is private model context, not a second UI
           // transcript. Each saved dashboard thread must render only its own
@@ -243,8 +251,45 @@ export function ChatPage() {
   const updateLastAssistant = (update: Partial<Message>) => {
     setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, ...update } : item));
   };
-  const removeActiveAssistant = () => {
-    setMessages((current) => current[current.length - 1]?.role === "assistant" ? current.slice(0, -1) : current);
+  const applyRunSnapshot = async (run: Run) => {
+    const approval = run.status === "requires_approval" && run.approvalId
+      ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
+      : undefined;
+    const activities = runActivities(run);
+    const active = run.status === "queued" || run.status === "running";
+    if (!active && activeRunIdRef.current === run.id) activeRunIdRef.current = undefined;
+    setMessages((current) => current.map((item) => {
+      if (item.role !== "assistant" || item.runId !== run.id) return item;
+      const streamedOutput = runDeltaText(run);
+      const text = run.status === "running" ? streamedOutput || item.text : runStatusText(run) || (run.status === "completed" ? "Done." : "");
+      const artifacts = run.artifacts?.length ? run.artifacts : run.status === "completed" ? item.artifacts : undefined;
+      return { ...item, text, activities, artifacts, pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Chusky is continuing this run…" : undefined, approval };
+    }));
+  };
+  const applyRunSnapshotRef = useRef(applyRunSnapshot);
+  applyRunSnapshotRef.current = applyRunSnapshot;
+
+  useEffect(() => {
+    if (!thread?.id) return;
+    let active = true;
+    let timer: number | undefined;
+    const poll = async () => {
+      const runIds = [...new Set(messagesRef.current.filter((item) => item.role === "assistant" && item.pending && item.runId).map((item) => item.runId!))];
+      await Promise.all(runIds.map(async (runId) => {
+        try { await applyRunSnapshotRef.current(await chuskyApi.runs.get(thread.id, runId)); }
+        catch { /* A transient network error must not erase the saved timeline; retry shortly. */ }
+      }));
+      if (active) timer = window.setTimeout(() => void poll(), 1200);
+    };
+    timer = window.setTimeout(() => void poll(), 1200);
+    return () => { active = false; if (timer !== undefined) window.clearTimeout(timer); };
+  }, [thread?.id]);
+
+  const cancelActiveRun = async () => {
+    const runId = activeRunIdRef.current;
+    if (!thread || !runId) return;
+    try { await applyRunSnapshot(await chuskyApi.runs.cancel(thread.id, runId)); }
+    catch { showNotice("Chusky could not confirm cancellation. The run’s saved progress is still available; refresh and check its status."); }
   };
 
   const copyMessage = async (index: number, text: string) => {
@@ -291,14 +336,20 @@ export function ChatPage() {
   };
 
   const decideApproval = async (approvalId: string, decision: "approve" | "deny") => {
-    updateLastAssistant({ approval: { id: approvalId, toolSlug: "", expiresAt: "", deciding: true } });
+    const currentRunId = [...messagesRef.current].reverse().find((item) => item.role === "assistant" && item.approval?.id === approvalId)?.runId;
+    if (decision === "approve" && currentRunId) activeRunIdRef.current = currentRunId;
+    updateLastAssistant({ pending: decision === "approve", approval: { id: approvalId, toolSlug: "", expiresAt: "", deciding: true } });
     try {
       const run = await chuskyApi.approvals.decide(approvalId, decision);
-      const output = "output" in run && run.output ? run.output : "text" in run && run.text ? run.text : undefined;
-      updateLastAssistant({ text: decision === "approve" ? (output || "Approved and completed.") : "Action denied.", approval: undefined, pending: false });
+      if ("threadId" in run) await applyRunSnapshot(run);
+      else {
+        if (currentRunId) activeRunIdRef.current = undefined;
+        const output = "text" in run && run.text ? run.text : undefined;
+        updateLastAssistant({ text: decision === "approve" ? (output || "Approved and completed.") : "Action denied; no action was taken.", approval: undefined, pending: false });
+      }
     } catch {
       showNotice("That approval could not be completed. It may have expired or already been decided.");
-      updateLastAssistant({ approval: undefined, pending: false });
+      updateLastAssistant({ approval: undefined, pending: false, text: "Approval could not be completed. Your recorded steps are preserved above." });
     }
   };
 
@@ -331,7 +382,7 @@ export function ChatPage() {
   const send = async () => {
     const text = input.trim();
     const readyAttachments = attachments.filter((item) => item.status === "ready" && item.id) as Array<PendingAttachment & { id: string }>;
-    if ((!text && !readyAttachments.length) || !thread || controller || attachments.some((item) => item.status === "uploading")) return;
+    if ((!text && !readyAttachments.length) || !thread || controller || messagesRef.current.some((item) => item.role === "assistant" && item.pending && item.runId) || attachments.some((item) => item.status === "uploading")) return;
     const abort = new AbortController();
     const artifactIdsBefore = new Set(artifactCatalog.map((artifact) => artifact.id));
     setController(abort);
@@ -345,17 +396,18 @@ export function ChatPage() {
       for await (const event of chuskyApi.runs.stream(thread.id, text, readyAttachments.map((item) => item.id), abort.signal, { model: runModel || undefined })) {
         const typed = event as RunStreamEvent;
         if (typed.type === "run.started" || typed.type === "run.queued") {
-          updateLastAssistant({ pending: true });
+          activeRunIdRef.current = typed.run.id;
+          updateLastAssistant({ runId: typed.run.id, pending: true });
         } else if (typed.type === "run.status") {
           updateLastAssistant({ pending: true, statusText: typed.text, tool: undefined });
         } else if (typed.type === "run.delta") {
-          setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: false } : item));
+          setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: true } : item));
         } else if (typed.type === "run.tool_started") {
           updateLastAssistant({ pending: true, statusText: undefined, tool: typed.toolSlug });
         } else if (typed.type === "run.tool_activity") {
           const activity: RunToolActivity = { id: typed.id, type: "run.tool_activity", at: typed.at, toolSlug: typed.toolSlug, message: typed.message, status: typed.status, ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
           setMessages((current) => current.map((item, index) => index === current.length - 1 && item.role === "assistant"
-            ? { ...item, activities: [...(item.activities ?? []).filter((entry) => entry.id !== activity.id), activity], pending: activity.status === "started", statusText: undefined, tool: activity.toolSlug }
+            ? { ...item, runId: typed.runId, activities: [...(item.activities ?? []).filter((entry) => entry.id !== activity.id), activity], pending: true, statusText: undefined, tool: activity.toolSlug }
             : item));
         } else if (typed.type === "run.completed") {
           // A run can change memory, approvals, calls, meetings, channels, or
@@ -374,27 +426,35 @@ export function ChatPage() {
           const createdArtifacts = latestArtifacts.filter((artifact) => !artifactIdsBefore.has(artifact.id));
           const linkedArtifacts = artifactReferencesInText(output, latestArtifacts);
           const runArtifacts = typed.run.artifacts ?? [];
+          activeRunIdRef.current = undefined;
           updateLastAssistant({ text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, pending: false, statusText: undefined, tool: undefined });
         } else if (typed.type === "run.approval_required") {
           notifyChuskyDataChanged();
+          activeRunIdRef.current = undefined;
           updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", pending: false, statusText: undefined, tool: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {
+          activeRunIdRef.current = undefined;
           const detail = typed.error?.message || "";
           showNotice(/429|rate limit|quota|too many requests/i.test(detail)
             ? "The selected model is rate limited. Choose another model or try again in a moment."
             : "Chusky could not complete that run. Please try again.");
           updateLastAssistant({ text: "I couldn’t complete this run. The activity above shows which steps succeeded or need attention.", pending: false, statusText: undefined, tool: undefined });
         } else if (typed.type === "run.cancelled") {
+          activeRunIdRef.current = undefined;
           updateLastAssistant({ text: "Run cancelled. The completed steps are shown above.", pending: false, statusText: undefined, tool: undefined });
         }
       }
     } catch (error) {
-      if ((error as Error).name !== "AbortError") {
+      const runId = activeRunIdRef.current;
+      if ((error as Error).name === "AbortError") {
+        if (runId) updateLastAssistant({ runId, pending: true, statusText: "Connection interrupted; reconnecting to this run…" });
+      } else {
         const detail = error instanceof Error ? error.message : "";
         showNotice(/429|rate limit|quota|too many requests/i.test(detail)
           ? "The selected model is rate limited. Choose another model or try again in a moment."
-          : "Chusky is temporarily unavailable. Please try again.");
-        removeActiveAssistant();
+          : "The live connection was interrupted. Chusky’s saved run will keep updating here.");
+        if (runId) updateLastAssistant({ runId, pending: true, statusText: "Connection interrupted; checking saved run progress…" });
+        else updateLastAssistant({ pending: false, text: "The connection ended before run tracking was available. Refresh the conversation to check whether Chusky saved the run." });
       }
     } finally {
       if (shouldTitle) {
@@ -408,6 +468,8 @@ export function ChatPage() {
       setController(undefined);
     }
   };
+
+  const isWorking = Boolean(controller) || messages.some((item) => item.role === "assistant" && item.pending && Boolean(item.runId));
 
   return (
     <div className="-mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-[#f7f7f4] sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
@@ -423,7 +485,7 @@ export function ChatPage() {
                 <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
-                    {item.pending && !item.activities?.some((activity) => activity.status === "started") && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
+                    {item.pending && !hasCurrentToolActivity(item.activities) && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
                     {item.activities?.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl rounded-md border border-foreground/10 bg-foreground/[0.025] p-2.5">
                       <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-medium">Steps Chusky took</p><span className="text-[9px] text-muted-foreground">{item.activities.length} {item.activities.length === 1 ? "step" : "steps"}</span></div>
                       <ol className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
@@ -459,7 +521,25 @@ export function ChatPage() {
             </div>
             </div>
 
-            <div className="shrink-0 pt-2 pb-[env(safe-area-inset-bottom)] sm:pt-4 sm:pb-0"><div className="rounded-lg border border-foreground/10 bg-background transition-colors focus-within:border-foreground/25"><input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} />{attachments.length ? <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">{attachments.map((item) => <div key={item.localId} className="flex max-w-full items-center gap-1.5 rounded-md border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[9px]"><FileText size={11} className={item.status === "error" ? "text-amber-600" : "text-muted-foreground"} /><span className="max-w-40 truncate">{item.name}</span><span className="text-muted-foreground">{item.status === "uploading" ? `${item.progress}%` : item.status === "ready" ? "ready" : "failed"}</span><button type="button" onClick={() => void removeAttachment(item)} className="text-muted-foreground hover:text-foreground" aria-label={`Remove ${item.name}`}><X size={11} /></button>{item.error ? <span className="hidden text-amber-700 sm:inline">{item.error}</span> : null}</div>)}</div> : null}<textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || Boolean(controller)} className="w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" /><div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1"><div className="flex min-w-0 flex-1 items-center gap-1"><button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || Boolean(controller) || attachments.length >= 5} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button><label className="sr-only" htmlFor="chat-model">Run model</label><select id="chat-model" aria-label="Run model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="min-w-0 max-w-28 truncate rounded-md bg-background px-1.5 py-1.5 text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 sm:max-w-44"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></div><div className="ml-auto flex shrink-0 items-center gap-1.5"><span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span><button type="button" onClick={toggleVoiceInput} disabled={!thread || Boolean(controller)} className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-foreground/15 ${listening ? "bg-rose-50 text-rose-700" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"} title={listening ? "Stop voice input" : "Start voice input"}><Mic size={13} /></button>{controller ? <button type="button" onClick={() => controller.abort()} className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background" aria-label="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}</div></div></div></div>
+            <div className="shrink-0 pt-2 pb-[env(safe-area-inset-bottom)] sm:pt-4 sm:pb-0">
+              <div className="rounded-lg border border-foreground/10 bg-background transition-colors focus-within:border-foreground/25">
+                <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} />
+                {attachments.length ? <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">{attachments.map((item) => <div key={item.localId} className="flex max-w-full items-center gap-1.5 rounded-md border border-foreground/10 bg-foreground/[0.03] px-2 py-1 text-[9px]"><FileText size={11} className={item.status === "error" ? "text-amber-600" : "text-muted-foreground"} /><span className="max-w-40 truncate">{item.name}</span><span className="text-muted-foreground">{item.status === "uploading" ? `${item.progress}%` : item.status === "ready" ? "ready" : "failed"}</span><button type="button" onClick={() => void removeAttachment(item)} className="text-muted-foreground hover:text-foreground" aria-label={`Remove ${item.name}`}><X size={11} /></button>{item.error ? <span className="hidden text-amber-700 sm:inline">{item.error}</span> : null}</div>)}</div> : null}
+                <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Chusky is continuing this run…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || isWorking} className="w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
+                <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
+                  <div className="flex min-w-0 flex-1 items-center gap-1">
+                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || isWorking || attachments.length >= 5} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                    <label className="sr-only" htmlFor="chat-model">Run model</label>
+                    <select id="chat-model" aria-label="Run model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="min-w-0 max-w-28 truncate rounded-md bg-background px-1.5 py-1.5 text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 sm:max-w-44"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select>
+                  </div>
+                  <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                    <span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span>
+                    <button type="button" onClick={toggleVoiceInput} disabled={!thread || isWorking} className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-foreground/15 ${listening ? "bg-rose-50 text-rose-700" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"} title={listening ? "Stop voice input" : "Start voice input"}><Mic size={13} /></button>
+                    {isWorking ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunIdRef.current} className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
