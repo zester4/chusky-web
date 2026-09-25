@@ -84,8 +84,8 @@ export type ConnectedAccount = { id: string; alias?: string; toolkit: string; st
 export type Trigger = { id: string; slug: string; status: string; config: Record<string, unknown> };
 export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; instructions?: string; toolkit: { slug: string; name: string; logo?: string }; config: Record<string, unknown> };
 export type TriggerToolkit = { slug: string; name: string; logo?: string; triggerCount: number; connected: boolean; accountCount: number };
-export type McpCatalogEntry = { id: string; name: string; url: string; auth: "none" | "bearer" | "oauth"; scopes?: string[]; enabled?: boolean; allowedTools?: string[]; requireApproval?: boolean };
-export type McpConnection = { serverId: string; name: string; auth: "none" | "bearer" | "oauth"; enabled: boolean; connectedAt: string; updatedAt: string };
+export type McpCatalogEntry = { id: string; name: string; url: string; auth: "none" | "bearer" | "oauth"; scopes?: string[]; enabled?: boolean; allowedTools?: string[]; requireApproval?: boolean; custom?: boolean };
+export type McpConnection = { serverId: string; name: string; auth: "none" | "bearer" | "oauth"; enabled: boolean; connectedAt: string; updatedAt: string; verifiedToolCount?: number };
 export type Tool = { slug: string; description: string; source: "native" | "composio"; approval?: "auto" | "approval_required"; toolkit?: string; connected?: boolean };
 export type Skill = { name: string; description: string; path: string; bytes?: number; updatedAt?: number | string; files?: number };
 export type SkillFile = { name?: string; path: string; bytes: number; binary: boolean; content?: string; truncated?: boolean };
@@ -335,6 +335,7 @@ export const chuskyApi = {
     connections: () => request<{ data: McpConnection[] }>("/mcp/connections"),
     oauthStart: (serverId: string) => request<{ authorizationUrl: string; state: string; expiresAt: number }>("/mcp/oauth/start", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ serverId }) }),
     connect: (serverId: string, credential?: { accessToken: string; refreshToken?: string; expiresAt?: number }) => request<McpConnection>("/mcp/connections", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ serverId, ...(credential ? { ...credential } : {}) }) }),
+    addCustomServer: (input: { name: string; url: string; auth: "none" | "bearer"; accessToken?: string; allowedTools?: string[]; requireApproval?: boolean }) => request<McpConnection>("/mcp/custom-servers", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     disconnect: (serverId: string) => request<void>(`/mcp/connections/${encodeURIComponent(serverId)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   apps: {
