@@ -57,6 +57,9 @@ export type CompanyUsage = { currentMonth: CompanyUsagePeriod; periods: CompanyU
 export type CompanyBranding = { organizationId: string; displayName: string; logoUrl?: string; accentColor: string; backgroundColor: string; customDomain?: string; customDomainStatus: "not_configured" | "pending_dns"; updatedAt?: string };
 export type Activity = { now: number; approvals: Approval[]; tasks: Task[]; reminders: Array<{ id: string; text: string; createdAt: number }>; jobs: Array<{ id: string; text: string; cron: string; createdAt: number }> };
 export type HealthSnapshot = { ok: boolean; status: "operational" | "degraded"; persistence: "redis" | "memory"; checks: Record<string, string>; channels: Record<string, boolean>; monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string; message?: string } | null; vector: { failures: number; degraded: boolean; lastFailure: { at: string; message?: string } | null } } };
+export type ReliabilityHealth = { operation: string; windowMs: number; sampleCount: number; successRate: number; uncertaintyRate: number; p95LatencyMs?: number; state: "healthy" | "degraded" | "meltdown"; reasons: string[]; calculatedAt: number };
+export type OperatorTraceEvent = { id: string; ownerId: number; kind: string; type: string; at: number; correlationId?: string; parentId?: string; status?: string; summary: string; metadata?: Record<string, string | number | boolean | null> };
+export type Compensation = { id: string; ownerId: number; missionId?: string; missionStepId?: string; originalActionId: string; provider: string; objective: string; status: string; attempts: number; maxAttempts: number; createdAt: number; updatedAt: number; error?: string; resultSummary?: string };
 export type AccountOverview = {
   model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences;
   approvals: Array<{ id: string; toolSlug: string; request: string; status: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
@@ -246,6 +249,11 @@ export const chuskyApi = {
   usage: { get: () => request<Usage>("/usage") },
   activity: { get: (since = 0) => request<Activity>(`/activity?since=${since}`) },
   health: { get: () => request<HealthSnapshot>("/ops/health") },
+  operator: {
+    trace: (correlationId?: string, limit = 200) => request<{ data: OperatorTraceEvent[] }>(`/operator/trace?limit=${limit}${correlationId ? `&correlation_id=${encodeURIComponent(correlationId)}` : ""}`),
+    reliability: (operation = "agent") => request<{ data: ReliabilityHealth }>(`/operator/reliability?operation=${encodeURIComponent(operation)}`),
+    compensations: () => request<{ data: Compensation[] }>("/operator/compensations"),
+  },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
     history: () => request<{ data: AccountHistoryMessage[] }>("/account/history"),
