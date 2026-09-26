@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { coalesceToolActivities, upsertToolActivity, type ToolActivity } from "../lib/run-activity.js";
+import { coalesceSubagentActivities, coalesceToolActivities, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
 
 const activity = (id: string, status: ToolActivity["status"], at: number, overrides: Partial<ToolActivity> = {}): ToolActivity => ({
   id,
@@ -58,4 +58,71 @@ test("live events update an existing step and a polled snapshot does not duplica
 test("terminal tool activity without a matching start remains visible", () => {
   const terminal = activity("orphan_terminal", "failed", 1);
   assert.deepEqual(coalesceToolActivities([terminal]), [terminal]);
+});
+
+const subagent = (id: string, activityId: string, status: SubagentActivity["status"], at: number, overrides: Partial<SubagentActivity> = {}): SubagentActivity => ({
+  id, activityId, at, parentToolCallId: "parent-call", handoffId: "handoff-1", worker: "nora", objective: "Research the requested topic", kind: "worker", status, message: "Nora is working", ...overrides,
+});
+
+test("restored specialist and child-tool events coalesce by durable activity ID", () => {
+  const events = [
+    subagent("worker-start", "worker:handoff-1", "started", 1),
+    subagent("tool-start", "tool:handoff-1:call-1", "started", 2, { kind: "tool", toolCallId: "call-1", toolSlug: "GMAIL_SEARCH_EMAILS", toolkitName: "Gmail", toolkitLogo: "https://example.com/gmail.svg", message: "Searching email" }),
+    subagent("tool-done", "tool:handoff-1:call-1", "completed", 3, { kind: "tool", toolCallId: "call-1", toolSlug: "GMAIL_SEARCH_EMAILS", toolkitName: "Gmail", toolkitLogo: "https://example.com/gmail.svg", message: "Searching email", summary: "Result returned" }),
+    subagent("worker-done", "worker:handoff-1", "completed", 4, { message: "Nora finished" }),
+  ];
+  const restored = coalesceSubagentActivities(events);
+  assert.equal(restored.length, 2);
+  assert.deepEqual(restored.map(({ activityId, status }) => ({ activityId, status })), [
+    { activityId: "worker:handoff-1", status: "completed" },
+    { activityId: "tool:handoff-1:call-1", status: "completed" },
+  ]);
+  assert.equal(restored[1]?.toolkitLogo, "https://example.com/gmail.svg");
+});
+
+test("live specialist events reconcile to the snapshot without duplicating steps", () => {
+  const started = subagent("event-1", "worker:handoff-1", "started", 1);
+  const done = subagent("event-2", "worker:handoff-1", "completed", 2, { message: "Nora finished" });
+  const live = upsertSubagentActivity(upsertSubagentActivity([], started), done);
+  const restored = coalesceSubagentActivities([started, done]);
+  assert.equal(upsertSubagentActivity(live, restored[0]!).length, 1);
+  assert.equal(live[0]?.status, "completed");
+});
+
+test("tool calls with the same label remain linked to their own parent call IDs", () => {
+  const steps = coalesceToolActivities([
+    activity("first-start", "started", 1, { callId: "call-1" }),
+    activity("second-start", "started", 2, { callId: "call-2" }),
+    activity("first-done", "completed", 3, { callId: "call-1" }),
+  ]);
+  assert.deepEqual(steps.map(({ callId, status }) => ({ callId, status })), [
+    { callId: "call-1", status: "completed" },
+    { callId: "call-2", status: "started" },
+  ]);
+});
+
+test("restored Composio batch activity keeps app labels and honest unmatched outcomes", () => {
+  const started = activity("batch-start", "started", 1, {
+    callId: "batch-call",
+    actionLabel: "Carrying out 2 independent actions in parallel",
+    batchActions: [
+      { id: "batch-call:0", toolSlug: "GMAIL_SEARCH_EMAILS", actionLabel: "Search messages", toolkitName: "Gmail", toolkitLogo: "https://assets.example/gmail.svg", status: "started" },
+      { id: "batch-call:1", toolSlug: "NOTION_SEARCH", actionLabel: "Search pages", toolkitName: "Notion", status: "started" },
+    ],
+  });
+  const completed = activity("batch-finish", "completed", 2, {
+    callId: "batch-call",
+    summary: "Batch response returned",
+    batchActions: [
+      { id: "batch-call:0", toolSlug: "GMAIL_SEARCH_EMAILS", actionLabel: "Search messages", toolkitName: "Gmail", toolkitLogo: "https://assets.example/gmail.svg", status: "completed", summary: "Provider confirmed this action" },
+      { id: "batch-call:1", toolSlug: "NOTION_SEARCH", actionLabel: "Search pages", toolkitName: "Notion", status: "unknown", summary: "Individual outcome unavailable" },
+    ],
+  });
+  const restored = coalesceToolActivities([started, completed]);
+  assert.equal(restored.length, 1);
+  assert.equal(restored[0]?.actionLabel, "Carrying out 2 independent actions in parallel");
+  assert.deepEqual(restored[0]?.batchActions?.map(({ toolkitName, status }) => ({ toolkitName, status })), [
+    { toolkitName: "Gmail", status: "completed" },
+    { toolkitName: "Notion", status: "unknown" },
+  ]);
 });

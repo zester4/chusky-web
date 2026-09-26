@@ -9,6 +9,7 @@ import {
   Copy,
   Download,
   Pencil,
+  PlugZap,
   FileText,
   FileImage,
   LoaderCircle,
@@ -22,8 +23,8 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunToolActivity, type Thread } from "@/lib/chusky-api";
-import { coalesceToolActivities, upsertToolActivity } from "@/lib/run-activity";
+import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread } from "@/lib/chusky-api";
+import { coalesceSubagentActivities, coalesceToolActivities, upsertSubagentActivity, upsertToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
@@ -56,6 +57,7 @@ type Message = {
   statusText?: string;
   tool?: string;
   activities?: RunToolActivity[];
+  subagentActivities?: RunSubagentActivity[];
   attachments?: Array<{ id: string; name: string; contentType: string; size: number; downloadUrl?: string; previewUrl?: string }>;
   artifacts?: ChatArtifact[];
   images?: Array<RunImage & { downloadUrl?: string }>;
@@ -70,8 +72,13 @@ const formatToolDuration = (durationMs?: number) => {
 
 const runActivities = (run: Run): RunToolActivity[] => coalesceToolActivities((run.events ?? []).flatMap((event): RunToolActivity[] => {
   if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status) return [];
-  return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, message: event.message, status: event.status, ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
+  const batchActions = Array.isArray(event.batchActions) ? event.batchActions.flatMap((action) => action && typeof action.id === "string" && typeof action.toolSlug === "string" && ["started", "completed", "failed", "unknown", "approval_required", "cancelled"].includes(action.status ?? "") ? [{ id: action.id, toolSlug: action.toolSlug, status: action.status as NonNullable<RunToolActivity["batchActions"]>[number]["status"], ...(action.actionLabel ? { actionLabel: action.actionLabel } : {}), ...(action.toolkitSlug ? { toolkitSlug: action.toolkitSlug } : {}), ...(action.toolkitName ? { toolkitName: action.toolkitName } : {}), ...(action.toolkitLogo ? { toolkitLogo: action.toolkitLogo } : {}), ...(action.summary ? { summary: action.summary } : {}) }] : []) : undefined;
+  return [{ id: event.id, type: "run.tool_activity", at: event.at, toolSlug: event.toolSlug, ...(event.callId ? { callId: event.callId } : {}), message: event.message, status: event.status as RunToolActivity["status"], ...(event.actionLabel ? { actionLabel: event.actionLabel } : {}), ...(event.toolkitSlug ? { toolkitSlug: event.toolkitSlug } : {}), ...(event.toolkitName ? { toolkitName: event.toolkitName } : {}), ...(event.toolkitLogo ? { toolkitLogo: event.toolkitLogo } : {}), ...(batchActions?.length ? { batchActions } : {}), ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
 }));
+const runSubagentActivities = (run: Run): RunSubagentActivity[] => coalesceSubagentActivities((run.events ?? []).flatMap((event): RunSubagentActivity[] => {
+  if (event.type !== "run.subagent_activity" || !event.activityId || !event.parentToolCallId || !event.handoffId || !event.worker || !event.objective || !event.kind || !event.message || !event.status || event.status === "unknown") return [];
+  return [{ id: event.id, type: "run.subagent_activity", at: event.at, activityId: event.activityId, parentToolCallId: event.parentToolCallId, handoffId: event.handoffId, worker: event.worker, objective: event.objective, kind: event.kind, message: event.message, status: event.status, ...(event.toolCallId ? { toolCallId: event.toolCallId } : {}), ...(event.toolSlug ? { toolSlug: event.toolSlug } : {}), ...(event.actionLabel ? { actionLabel: event.actionLabel } : {}), ...(event.toolkitSlug ? { toolkitSlug: event.toolkitSlug } : {}), ...(event.toolkitName ? { toolkitName: event.toolkitName } : {}), ...(event.toolkitLogo ? { toolkitLogo: event.toolkitLogo } : {}), ...(event.summary ? { summary: event.summary } : {}), ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) }];
+})).map((activity) => ({ ...activity, type: "run.subagent_activity" as const }));
 const hasCurrentToolActivity = (activities: RunToolActivity[] | undefined) => activities?.[activities.length - 1]?.status === "started";
 const runDeltaText = (run: Run) => (run.events ?? []).filter((event) => event.type === "run.delta" && typeof event.text === "string").map((event) => event.text).join("");
 const runStatusText = (run: Run) => {
@@ -81,6 +88,46 @@ const runStatusText = (run: Run) => {
   return run.output ?? "";
 };
 const isDelegation = (tool?: string) => Boolean(tool && /(sub.?agent|delegate|worker|handoff)/i.test(tool));
+const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + worker.slice(1);
+const activityStatusText = (activity: SubagentActivity, isLive: boolean) => activity.status === "started" ? isLive ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for approval" : activity.status === "waiting" ? "Waiting for Chusky" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step";
+
+function ActivityBrand({ toolSlug, toolkitName, toolkitLogo, size = 18 }: { toolSlug?: string; toolkitName?: string; toolkitLogo?: string; size?: number }) {
+  const sizeClass = size === 16 ? "size-4" : "size-[18px]";
+  const fallback = toolSlug?.startsWith("CHUCK_") ? <img src="/icon.svg" alt="" className={`${sizeClass} object-contain`} /> : toolkitName || toolkitLogo ? <span className="font-medium text-muted-foreground">{(toolkitName || "App").slice(0, 1).toUpperCase()}</span> : <PlugZap size={size - 2} className="text-muted-foreground" />;
+  return <span className={`relative flex ${sizeClass} shrink-0 items-center justify-center overflow-hidden`} aria-hidden="true">
+    {fallback}
+    {toolkitLogo ? <img src={toolkitLogo} alt="" loading="lazy" decoding="async" className={`absolute inset-0 ${sizeClass} bg-background object-contain`} onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}
+  </span>;
+}
+
+const batchStatusText = (action: NonNullable<RunToolActivity["batchActions"]>[number], live: boolean) => action.status === "started" ? live ? "In progress" : "No final result was recorded" : action.status === "completed" ? action.summary ?? "Provider confirmed this action" : action.status === "failed" ? action.summary ?? "Provider reported this action failed" : action.status === "approval_required" ? "Waiting for approval" : action.status === "cancelled" ? "Cancelled" : action.summary ?? "Individual result unavailable";
+
+function SubagentTree({ activities, parentToolCallId, live }: { activities: RunSubagentActivity[]; parentToolCallId: string; live: boolean }) {
+  const related = activities.filter((activity) => activity.parentToolCallId === parentToolCallId);
+  const workers = [...new Map(related.filter((activity) => activity.kind === "worker").map((activity) => [activity.handoffId, activity])).values()];
+  if (!workers.length) return null;
+  const statusIcon = (status: RunSubagentActivity["status"], isCurrent: boolean) => isCurrent ? <LoaderCircle size={11} className="animate-spin text-muted-foreground" /> : status === "completed" ? <CheckCircle2 size={11} className="text-emerald-700" /> : status === "approval_required" || status === "waiting" ? <ShieldCheck size={11} className="text-amber-700" /> : status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : status === "failed" ? <X size={11} className="text-rose-700" /> : <span className="block size-1.5 rounded-full bg-muted-foreground/45" />;
+  return <details className="mt-1.5 pl-3 border-l border-foreground/10" open>
+    <summary className="cursor-pointer text-[11px] leading-5 text-muted-foreground">Coordinating {workers.length} {workers.length === 1 ? "specialist" : "specialists"}</summary>
+    <ol className="mt-0.5 space-y-1.5">
+      {workers.map((worker) => {
+        const steps = related.filter((activity) => activity.handoffId === worker.handoffId && activity.kind === "tool");
+        return <li key={worker.handoffId} className="min-w-0">
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="mt-1 shrink-0" aria-hidden="true">{statusIcon(worker.status, live && worker.status === "started" && steps.every((step) => step.status !== "started"))}</span>
+            <div className="min-w-0 flex-1"><p className="text-[11px] font-medium leading-4">{specialistName(worker.worker)} <span className="font-normal text-muted-foreground">· {worker.objective}</span></p><p className="text-[10px] leading-4 text-muted-foreground">{activityStatusText(worker, live)}</p></div>
+          </div>
+          {steps.length ? <ol className="ml-3 mt-1 space-y-1 border-l border-foreground/10 pl-3">
+            {steps.map((step) => <li key={step.activityId} className="flex min-w-0 items-start gap-2">
+              <ActivityBrand toolSlug={step.toolSlug} toolkitName={step.toolkitName} toolkitLogo={step.toolkitLogo} size={16} />
+              <div className="min-w-0 flex-1"><p className="text-[11px] leading-4">{step.actionLabel || step.message}</p><div className="text-[10px] leading-4 text-muted-foreground">{step.toolkitName || step.toolkitSlug || (step.toolSlug ? formatToolLabel(step.toolSlug) : "Chusky tool")} · {activityStatusText(step, live)}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
+            </li>)}
+          </ol> : null}
+        </li>;
+      })}
+    </ol>
+  </details>;
+}
 const formatArtifactSize = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes < 1024) return `${Math.max(0, bytes || 0)} B`;
   const units = ["KB", "MB", "GB"];
@@ -252,10 +299,11 @@ export function ChatPage() {
               ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
               : undefined;
             const activities = runActivities(run);
+            const subagentActivities = runSubagentActivities(run);
             const active = run.status === "queued" || run.status === "running";
             const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
             if (active) syncActiveRunId(run.id);
-            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Reconnecting to this run…" : undefined, approval });
+            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Reconnecting to this run…" : undefined, approval });
           }
           // The account history is private model context, not a second UI
           // transcript. Each saved dashboard thread must render only its own
@@ -318,6 +366,7 @@ export function ChatPage() {
       ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
       : undefined;
     const activities = runActivities(run);
+    const subagentActivities = runSubagentActivities(run);
     const images = await hydrateRunImages(run.images);
     const active = run.status === "queued" || run.status === "running";
     if (!active && activeRunIdRef.current === run.id) syncActiveRunId(undefined);
@@ -326,7 +375,7 @@ export function ChatPage() {
       const streamedOutput = runDeltaText(run);
       const text = run.status === "running" ? streamedOutput || item.text : runStatusText(run) || (run.status === "completed" ? "Done." : "");
       const artifacts = run.artifacts?.length ? run.artifacts : run.status === "completed" ? item.artifacts : undefined;
-      return { ...item, text, activities, artifacts, images: images?.length ? images : item.images, pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Chusky is continuing this run…" : undefined, approval };
+      return { ...item, text, activities, subagentActivities, artifacts, images: images?.length ? images : item.images, pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Chusky is continuing this run…" : undefined, approval };
     }));
   };
   const applyRunSnapshotRef = useRef(applyRunSnapshot);
@@ -509,9 +558,14 @@ export function ChatPage() {
         } else if (typed.type === "run.tool_started") {
           updateLastAssistant({ pending: true, statusText: undefined, tool: typed.toolSlug });
         } else if (typed.type === "run.tool_activity") {
-          const activity: RunToolActivity = { id: typed.id, type: "run.tool_activity", at: typed.at, toolSlug: typed.toolSlug, message: typed.message, status: typed.status, ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
+          const activity: RunToolActivity = { id: typed.id, type: "run.tool_activity", at: typed.at, toolSlug: typed.toolSlug, ...(typed.callId ? { callId: typed.callId } : {}), message: typed.message, status: typed.status, ...(typed.actionLabel ? { actionLabel: typed.actionLabel } : {}), ...(typed.toolkitSlug ? { toolkitSlug: typed.toolkitSlug } : {}), ...(typed.toolkitName ? { toolkitName: typed.toolkitName } : {}), ...(typed.toolkitLogo ? { toolkitLogo: typed.toolkitLogo } : {}), ...(typed.batchActions?.length ? { batchActions: typed.batchActions } : {}), ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
           setMessages((current) => current.map((item, index) => index === current.length - 1 && item.role === "assistant"
             ? { ...item, runId: typed.runId, activities: upsertToolActivity(item.activities ?? [], activity), pending: true, statusText: undefined, tool: activity.toolSlug }
+            : item));
+        } else if (typed.type === "run.subagent_activity") {
+          const activity: RunSubagentActivity = { id: typed.id, type: "run.subagent_activity", at: typed.at, activityId: typed.activityId, parentToolCallId: typed.parentToolCallId, handoffId: typed.handoffId, worker: typed.worker, objective: typed.objective, kind: typed.kind, status: typed.status, message: typed.message, ...(typed.toolCallId ? { toolCallId: typed.toolCallId } : {}), ...(typed.toolSlug ? { toolSlug: typed.toolSlug } : {}), ...(typed.actionLabel ? { actionLabel: typed.actionLabel } : {}), ...(typed.toolkitSlug ? { toolkitSlug: typed.toolkitSlug } : {}), ...(typed.toolkitName ? { toolkitName: typed.toolkitName } : {}), ...(typed.toolkitLogo ? { toolkitLogo: typed.toolkitLogo } : {}), ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
+          setMessages((current) => current.map((item, index) => index === current.length - 1 && item.role === "assistant"
+            ? { ...item, runId: typed.runId, subagentActivities: upsertSubagentActivity(item.subagentActivities ?? [], activity).map((step) => ({ ...step, type: "run.subagent_activity" as const })), pending: true, statusText: undefined }
             : item));
         } else if (typed.type === "run.completed") {
           // A run can change memory, approvals, calls, meetings, channels, or
@@ -592,18 +646,33 @@ export function ChatPage() {
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && !hasCurrentToolActivity(item.activities) && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
                     {item.activities?.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl">
-                      <div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-[10px] font-medium">Activity</p><span className="text-[9px] text-muted-foreground">{item.activities.length} {item.activities.length === 1 ? "step" : "steps"}</span></div>
+                      <div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-[11px] font-medium">Activity</p><span className="text-[10px] text-muted-foreground">{item.activities.length} {item.activities.length === 1 ? "step" : "steps"}</span></div>
                       <ol className="space-y-2">
                         {item.activities.map((activity, activityIndex) => {
                           const isCurrent = item.pending && activity.status === "started" && activityIndex === item.activities!.length - 1;
                           return <li key={activity.id} className="flex min-w-0 gap-2.5">
                             <span className="mt-0.5 shrink-0" aria-hidden="true">{isCurrent ? <LoaderCircle size={12} className="animate-spin text-muted-foreground" /> : activity.status === "started" ? <span className="mt-1 block size-1.5 rounded-full bg-muted-foreground/45" /> : activity.status === "completed" ? <CheckCircle2 size={12} className="text-emerald-700" /> : activity.status === "approval_required" ? <ShieldCheck size={12} className="text-amber-700" /> : activity.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : <X size={12} className="text-rose-700" />}</span>
+                            <ActivityBrand toolSlug={activity.toolSlug} toolkitName={activity.toolkitName} toolkitLogo={activity.toolkitLogo} />
                             <div className="min-w-0 flex-1">
-                              <p className="text-[10px] leading-4">{activity.message}</p>
-                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] leading-4 text-muted-foreground">
-                                <span className="font-mono">{formatToolLabel(activity.toolSlug)}</span>
+                              <p className="text-[12px] leading-[1.45]">{activity.actionLabel || activity.message}</p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
+                                <span>{activity.toolkitName || activity.toolkitSlug || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : formatToolLabel(activity.toolSlug))}</span>
                                 <span>{activity.status === "started" ? isCurrent ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for your approval" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step"}</span>
                               </div>
+                              {activity.batchActions?.length ? <details className="mt-1.5" open={activity.batchActions.length <= 3}>
+                                <summary className="cursor-pointer text-[10px] leading-4 text-muted-foreground">{activity.batchActions.length} actions submitted in parallel</summary>
+                                <ol className="mt-1 space-y-1.5 pl-0.5">
+                                  {activity.batchActions.map((action) => {
+                                    const actionCurrent = action.status === "started" && isCurrent;
+                                    return <li key={action.id} className="flex min-w-0 items-start gap-2">
+                                      <span className="mt-0.5 shrink-0" aria-hidden="true">{actionCurrent ? <LoaderCircle size={11} className="animate-spin text-muted-foreground" /> : action.status === "completed" ? <CheckCircle2 size={11} className="text-emerald-700" /> : action.status === "failed" ? <X size={11} className="text-rose-700" /> : action.status === "approval_required" ? <ShieldCheck size={11} className="text-amber-700" /> : action.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : action.status === "started" ? <span className="mt-1 block size-1.5 rounded-full bg-muted-foreground/45" /> : <span className="mt-1 block size-1.5 rounded-full bg-amber-600/70" />}</span>
+                                      <ActivityBrand toolSlug={action.toolSlug} toolkitName={action.toolkitName} toolkitLogo={action.toolkitLogo} size={16} />
+                                      <div className="min-w-0 flex-1"><p className="text-[11px] leading-4">{action.actionLabel || formatToolLabel(action.toolSlug)}</p><p className="text-[10px] leading-4 text-muted-foreground">{action.toolkitName || action.toolkitSlug || "Connected app"} · {batchStatusText(action, Boolean(item.pending))}</p></div>
+                                    </li>;
+                                  })}
+                                </ol>
+                              </details> : null}
+                              {activity.callId && item.subagentActivities?.length ? <SubagentTree activities={item.subagentActivities} parentToolCallId={activity.callId} live={Boolean(item.pending)} /> : null}
                             </div>
                             <span className="sr-only">Step {activityIndex + 1}</span>
                           </li>;
