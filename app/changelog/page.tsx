@@ -10,6 +10,18 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    date: "2026-09-27",
+    dateLabel: "September 27, 2026",
+    area: "Agent · Private owner context",
+    title: "Your private agent can carry more of your context into calls and meetings",
+    summary: "Private owner conversations can use relevant account history and connected tools across chat, phone, and meeting work, for both personal and business tasks.",
+    details: [
+      "Authenticated dashboard chat, CLI, Telegram, verified private calls, and private meeting-representative runs use the same owner-scoped context and durable continuation path.",
+      "Shared rooms and project/API-key runs keep their separate tool and privacy policies; they do not inherit an owner's private context.",
+      "Routine owner-directed work can proceed directly. Deletion and other high-impact actions still pause for the required approval.",
+    ],
+  },
+  {
     date: "2026-09-26",
     dateLabel: "September 26, 2026",
     area: "Developer platform · Generated images",
