@@ -6,14 +6,14 @@ import { CalendarDays, Check, ListChecks, PhoneCall } from "lucide-react";
 const workModes = [
   {
     label: "Meetings",
-    meta: "Zoom · Meet · Teams · Webex",
+    meta: "Supported meeting providers",
     title: "Join and contribute",
     description: "Chusky can join a meeting link, introduce itself, answer questions, and capture what matters.",
     icon: CalendarDays,
   },
   {
     label: "Phone calls",
-    meta: "Inbound and outbound voice",
+    meta: "When a voice provider is configured",
     title: "A voice for approved calls",
     description: "Handle approved outbound calls and calls from approved numbers with a clear brief and safe boundaries.",
     icon: PhoneCall,
@@ -66,14 +66,10 @@ export function WorkModesSection() {
           </p>
 
           <div className="mt-8 grid max-w-xl grid-cols-3 gap-2 sm:mt-10 sm:gap-3">
-            {[
-              ["4", "meeting platforms"],
-              ["2", "voice directions"],
-              ["1", "private agent"],
-            ].map(([value, label]) => (
-              <div key={label} className="border border-foreground/10 px-3 py-3 sm:px-4 sm:py-4">
-                <div className="font-display text-2xl sm:text-3xl">{value}</div>
-                <div className="mt-1 text-[10px] leading-tight text-muted-foreground sm:text-xs">{label}</div>
+            {["Provider-enabled", "Owner-scoped", "Reviewable"].map((value) => (
+              <div key={value} className="border border-foreground/10 px-3 py-3 text-[10px] leading-tight text-muted-foreground sm:px-4 sm:py-4 sm:text-xs">
+                <div className="font-medium text-foreground">{value}</div>
+                <div className="mt-1">Availability depends on workspace configuration.</div>
               </div>
             ))}
           </div>

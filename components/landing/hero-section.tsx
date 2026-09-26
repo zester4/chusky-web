@@ -1,25 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { AnimatedSphere } from "./animated-sphere";
 
-const words = ["plan", "connect", "research", "automate", "execute", "deliver"];
-
 export function HeroSection() {
   const [isVisible, setIsVisible] = useState(false);
-  const [wordIndex, setWordIndex] = useState(0);
 
   useEffect(() => {
     setIsVisible(true);
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setWordIndex((prev) => (prev + 1) % words.length);
-    }, 2500);
-    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -64,7 +55,7 @@ export function HeroSection() {
         >
           <span className="inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:text-sm">
             <span className="h-px w-6 bg-foreground/30 sm:w-8" />
-            Your AI agent, ready for work
+            THE CHUSKY AGENT
           </span>
         </div>
         
@@ -75,29 +66,8 @@ export function HeroSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
           >
-            <span className="block">Your AI agent,</span>
-            <span className="block">
-              ready to{" "}
-              <span className="relative inline-block">
-                <span 
-                  key={wordIndex}
-                  className="inline-flex"
-                >
-                  {words[wordIndex].split("").map((char, i) => (
-                    <span
-                      key={`${wordIndex}-${i}`}
-                      className="inline-block animate-char-in"
-                      style={{
-                        animationDelay: `${i * 50}ms`,
-                      }}
-                    >
-                      {char}
-                    </span>
-                  ))}
-                </span>
-                <span className="absolute -bottom-2 left-0 right-0 h-3 bg-foreground/10" />
-              </span>
-            </span>
+            <span className="block">An agent for</span>
+            <span className="block text-muted-foreground">work that moves.</span>
           </h1>
         </div>
         
@@ -108,7 +78,7 @@ export function HeroSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            Give Chusky the objective, the context, and the constraints. It researches across the web, works through your connected apps, creates the files, coordinates the next steps, and carries the job through to a finished result—not just another answer.
+            Chusky turns a request into visible, multi-step work. It can research, use the apps you connect, create deliverables, and keep longer tasks moving—with review points when an action needs your approval.
           </p>
           
           {/* CTAs */}
@@ -117,54 +87,16 @@ export function HeroSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            <Button 
-              size="lg" 
-            className="h-9 shrink-0 rounded-full bg-foreground px-3 text-[11px] text-background group hover:bg-foreground/90 sm:h-11 sm:px-5 sm:text-sm"
-            >
-              Start free trial
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-1 sm:ml-2 sm:h-4 sm:w-4" />
+            <Button asChild size="lg" className="h-10 shrink-0 rounded-full bg-foreground px-4 text-xs text-background group hover:bg-foreground/90 sm:h-11 sm:px-5 sm:text-sm">
+              <Link href="/sign-up">Create an account <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-1 sm:ml-2 sm:h-4 sm:w-4" /></Link>
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-            className="h-9 shrink-0 rounded-full border-foreground/20 px-3 text-[11px] hover:bg-foreground/5 sm:h-11 sm:px-5 sm:text-sm"
-            >
-              Watch demo
+            <Button asChild size="lg" variant="outline" className="h-10 shrink-0 rounded-full border-foreground/20 px-4 text-xs hover:bg-foreground/5 sm:h-11 sm:px-5 sm:text-sm">
+              <Link href="/how-it-works">How it works</Link>
             </Button>
           </div>
         </div>
         
       </div>
-      
-      {/* Stats marquee - full width outside container */}
-      <div 
-        className={`absolute bottom-12 left-0 right-0 transition-all duration-700 delay-500 sm:bottom-16 ${
-          isVisible ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <div className="flex gap-10 marquee whitespace-nowrap sm:gap-16">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="flex gap-16">
-              {[
-                { value: "20 days", label: "saved on builds", company: "NETFLIX" },
-                { value: "98%", label: "faster deployment", company: "STRIPE" },
-                { value: "300%", label: "throughput increase", company: "LINEAR" },
-                { value: "6x", label: "faster to ship", company: "NOTION" },
-              ].map((stat) => (
-                <div key={`${stat.company}-${i}`} className="flex items-baseline gap-3">
-                  <span className="font-display text-2xl sm:text-4xl lg:text-5xl">{stat.value}</span>
-                  <span className="text-xs text-muted-foreground sm:text-sm">
-                    {stat.label}
-                    <span className="mt-1 block font-mono text-[10px] sm:text-xs">{stat.company}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Scroll indicator */}
       
     </section>
   );

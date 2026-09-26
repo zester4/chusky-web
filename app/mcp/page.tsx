@@ -39,7 +39,7 @@ export default function McpLandingPage() {
       <ProductPageHero
         eyebrow="Model Context Protocol"
         title={<>Connect Chusky<br /><span className="text-muted-foreground">to the agents you use.</span></>}
-        description="Give any MCP-capable host a governed way to discover Chusky’s agent capabilities, start durable work, and retrieve results. One endpoint, clear identity, and the same approvals that protect work in the Chusky app."
+        description="Connect an MCP host that supports remote Streamable HTTP to Chusky’s project-scoped tools. Caller identity and server-side policy scope the work; background continuation depends on production persistence and scheduling configuration."
         artwork={{ src: "/chusky/chusky-developer.png", alt: "Chusky connecting an agent workspace to developer tools" }}
       />
 

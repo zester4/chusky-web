@@ -35,7 +35,7 @@ export function IntegrationsSection() {
   }, []);
 
   return (
-    <section id="integrations" ref={sectionRef} className="relative overflow-hidden py-16 sm:py-20 lg:py-32">
+    <section id="integrations" ref={sectionRef} className="relative overflow-hidden border-y border-foreground/10 py-16 sm:py-20 lg:py-28">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         {/* Header */}
         <div
@@ -43,65 +43,32 @@ export function IntegrationsSection() {
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
         >
-          <span className="mb-5 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-6 sm:text-sm">
-            <span className="w-8 h-px bg-foreground/30" />
-            Integrations
-            <span className="w-8 h-px bg-foreground/30" />
+            <span className="mb-5 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-6 sm:text-sm">
+              <span className="w-8 h-px bg-foreground/30" />
+              EXAMPLES FROM THE CONNECTED-APP CATALOG
           </span>
           <h2 className="mb-5 text-3xl font-display tracking-tight sm:mb-6 lg:text-5xl">
-            Works with everything
+            Connect the apps
             <br />
-            you already use.
+            your work depends on.
           </h2>
           <p className="text-xl text-muted-foreground">
-            Connect the apps your work already touches, then let Chusky carry context between them.
+            These examples are not a guarantee that every action is available in every workspace. Chusky can use an app only after it is connected and the required action is enabled.
           </p>
         </div>
 
       </div>
       
-      {/* Full-width marquees outside container */}
-      <div className="w-full mb-6">
-        <div className="flex gap-6 marquee">
-          {[...Array(2)].map((_, setIndex) => (
-            <div key={setIndex} className="flex gap-6 shrink-0">
-              {integrations.map((integration) => (
-                <div
-                  key={`${integration.name}-${setIndex}`}
-                  className="shrink-0 border border-foreground/10 px-5 py-4 transition-all duration-300 group hover:border-foreground/30 hover:bg-foreground/[0.02] sm:px-8 sm:py-6"
-                >
-                  <div className="flex items-center gap-3 text-lg font-medium transition-transform group-hover:translate-x-1">
-                    <Image src={integration.logo} alt="" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
-                    {integration.name}
-                  </div>
-                  <div className="ml-10 text-sm text-muted-foreground">{integration.category}</div>
-                </div>
-              ))}
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-2 px-4 sm:grid-cols-3 sm:gap-3 sm:px-6 lg:grid-cols-4 lg:px-12">
+        {integrations.map((integration) => (
+          <article key={integration.name} className="border border-foreground/10 p-4 transition-colors hover:border-foreground/30 sm:p-5">
+            <div className="flex items-center gap-3 text-sm font-medium sm:text-base">
+              <Image src={integration.logo} alt="" width={24} height={24} className="h-6 w-6 shrink-0 object-contain" />
+              {integration.name}
             </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Reverse marquee */}
-      <div className="w-full">
-        <div className="flex gap-6 marquee-reverse">
-          {[...Array(2)].map((_, setIndex) => (
-            <div key={setIndex} className="flex gap-6 shrink-0">
-              {[...integrations].reverse().map((integration) => (
-                <div
-                  key={`${integration.name}-reverse-${setIndex}`}
-                  className="shrink-0 border border-foreground/10 px-5 py-4 transition-all duration-300 group hover:border-foreground/30 hover:bg-foreground/[0.02] sm:px-8 sm:py-6"
-                >
-                  <div className="flex items-center gap-3 text-lg font-medium transition-transform group-hover:translate-x-1">
-                    <Image src={integration.logo} alt="" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
-                    {integration.name}
-                  </div>
-                  <div className="ml-10 text-sm text-muted-foreground">{integration.category}</div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+            <p className="mt-2 text-xs text-muted-foreground">{integration.category}</p>
+          </article>
+        ))}
       </div>
     </section>
   );

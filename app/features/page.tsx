@@ -1,44 +1,33 @@
 import type { Metadata } from "next";
-import { CtaSection } from "@/components/landing/cta-section";
+import Link from "next/link";
 import { ContentCard, ContentPage, ContentSection } from "@/components/landing/content-page";
 
 export const metadata: Metadata = {
   title: "Features | Chusky AI Agent",
-  description: "Connect apps, discover the right tools, create files, and automate work with Chusky.",
+  description: "Explore Chusky agent capabilities, including connected apps, durable work, approvals, and artifact creation.",
 };
 
 export default function FeaturesPage() {
   return (
     <ContentPage
         eyebrow="What Chusky can do"
-        title={<>One agent.<br /><span className="text-muted-foreground">1,000+ tools.</span></>}
-        description="Chusky is built for work that has a beginning, a middle, and a result. Give it the objective and context; it can research, use connected apps, create files, coordinate follow-through, and keep the state of the work visible."
+        title={<>Capabilities for<br /><span className="text-muted-foreground">work beyond chat.</span></>}
+        description="Chusky combines an agent loop with connected app actions, native tools, files, and durable workflows. What is available depends on your account, connected providers, and deployment configuration."
         artwork={{ src: "/chusky/chusky-connected-tools.png", alt: "Chusky connecting work across apps and tools" }}
       >
-      <ContentSection eyebrow="The capability stack" title="From a clear objective to a finished result." description="Chusky is not a collection of isolated buttons. The value comes from the way its capabilities work together around the outcome you asked for.">
+      <ContentSection eyebrow="What the agent can do" title="Tools and state that work together." description="These are product capabilities, not a promise that every provider is enabled in every workspace.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <ContentCard eyebrow="01 · Understand" title="Context that stays useful">Bring a request, a file, a conversation, or a half-formed idea. Chusky can use the context you provide and keep the useful parts available as the work develops.</ContentCard>
-          <ContentCard eyebrow="02 · Act" title="Tools that move work">Research the web, work across connected apps, run focused computer tasks, update records, and create the documents or files the outcome requires.</ContentCard>
-          <ContentCard eyebrow="03 · Coordinate" title="Long work with a place to go">Turn a multi-step request into tasks, reminders, recurring work, or a follow-up that can continue after the current conversation ends.</ContentCard>
-          <ContentCard eyebrow="04 · Create" title="Outputs people can use">Generate briefs, PDFs, spreadsheets, images, code, summaries, and structured handoffs instead of leaving the result trapped in chat.</ContentCard>
-          <ContentCard eyebrow="05 · Review" title="Boundaries before consequences">When an action can affect another person, a system, or a commitment, Chusky can pause with the exact request ready for review.</ContentCard>
-          <ContentCard eyebrow="06 · Continue" title="Work that remains recoverable">Follow the state of a run, reopen the thread, inspect artifacts, and continue from the last known step instead of starting over.</ContentCard>
+          <ContentCard eyebrow="Connected apps" title="Use the actions your account authorizes">Discover and call available provider actions through Composio. The connected account, selected toolkit, permissions, and action schema determine what can run.</ContentCard>
+          <ContentCard eyebrow="Research and tools" title="Gather information, then act">Use web research and native capabilities alongside connected-app actions. Research results are inputs to review—not authority to make a consequential change.</ContentCard>
+          <ContentCard eyebrow="Files and artifacts" title="Create, verify, and retrieve">Supported workflows can produce reports, PDFs, DOCX, PPTX, XLSX, images, and other files, then register artifacts for later retrieval.</ContentCard>
+          <ContentCard eyebrow="Durable workflows" title="Keep work beyond one response">Missions, tasks, reminders, recurring jobs, triggers, and resumable workflows retain state. Production continuation requires Redis and QStash configuration.</ContentCard>
+          <ContentCard eyebrow="Approval and control" title="Review actions at the boundary">Approval policy can stop consequential external actions until the owner approves the exact request. Approval is action-specific and can expire.</ContentCard>
+          <ContentCard eyebrow="Developer access" title="Integrate through supported interfaces">Use the versioned REST API and TypeScript SDK, or connect external agents through A2A and MCP with project scopes and stable caller identity.</ContentCard>
         </div>
       </ContentSection>
-      <ContentSection eyebrow="Made for the whole workday" title="Chat is the entry point, not the limit." description="Use Chusky where the work starts, then move naturally between research, files, apps, meetings, calls, and follow-through. The agent keeps the objective connected while the surface changes.">
-        <div className="grid gap-3 sm:grid-cols-3"><ContentCard title="Research and writing">Find the relevant information, shape it into a useful brief, and create a deliverable with the right level of detail.</ContentCard><ContentCard title="Operations and admin">Update the places where work is tracked, coordinate the next step, and keep the human decision points clear.</ContentCard><ContentCard title="Meetings and calls">Join supported conversations, handle approved calls, and turn what happened into private follow-through.</ContentCard></div>
+      <ContentSection eyebrow="Optional capabilities" title="Some work needs an enabled provider." description="Computer/browser sessions, meetings, phone calls, and background continuation depend on provider setup and workspace permissions. See the integration and setup guides before relying on a specific workflow.">
+        <div className="flex flex-wrap gap-4 text-sm"><Link href="/integrations" className="underline underline-offset-4">Connected apps</Link><Link href="/how-it-works" className="underline underline-offset-4">How runs work</Link><Link href="/docs" className="underline underline-offset-4">Configuration docs</Link></div>
       </ContentSection>
-      <ContentSection eyebrow="Recent capabilities" title="Know what happened—not just what the model said." description="Recent updates connect long-running work to verifiable outcomes, explicit recovery, and the connected apps where the work lives.">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <ContentCard title="Durable missions">Break a concrete outcome into dependency-aware steps with checkpoints, bounded budgets, waits, retries, and resumable state.</ContentCard>
-          <ContentCard title="Provider-read verification">For supported workflows, Chusky can inspect current connected-app state and record evidence before treating an outcome as verified.</ContentCard>
-          <ContentCard title="Reviewed recovery">A consequential compensation action stays tied to an exact owner approval, records its provider receipt, and checks the resulting state before it is marked complete.</ContentCard>
-          <ContentCard title="Images that move work">Use a current, generated, or saved image with an exact connected-app upload or publish action. Upload and publish are treated as separate steps when the provider requires it.</ContentCard>
-          <ContentCard title="Operator visibility">Inspect mission activity, receipts, verifications, and provider readiness in an owner-scoped reliability view—without presenting unverified providers as certified.</ContentCard>
-          <ContentCard title="Developer surfaces">Build with the REST API and TypeScript SDK, or connect through A2A and MCP while keeping user identity and tool permissions scoped.</ContentCard>
-        </div>
-      </ContentSection>
-      <CtaSection />
     </ContentPage>
   );
 }

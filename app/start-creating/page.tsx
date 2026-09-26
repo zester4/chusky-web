@@ -6,26 +6,26 @@ import { ProductPageHero, ProductPageShell } from "@/components/landing/product-
 
 export const metadata: Metadata = {
   title: "Start creating | Chusky AI Agent",
-  description: "Start using Chusky, connect your tools, and move work forward in minutes.",
+  description: "Create a Chusky account and choose a first task for your agent.",
 };
 
 const startingPoints = [
   {
     icon: Bot,
     title: "Start a conversation",
-    description: "Give Chusky a task in natural language and let it find the right tools for the job.",
+    description: "Start in a conversation. Chusky can use native capabilities and the connected-app actions available to your account.",
     href: "/sign-up",
   },
   {
     icon: MonitorCog,
     title: "Give your agent a computer",
-    description: "Let Chusky work with browsers, files, code, and documents in a focused environment built for getting things done.",
+    description: "Computer and browser work is available when the workspace has its execution provider configured.",
     href: "/features",
   },
   {
     icon: Zap,
     title: "Explore the tools",
-    description: "Discover 1,000+ connected tools, schedules, automations, and capable ways to move work forward.",
+    description: "Review the supported app connections and learn how enabled actions, approvals, and durable workflows behave.",
     href: "/features",
   },
 ];
@@ -35,8 +35,8 @@ export default function StartCreatingPage() {
     <ProductPageShell>
       <ProductPageHero
         eyebrow="Start creating"
-        title={<>Make work<br /><span className="text-muted-foreground">move faster.</span></>}
-        description="Chusky is the AI agent that brings your apps, tools, and workflows together—so you can go from a request to a result in one place."
+        title={<>Start with a task.<br /><span className="text-muted-foreground">See what is enabled.</span></>}
+        description="Create your account, try a request in chat, then connect an app or provider only when your task needs it. Some capabilities require workspace setup."
         artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky helping work move from idea to delivery" }}
       />
       <section className="py-14 sm:py-20 lg:py-32">

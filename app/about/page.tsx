@@ -6,27 +6,27 @@ import { ProductPageShell } from "@/components/landing/product-page";
 
 export const metadata = {
   title: "About | Chusky AI Agent",
-  description: "Learn how Chusky brings conversations, tools, and durable work into one calm workspace.",
+  description: "Why Chusky is built around useful agent work, clear boundaries, and progress people can inspect.",
 };
 
 const principles = [
   {
     number: "01",
     icon: MessageSquare,
-    title: "Start where work already happens",
-    description: "Talk to Chusky where work already happens, then continue the same work without losing your place.",
+    title: "Build for actual work",
+    description: "Agent usefulness is measured in the handoffs between a request, an external action, and a result someone can use.",
   },
   {
     number: "02",
     icon: Workflow,
-    title: "Make useful work durable",
-    description: "Tasks, reminders, approvals, delivery attempts, and connected actions are designed to survive a single chat or process restart.",
+    title: "Make boundaries understandable",
+    description: "The system should make clear whose data is in scope, which capabilities are enabled, and when a person must decide.",
   },
   {
     number: "03",
     icon: ShieldCheck,
-    title: "Keep people in control",
-    description: "Chusky asks before consequential actions, keeps channel identities linked to an owner, and makes operational state visible.",
+    title: "Treat recovery as product design",
+    description: "A useful agent should leave an honest status and a safe next step when an action fails, pauses, or loses its connection.",
   },
 ];
 
@@ -57,7 +57,7 @@ export default function AboutPage() {
                 <Image src="/chusky/chusky-poster.png" alt="Chusky helps turn chats into completed work" fill priority sizes="(max-width: 1024px) 100vw, 31vw" className="object-cover object-[center_46%]" />
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#091229] via-[#091229]/65 to-transparent px-4 pb-4 pt-12 sm:px-5 sm:pb-5">
-                <p className="max-w-sm text-sm leading-relaxed text-white/80">Chusky is an agent workspace for turning a message into reliable, connected work—without turning your day into another system to manage.</p>
+                <p className="max-w-sm text-sm leading-relaxed text-white/80">Chusky is built to make multi-step agent work easier to follow and review.</p>
               </div>
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function AboutPage() {
               The best assistant is present when you need it and accountable when work matters.
             </h2>
             <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mt-8 sm:text-lg">
-              Chusky combines natural conversation with durable tasks, private context, human approvals, and real delivery monitoring. The result is an agent that can help in the moment while remaining understandable after the moment has passed.
+              We are building Chusky around a practical question: can an agent help with the work between the request and the result, while keeping people able to understand and control important decisions?
             </p>
           </div>
         </div>

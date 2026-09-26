@@ -30,7 +30,7 @@ const features = [
   {
     number: "05",
     title: "Every channel, one agent",
-    description: "Start a task from the places you already use, then pick it up from the web or your development environment without losing context.",
+    description: "Start a task from a linked private surface. Shared group conversations remain separate from private account history.",
     visual: "ai",
   },
   {

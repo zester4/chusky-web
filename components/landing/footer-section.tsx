@@ -9,18 +9,18 @@ const footerLinks: Record<string, Array<{ name: string; href: string; badge?: st
     { name: "Features", href: "/features" },
     { name: "How it works", href: "/how-it-works" },
     { name: "Changelog", href: "/changelog" },
-    { name: "Pricing", href: "/pricing" },
+    { name: "Plans and access", href: "/pricing" },
     { name: "Integrations", href: "/integrations" },
   ],
   Developers: [
     { name: "Documentation", href: "/docs" },
     { name: "API Reference", href: "/api-reference" },
     { name: "SDK", href: "/developers" },
-    { name: "Status", href: "/status" },
+    { name: "Run states", href: "/status" },
   ],
   Company: [
     { name: "About", href: "/about" },
-    { name: "Blog", href: "/blog" },
+    { name: "Product principles", href: "/blog" },
     { name: "Careers", href: "/careers" },
     { name: "Contact", href: "/contact" },
   ],
@@ -56,7 +56,7 @@ export function FooterSection() {
               </Link>
 
               <p className="mb-6 max-w-xs text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Chusky is an AI agent that connects your work, handles the details, and helps you move from idea to done.
+                A multi-channel agent for connected app actions, durable workflows, and files you can take with you.
               </p>
 
               {/* Social Links */}

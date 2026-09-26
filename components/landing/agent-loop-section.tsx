@@ -1,8 +1,8 @@
 const surfaces = [
-  { label: "Talk", title: "One agent, wherever you work", text: "Start with a simple message, then keep the conversation moving across the places your team already uses." },
-  { label: "Work", title: "An agent with its own computer", text: "Give Chusky an objective and let it work through files, browsers, code, and documents without losing its place." },
-  { label: "Remember", title: "Memory + scratchpad", text: "Keep lasting facts explicit and temporary notes private. Chusky brings back only the context relevant to the request." },
-  { label: "Trust", title: "Approvals + follow-through", text: "Review important actions before they happen. Chusky keeps work moving and makes the outcome clear." },
+  { label: "Connect", title: "Work in your connected apps", text: "Chusky discovers and uses actions available to linked accounts. Provider and action availability depends on your connection and permissions." },
+  { label: "Create", title: "Return a usable deliverable", text: "Ask for a report, spreadsheet, presentation, or another supported file. Verified artifacts can be retrieved from your workspace." },
+  { label: "Continue", title: "Keep longer work addressable", text: "Missions, tasks, reminders, and run history give multi-step work saved state to review or resume. Background continuation requires production persistence and scheduling." },
+  { label: "Review", title: "Pause at important boundaries", text: "Actions covered by approval policy wait for an owner decision tied to that request; an ordinary chat message does not replace approval." },
 ];
 
 export function AgentLoopSection() {
@@ -16,8 +16,8 @@ export function AgentLoopSection() {
               The agent loop
             </span>
             <h2 className="mt-5 max-w-xl text-3xl font-display tracking-tight sm:text-4xl lg:text-4xl">More than a chat box.</h2>
-            <p className="mt-4 max-w-md text-xs leading-6 text-muted-foreground sm:text-sm">Chusky connects conversation, context, tools, safety, and durable delivery into one personal operating layer.</p>
-            <a href="#how-it-works" className="mt-6 inline-flex text-[11px] underline underline-offset-4">See how it works <span className="ml-2">↗</span></a>
+            <p className="mt-4 max-w-md text-xs leading-6 text-muted-foreground sm:text-sm">Connected actions, useful files, saved progress, and explicit review points are the building blocks of Chusky&apos;s agent loop.</p>
+            <a href="/features" className="mt-6 inline-flex text-[11px] underline underline-offset-4">Explore capabilities <span className="ml-2">↗</span></a>
           </div>
           <div className="grid gap-px border border-foreground/10 bg-foreground/10 sm:grid-cols-2">
             {surfaces.map((surface, index) => (

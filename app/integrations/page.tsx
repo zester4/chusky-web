@@ -6,12 +6,12 @@ import { IntegrationsSection } from "@/components/landing/integrations-section";
 
 export const metadata: Metadata = {
   title: "Integrations | Chusky AI Agent",
-  description: "Connect Chusky to the apps, workspaces, and systems where your work already happens.",
+  description: "See example connected apps and understand how Chusky scopes provider actions to your account.",
 };
 
 export default function IntegrationsPage() {
   return (
-    <ContentPage eyebrow="Connected work" title={<>Your apps.<br /><span className="text-muted-foreground">One capable agent.</span></>} description="Chusky connects the context around a task so the agent can research, update, create, and follow through without asking you to move work between disconnected windows." artwork={{ src: "/chusky/chusky-connected-tools.png", alt: "Chusky coordinating work across connected applications" }}>
+    <ContentPage eyebrow="Connected app access" title={<>Access by connection,<br /><span className="text-muted-foreground">not assumption.</span></>} description="Chusky routes actions through the app accounts you connect. Available tools and permissions come from the provider and your workspace configuration." artwork={{ src: "/chusky/chusky-connected-tools.png", alt: "Chusky coordinating work across connected applications" }}>
       <IntegrationsSection />
       <ContentSection eyebrow="How connections behave" title="Access follows the work, not the other way around." description="A connection gives Chusky a way to work in an app; it does not give every conversation unlimited access. The workspace owner decides what is available, and consequential actions remain visible."
         className="bg-foreground/[0.02]">

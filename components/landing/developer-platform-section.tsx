@@ -22,7 +22,7 @@ const entryPoints = [
     icon: Braces,
     label: "Remote MCP",
     title: "Give another agent a governed Chusky connection",
-    description: "Connect Claude, Cursor, ChatGPT, or another MCP host with a project key and stable end-user identity. The host can discover and call Chusky operations without receiving provider credentials.",
+    description: "Connect a compatible remote MCP host with a project key and stable end-user identity. It can discover and call Chusky operations without receiving provider credentials.",
     href: "/docs/mcp",
     action: "Connect through MCP",
   },
@@ -48,7 +48,7 @@ export function DeveloperPlatformSection() {
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Three ways in</p>
             <h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Put Chusky behind the experience you already own.</h2>
             <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Your product stays responsible for sign-in, billing, and the interface your customers see. Chusky supplies the durable agent runtime underneath: threads, tools, approvals, files, tasks, and delivery events.
+              Your product owns authentication and its customer-facing experience. Chusky provides the agent execution API; the caller identity and project scopes define whose work and tools the run may use.
             </p>
           </div>
           <div className="mt-10 grid gap-px bg-foreground/10 lg:grid-cols-3">
@@ -111,7 +111,7 @@ for await (const event of chusky.threads
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
           <div className="max-w-3xl">
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">What you get</p>
-            <h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">A runtime for work that cannot disappear when the tab closes.</h2>
+            <h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Addressable state for long-running work.</h2>
           </div>
           <div className="mt-10 grid gap-x-10 gap-y-0 border-t border-foreground/10 sm:grid-cols-2">
             {platformCapabilities.map(([title, description], index) => (
@@ -123,6 +123,7 @@ for await (const event of chusky.threads
               </div>
             ))}
           </div>
+          <p className="mt-6 text-xs leading-relaxed text-muted-foreground">Production background execution and recovery require Redis and QStash to be configured in the Chusky deployment.</p>
         </div>
       </section>
 

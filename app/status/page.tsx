@@ -4,14 +4,14 @@ import { Activity, ArrowRight, CheckCircle2, CircleDot, ShieldCheck } from "luci
 import { ContentCard, ContentPage, ContentSection } from "@/components/landing/content-page";
 
 export const metadata: Metadata = {
-  title: "Status and reliability | Chusky",
+  title: "Run states and reliability | Chusky",
   description: "Understand how Chusky reports work state, delivery state, approvals, and recovery.",
 };
 
 export default function StatusPage() {
   return (
-    <ContentPage eyebrow="Status and reliability" title={<>Know where work stands.<br /><span className="text-muted-foreground">At every step.</span></>} description="Chusky is built around visible work states instead of a vague loading screen. The authenticated Operations dashboard is the source of truth for your workspace; this page explains what those states mean." artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky tracking work through a visible workflow" }}>
-      <ContentSection eyebrow="The public promise" title="We do not replace a live status feed with a reassuring number." description="When you are signed in, Chusky shows the health of the services and delivery paths your workspace depends on. When a provider is unavailable, the dashboard should tell you what is affected and what can be retried.">
+    <ContentPage eyebrow="Run states and reliability" title={<>Know where work stands.<br /><span className="text-muted-foreground">At every step.</span></>} description="This page explains agent run and delivery states; it is not a public service-status feed. Workspace-specific health is shown in the authenticated Operations dashboard." artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky tracking work through a visible workflow" }}>
+      <ContentSection eyebrow="Workspace visibility" title="Check the systems and delivery paths your account depends on." description="The Operations dashboard reports the runtime checks available to your workspace. It is the place to inspect provider readiness and recent incidents; this public page does not claim a live uptime measurement.">
         <div className="grid gap-3 sm:grid-cols-3"><ContentCard eyebrow="Live workspace" title="Operations dashboard"><Activity className="mb-3 h-5 w-5 text-chusky-amber" /><p>See runtime checks, connected channels, delivery failures, and the last recorded incident inside your workspace.</p></ContentCard><ContentCard eyebrow="Per run" title="Clear execution state"><CircleDot className="mb-3 h-5 w-5 text-chusky-amber" /><p>Queued, running, approval required, completed, failed, and cancelled states remain attached to the work they describe.</p></ContentCard><ContentCard eyebrow="When things change" title="Recoverable by design"><CheckCircle2 className="mb-3 h-5 w-5 text-chusky-amber" /><p>Streams can disconnect without erasing the run. Reopen the thread, inspect the result, and continue from the latest durable state.</p></ContentCard></div>
       </ContentSection>
       <ContentSection eyebrow="What to do next" title="If a run needs attention, the state should point you somewhere useful." description="Review an approval, reconnect a channel, retry a failed delivery, or open the conversation that owns the task. The system should make the next decision legible instead of asking you to guess.">

@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
-  { name: "About", href: "/about" },
-  { name: "Features", href: "/features" },
+  { name: "Capabilities", href: "/features" },
   { name: "How it works", href: "/how-it-works" },
+  { name: "Integrations", href: "/integrations" },
   { name: "Developers", href: "/developers" },
   { name: "MCP", href: "/mcp" },
   { name: "Docs", href: "/docs" },
-  { name: "Pricing", href: "/pricing" },
 ];
 
 export function Navigation() {

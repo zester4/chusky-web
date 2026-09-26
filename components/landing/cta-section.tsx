@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { AnimatedTetrahedron } from "./animated-tetrahedron";
@@ -52,36 +53,24 @@ export function CtaSection() {
               {/* Left content */}
               <div className="flex-1">
                 <h2 className="mb-6 text-3xl font-display leading-[0.95] tracking-tight sm:mb-8 lg:text-6xl">
-                  Ready to build
+                  Bring a real task.
                   <br />
-                  something great?
+                  Start with one workflow.
                 </h2>
 
                 <p className="mb-8 max-w-xl text-base leading-relaxed text-muted-foreground sm:mb-12 sm:text-xl">
-                  Put Chusky to work across your apps, tools, and workflows.
-                  Start free and scale with your team.
+                  Create an account to see Chusky&apos;s current capabilities, then connect only the apps and providers your work needs.
                 </p>
 
                 <div className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-start sm:gap-4">
-                  <Button
-                    size="lg"
-                    className="h-11 rounded-full bg-foreground px-5 text-sm text-background group hover:bg-foreground/90 sm:h-12 sm:px-7 sm:text-base"
-                  >
-                    Start building free
-                    <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                  <Button asChild size="lg" className="h-11 rounded-full bg-foreground px-5 text-sm text-background group hover:bg-foreground/90 sm:h-12 sm:px-7 sm:text-base">
+                    <Link href="/sign-up">Create an account <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" /></Link>
                   </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-11 rounded-full border-foreground/20 px-5 text-sm hover:bg-foreground/5 sm:h-12 sm:px-7 sm:text-base"
-                  >
-                    Talk to sales
+                  <Button asChild size="lg" variant="outline" className="h-11 rounded-full border-foreground/20 px-5 text-sm hover:bg-foreground/5 sm:h-12 sm:px-7 sm:text-base">
+                    <Link href="/docs">Read the docs</Link>
                   </Button>
                 </div>
 
-                <p className="text-sm text-muted-foreground mt-8 font-mono">
-                  No credit card required
-                </p>
               </div>
 
               {/* Right animation */}

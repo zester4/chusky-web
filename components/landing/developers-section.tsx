@@ -41,20 +41,20 @@ const chusky = new Chusky({
 
 const features = [
   { 
-    title: "TypeScript native", 
-    description: "Full type safety with auto-generated types."
+    title: "Typed TypeScript client",
+    description: "Use typed resources and request contracts from the published SDK."
   },
   { 
-    title: "Zero config", 
-    description: "Sensible defaults that just work."
+    title: "Explicit server credentials",
+    description: "Keep project keys on your trusted server and derive caller identity from your own authentication."
   },
   { 
-    title: "Edge-ready", 
-    description: "Runs anywhere: Node, Deno, Bun, browsers."
+    title: "Server-side integration",
+    description: "Call Chusky from a trusted backend, job runner, or server environment."
   },
   { 
-    title: "12KB gzipped", 
-    description: "Lightweight with zero dependencies."
+    title: "Durable workflow APIs",
+    description: "Create and inspect runs, tasks, approvals, files, and events through documented resources."
   },
 ];
 
