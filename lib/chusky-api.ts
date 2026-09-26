@@ -8,9 +8,11 @@ export type DurationBudget = "5m" | "30m" | "1h" | "3h" | "6h" | "3d" | "1w";
 export type RunBudget = { duration?: DurationBudget; maxToolCalls?: number; maxCost?: number };
 export type RunToolPolicy = { allow?: string[]; deny?: string[]; requireApproval?: string[] };
 export type RunArtifact = { id: string; name: string; type: Artifact["type"]; contentType: string; size: number };
+export type RunImage = { id: string; name: string; contentType: "image/jpeg" | "image/png" | "image/webp"; size: number };
+export type ImageDownload = RunImage & { downloadUrl: string; expiresAt: string };
 export type AccountHistoryMessage = { role: "user" | "assistant"; content: string; createdAt?: number };
 export type RunToolActivity = { id: string; type: "run.tool_activity"; at: number; toolSlug: string; status: "started" | "completed" | "failed" | "approval_required" | "cancelled"; message: string; summary?: string; durationMs?: number };
-export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string; toolSlug?: string; status?: RunToolActivity["status"]; message?: string; summary?: string; durationMs?: number }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
+export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; images?: RunImage[]; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string; toolSlug?: string; status?: RunToolActivity["status"]; message?: string; summary?: string; durationMs?: number }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
   | { type: "run.started"; run: Run }
@@ -168,16 +170,43 @@ const pageQuery = ({ limit, cursor, includeArchived }: PageOptions = {}) => {
   return value ? `?${value}` : "";
 };
 
-function putUpload(url: string, file: File, onProgress?: (progress: number) => void): Promise<void> {
+class UploadTransportError extends Error {
+  constructor(message: string, readonly retryable: boolean) { super(message); this.name = "UploadTransportError"; }
+}
+
+function putUploadOnce(url: string, file: File, contentType: string, onProgress?: (progress: number) => void, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    if (signal?.aborted) { reject(new UploadTransportError("The upload was cancelled.", false)); return; }
     xhr.open("PUT", url);
-    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.timeout = 120_000;
+    const cleanup = () => signal?.removeEventListener("abort", abort);
+    const abort = () => xhr.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    // This must exactly match the ContentType used when the R2 URL was signed.
+    xhr.setRequestHeader("Content-Type", contentType);
     xhr.upload.onprogress = (event) => { if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100)); };
-    xhr.onerror = () => reject(new Error("The upload could not reach object storage. Check the R2 CORS configuration and try again."));
-    xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Object storage returned HTTP ${xhr.status}.`));
+    xhr.onerror = () => { cleanup(); reject(new UploadTransportError("Could not reach file storage. Check your connection and the bucket CORS policy, then retry.", true)); };
+    xhr.ontimeout = () => { cleanup(); reject(new UploadTransportError("The upload timed out. Your file was not attached; retry when your connection is stable.", true)); };
+    xhr.onabort = () => { cleanup(); reject(new UploadTransportError("The upload was cancelled.", false)); };
+    xhr.onload = () => xhr.status >= 200 && xhr.status < 300
+      ? (cleanup(), resolve())
+      : (cleanup(), reject(new UploadTransportError(`File storage returned HTTP ${xhr.status}. Retry the upload or choose the file again.`, xhr.status === 408 || xhr.status === 429 || xhr.status >= 500)));
     xhr.send(file);
   });
+}
+
+async function putUpload(url: string, file: File, contentType: string, onProgress?: (progress: number) => void, signal?: AbortSignal): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await putUploadOnce(url, file, contentType, onProgress, signal);
+      return;
+    } catch (error) {
+      if (!(error instanceof UploadTransportError) || !error.retryable || attempt >= 2) throw error;
+      if (signal?.aborted) throw new UploadTransportError("The upload was cancelled.", false);
+      await new Promise((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+    }
+  }
 }
 
 async function requestBytes(path: string): Promise<Blob> {
@@ -224,15 +253,30 @@ export const chuskyApi = {
     },
   },
   files: {
-    create: (file: File) => request<UploadIntent>("/files", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ name: file.name, contentType: file.type, size: file.size }) }),
+    create: (file: File, contentType = file.type) => request<UploadIntent>("/files", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ name: file.name, contentType, size: file.size }) }),
     complete: (fileId: string) => request<UploadedFile>(`/files/${encodeURIComponent(fileId)}/complete`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     remove: (fileId: string) => request<void>(`/files/${encodeURIComponent(fileId)}`, { method: "DELETE" }),
     get: (fileId: string) => request<UploadedFile>(`/files/${encodeURIComponent(fileId)}`),
-    async upload(file: File, onProgress?: (progress: number) => void): Promise<UploadedFile> {
-      const intent = await this.create(file);
-      await putUpload(intent.uploadUrl, file, onProgress);
-      await this.complete(intent.id);
-      return request<UploadedFile>(`/files/${encodeURIComponent(intent.id)}`);
+    async upload(file: File, options: { contentType?: string; onProgress?: (progress: number, stage: "uploading" | "verifying") => void; signal?: AbortSignal } = {}): Promise<UploadedFile> {
+      const contentType = options.contentType || file.type;
+      let intent: UploadIntent | undefined;
+      try {
+        intent = await this.create(file, contentType);
+        if (options.signal?.aborted) throw new UploadTransportError("The upload was cancelled.", false);
+        await putUpload(intent.uploadUrl, file, contentType, (progress) => options.onProgress?.(progress, "uploading"), options.signal);
+        options.onProgress?.(100, "verifying");
+        if (options.signal?.aborted) throw new UploadTransportError("The upload was cancelled.", false);
+        const completed = await this.complete(intent.id);
+        if (completed.status !== "available") throw new Error("Chusky could not verify the uploaded file. Retry the upload.");
+        if (options.signal?.aborted) throw new UploadTransportError("The upload was cancelled.", false);
+        // Download URL lookup is only for previews; its failure must not turn a
+        // verified upload into a failed attachment.
+        return await this.get(intent.id).catch(() => completed);
+      } catch (error) {
+        // Do not leave a failed pending upload behind in the owner's file list.
+        if (intent) await this.remove(intent.id).catch(() => undefined);
+        throw error;
+      }
     },
   },
   tasks: {
@@ -253,6 +297,9 @@ export const chuskyApi = {
     trace: (correlationId?: string, limit = 200) => request<{ data: OperatorTraceEvent[] }>(`/operator/trace?limit=${limit}${correlationId ? `&correlation_id=${encodeURIComponent(correlationId)}` : ""}`),
     reliability: (operation = "agent") => request<{ data: ReliabilityHealth }>(`/operator/reliability?operation=${encodeURIComponent(operation)}`),
     compensations: () => request<{ data: Compensation[] }>("/operator/compensations"),
+  },
+  images: {
+    get: (imageId: string) => request<ImageDownload>(`/images/${encodeURIComponent(imageId)}`),
   },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
