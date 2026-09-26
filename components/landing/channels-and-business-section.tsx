@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
+import type { CSSProperties } from "react";
 
 const channels = [
   { name: "Telegram", logo: "/logos/telegram.svg" },
@@ -24,7 +25,7 @@ export function ChannelsSection() {
   return (
     <section className="border-b border-foreground/10 py-16 sm:py-20 lg:py-28">
       <div className="mx-auto grid max-w-[1400px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20 lg:px-12">
-        <div>
+        <div data-motion-reveal>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">One agent, many ways in</p>
           <h2 className="mt-4 max-w-xl font-display text-3xl leading-tight tracking-tight sm:text-5xl">Meet Chusky where the work happens.</h2>
           <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -34,8 +35,13 @@ export function ChannelsSection() {
 
         <div>
           <ul aria-label="Supported ways to access Chusky" className="grid grid-cols-2 border-l border-t border-foreground/10 sm:grid-cols-4">
-            {channels.map((channel) => (
-              <li key={channel.name} className="flex min-h-20 items-center gap-3 border-b border-r border-foreground/10 px-3 py-4 text-sm sm:min-h-24 sm:px-4 sm:text-base">
+            {channels.map((channel, index) => (
+              <li
+                key={channel.name}
+                data-motion-reveal
+                style={{ "--motion-delay": `${index * 55}ms` } as CSSProperties}
+                className="flex min-h-20 items-center gap-3 border-b border-r border-foreground/10 px-3 py-4 text-sm transition-colors duration-200 hover:bg-foreground/[0.025] sm:min-h-24 sm:px-4 sm:text-base"
+              >
                 {channel.logo ? (
                   <Image src={channel.logo} alt="" aria-hidden="true" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
                 ) : null}
@@ -70,7 +76,7 @@ export function MeetingsAndCallsSection() {
   return (
     <section className="border-b border-foreground/10 bg-[#f7f7f4] py-16 sm:py-20 lg:py-28">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-        <div className="max-w-3xl">
+        <div data-motion-reveal className="max-w-3xl">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">For work that happens in real time</p>
           <h2 className="mt-4 font-display text-3xl leading-tight tracking-tight sm:text-5xl">Show up for the conversation. Carry the next step forward.</h2>
           <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -79,15 +85,20 @@ export function MeetingsAndCallsSection() {
         </div>
 
         <div className="mt-10 grid border border-foreground/10 bg-background sm:grid-cols-2">
-          <article className="border-b border-foreground/10 p-5 sm:border-b-0 sm:border-r sm:p-7 lg:p-9">
+          <article data-motion-reveal data-motion-card className="border-b border-foreground/10 p-5 sm:border-b-0 sm:border-r sm:p-7 lg:p-9">
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Meetings</p>
             <h3 className="mt-4 font-display text-2xl tracking-tight sm:text-3xl">Join the room, not just the invite.</h3>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               Join meetings on Zoom, Google Meet, Microsoft Teams, or Webex. With a configured meeting profile, Chusky can participate, capture outcomes, and help turn agreed next steps into follow-up work.
             </p>
             <ul className="mt-6 flex flex-wrap gap-2" aria-label="Supported meeting platforms">
-              {meetingPlatforms.map((platform) => (
-                <li key={platform.name} className="inline-flex items-center gap-2 border border-foreground/10 px-3 py-2 text-xs text-foreground">
+              {meetingPlatforms.map((platform, index) => (
+                <li
+                  key={platform.name}
+                  data-motion-reveal
+                  style={{ "--motion-delay": `${index * 55}ms` } as CSSProperties}
+                  className="inline-flex items-center gap-2 border border-foreground/10 px-3 py-2 text-xs text-foreground transition-colors duration-200 hover:border-foreground/25"
+                >
                   <Image src={platform.logo} alt="" aria-hidden="true" width={20} height={20} className="h-5 w-5 shrink-0 object-contain" />
                   {platform.name}
                 </li>
@@ -95,7 +106,7 @@ export function MeetingsAndCallsSection() {
             </ul>
           </article>
 
-          <article className="p-5 sm:p-7 lg:p-9">
+          <article data-motion-reveal data-motion-card style={{ "--motion-delay": "100ms" } as CSSProperties} className="p-5 sm:p-7 lg:p-9">
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Business voice</p>
             <h3 className="mt-4 font-display text-2xl tracking-tight sm:text-3xl">Handle the call. Keep the commitment.</h3>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -115,7 +126,7 @@ export function MeetingsAndCallsSection() {
           <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
             Meeting and phone features require provider configuration and workspace permissions. A meeting host may need to admit Chusky; follow-up actions are limited to the owner&apos;s granted tools.
           </p>
-          <Link href="/features" className="inline-flex shrink-0 items-center gap-2 text-sm underline underline-offset-4">
+          <Link data-motion-reveal href="/features" className="inline-flex shrink-0 items-center gap-2 text-sm underline underline-offset-4 transition-transform hover:translate-x-1">
             Explore agent capabilities <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>

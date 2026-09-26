@@ -3,6 +3,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { AnimatedWave } from "./animated-wave";
+import type { CSSProperties } from "react";
 
 const footerLinks: Record<string, Array<{ name: string; href: string; badge?: string }>> = {
   Product: [
@@ -49,7 +50,7 @@ export function FooterSection() {
         <div className="py-12 sm:py-16 lg:py-20">
           <div className="grid grid-cols-2 gap-8 sm:gap-10 md:grid-cols-6 lg:gap-7">
             {/* Brand Column */}
-            <div className="col-span-2">
+            <div data-motion-reveal className="col-span-2">
               <Link href="/" className="mb-4 inline-flex items-center gap-2">
                 <span className="font-display text-xl">Chusky</span>
                 <span className="font-mono text-[10px] text-muted-foreground">TM</span>
@@ -75,8 +76,12 @@ export function FooterSection() {
             </div>
 
             {/* Link Columns */}
-            {Object.entries(footerLinks).map(([title, links]) => (
-              <div key={title}>
+            {Object.entries(footerLinks).map(([title, links], index) => (
+              <div
+                key={title}
+                data-motion-reveal
+                style={{ "--motion-delay": `${(index + 1) * 65}ms` } as CSSProperties}
+              >
                 <h3 className="mb-4 text-xs font-medium sm:text-sm">{title}</h3>
                 <ul className="space-y-2.5 sm:space-y-3">
                   {links.map((link) => (

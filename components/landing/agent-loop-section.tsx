@@ -10,7 +10,7 @@ export function AgentLoopSection() {
     <section className="relative border-y border-foreground/10 bg-[#f7f7f4] py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         <div className="grid gap-8 lg:grid-cols-[0.8fr_1.4fr] lg:gap-16">
-          <div>
+          <div data-motion-reveal>
             <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground">
               <span className="h-px w-8 bg-foreground/30" />
               The agent loop
@@ -19,9 +19,9 @@ export function AgentLoopSection() {
             <p className="mt-4 max-w-md text-xs leading-6 text-muted-foreground sm:text-sm">Connected actions, useful files, saved progress, and explicit review points are the building blocks of Chusky&apos;s agent loop.</p>
             <a href="/features" className="mt-6 inline-flex text-[11px] underline underline-offset-4">Explore capabilities <span className="ml-2">↗</span></a>
           </div>
-          <div className="grid gap-px border border-foreground/10 bg-foreground/10 sm:grid-cols-2">
+          <div data-motion-reveal className="grid gap-px border border-foreground/10 bg-foreground/10 sm:grid-cols-2">
             {surfaces.map((surface, index) => (
-              <article key={surface.title} className="bg-background p-5 sm:p-6 lg:p-7">
+              <article key={surface.title} data-motion-card className="bg-background p-5 sm:p-6 lg:p-7">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{surface.label}</span>
                   <span className="font-mono text-[10px] text-muted-foreground/60">0{index + 1}</span>

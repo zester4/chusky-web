@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import type { CSSProperties } from "react";
 
 const examples = [
   {
@@ -29,7 +30,7 @@ export function WorkExamplesSection() {
   return (
     <section className="border-b border-foreground/10 bg-[#f7f7f4] py-16 sm:py-20 lg:py-28">
       <div className="mx-auto grid max-w-[1400px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20 lg:px-12">
-        <div className="lg:sticky lg:top-28 lg:self-start">
+        <div data-motion-reveal className="lg:sticky lg:top-28 lg:self-start">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">A few ways to put it to work</p>
           <h2 className="mt-4 max-w-xl font-display text-3xl leading-tight tracking-tight sm:text-5xl">Give it a real job. Keep the result.</h2>
           <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -42,7 +43,13 @@ export function WorkExamplesSection() {
 
         <div className="divide-y divide-foreground/10 border-y border-foreground/10">
           {examples.map((example) => (
-            <article key={example.number} className="grid gap-5 py-7 sm:grid-cols-[3.5rem_1fr] sm:gap-6 sm:py-9">
+            <article
+              key={example.number}
+              data-motion-reveal
+              data-motion-card
+              style={{ "--motion-delay": `${Number(example.number) * 70}ms` } as CSSProperties}
+              className="grid gap-5 py-7 sm:grid-cols-[3.5rem_1fr] sm:gap-6 sm:py-9"
+            >
               <span className="font-mono text-xs text-muted-foreground">{example.number}</span>
               <div>
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-chusky-amber">{example.category}</p>
@@ -62,7 +69,7 @@ export function WorkExamplesSection() {
           ))}
         </div>
 
-        <p className="text-xs leading-relaxed text-muted-foreground lg:col-start-2">
+        <p data-motion-reveal className="text-xs leading-relaxed text-muted-foreground lg:col-start-2">
           Available actions depend on your connected accounts, permissions, and deployment configuration. Chusky does not claim an action is complete until it has a result to show.
         </p>
       </div>
