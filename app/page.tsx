@@ -1,6 +1,8 @@
 import { Navigation } from "@/components/landing/navigation";
 import { HeroSection } from "@/components/landing/hero-section";
 import { AgentLoopSection } from "@/components/landing/agent-loop-section";
+import { WorkExamplesSection } from "@/components/landing/work-examples-section";
+import { ChannelsSection, MeetingsAndCallsSection } from "@/components/landing/channels-and-business-section";
 import { FooterSection } from "@/components/landing/footer-section";
 
 export default function Home() {
@@ -9,6 +11,9 @@ export default function Home() {
       <Navigation />
       <HeroSection />
       <AgentLoopSection />
+      <WorkExamplesSection />
+      <ChannelsSection />
+      <MeetingsAndCallsSection />
       <FooterSection />
     </main>
   );
