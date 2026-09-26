@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Braces, Check, Code2, FileText, ShieldCheck, Sparkles, Webhook } from "lucide-react";
+import { Activity, ArrowRight, BookOpen, Braces, Check, Code2, FileText, ShieldCheck, Sparkles, Webhook, Workflow } from "lucide-react";
 import { ProductPageHero, ProductPageShell } from "@/components/landing/product-page";
 
 export const metadata: Metadata = {
@@ -13,6 +13,8 @@ const guides = [
   { icon: Code2, title: "Agent runs", description: "Understand threads, runs, streaming events, approvals, cancellation, and recovery.", href: "#runs" },
   { icon: FileText, title: "Files and knowledge", description: "Upload verified files and attach them to image, document, and audio-aware runs.", href: "#files" },
   { icon: Webhook, title: "Webhooks and tasks", description: "Receive durable notifications and build workflows that survive restarts and disconnected clients.", href: "#durable" },
+  { icon: Workflow, title: "Missions and verification", description: "Plan durable multi-step work and confirm supported outcomes against current provider state.", href: "/docs/missions" },
+  { icon: Activity, title: "Reliability and recovery", description: "Understand receipts, provider proof, and safe recovery when a result is uncertain.", href: "/docs/reliability" },
 ];
 
 export default function DocsPage() {
@@ -27,7 +29,7 @@ export default function DocsPage() {
 
       <section className="border-b border-foreground/10 py-12 sm:py-16 lg:py-24">
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-          <div className="grid gap-px bg-foreground/10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-px bg-foreground/10 sm:grid-cols-2 lg:grid-cols-3">
             {guides.map(({ icon: Icon, title, description, href }) => (
               <a key={title} href={href} className="group bg-background p-5 transition-colors hover:bg-foreground hover:text-background sm:p-7">
                 <Icon className="h-5 w-5" strokeWidth={1.5} />

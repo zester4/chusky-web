@@ -28,6 +28,16 @@ export default function FeaturesPage() {
       <ContentSection eyebrow="Made for the whole workday" title="Chat is the entry point, not the limit." description="Use Chusky where the work starts, then move naturally between research, files, apps, meetings, calls, and follow-through. The agent keeps the objective connected while the surface changes.">
         <div className="grid gap-3 sm:grid-cols-3"><ContentCard title="Research and writing">Find the relevant information, shape it into a useful brief, and create a deliverable with the right level of detail.</ContentCard><ContentCard title="Operations and admin">Update the places where work is tracked, coordinate the next step, and keep the human decision points clear.</ContentCard><ContentCard title="Meetings and calls">Join supported conversations, handle approved calls, and turn what happened into private follow-through.</ContentCard></div>
       </ContentSection>
+      <ContentSection eyebrow="Recent capabilities" title="Know what happened—not just what the model said." description="Recent updates connect long-running work to verifiable outcomes, explicit recovery, and the connected apps where the work lives.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ContentCard title="Durable missions">Break a concrete outcome into dependency-aware steps with checkpoints, bounded budgets, waits, retries, and resumable state.</ContentCard>
+          <ContentCard title="Provider-read verification">For supported workflows, Chusky can inspect current connected-app state and record evidence before treating an outcome as verified.</ContentCard>
+          <ContentCard title="Reviewed recovery">A consequential compensation action stays tied to an exact owner approval, records its provider receipt, and checks the resulting state before it is marked complete.</ContentCard>
+          <ContentCard title="Images that move work">Use a current, generated, or saved image with an exact connected-app upload or publish action. Upload and publish are treated as separate steps when the provider requires it.</ContentCard>
+          <ContentCard title="Operator visibility">Inspect mission activity, receipts, verifications, and provider readiness in an owner-scoped reliability view—without presenting unverified providers as certified.</ContentCard>
+          <ContentCard title="Developer surfaces">Build with the REST API and TypeScript SDK, or connect through A2A and MCP while keeping user identity and tool permissions scoped.</ContentCard>
+        </div>
+      </ContentSection>
       <CtaSection />
     </ContentPage>
   );

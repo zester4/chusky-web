@@ -8,6 +8,7 @@ const footerLinks: Record<string, Array<{ name: string; href: string; badge?: st
   Product: [
     { name: "Features", href: "/features" },
     { name: "How it works", href: "/how-it-works" },
+    { name: "Changelog", href: "/changelog" },
     { name: "Pricing", href: "/pricing" },
     { name: "Integrations", href: "/integrations" },
   ],
@@ -102,15 +103,12 @@ export function FooterSection() {
         {/* Bottom Bar */}
         <div className="py-8 border-t border-foreground/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            2025 Chusky. All rights reserved.
+            2026 Chusky. All rights reserved.
           </p>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              All systems operational
-            </span>
-          </div>
+          <Link href="/changelog" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+            See what’s new at Chusky
+          </Link>
         </div>
       </div>
     </footer>

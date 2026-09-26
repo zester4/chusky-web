@@ -30,11 +30,13 @@ const entryPoints = [
 
 const platformCapabilities = [
   ["Durable threads and runs", "Keep conversation continuity and recover a run after a disconnected client."],
+  ["Long-running missions", "Compose dependency-aware work with checkpoints, bounded budgets, waits, retries, and resumable execution."],
+  ["Verified outcomes and recovery", "Read current provider state, retain linked receipts, and require exact owner approval for consequential compensation actions."],
   ["Tool orchestration", "Use Chusky capabilities and owner-approved app connections through one agent loop."],
   ["Human approvals", "Pause before consequential actions and bind approval to the exact tool, arguments, owner, and expiry."],
-  ["Files and artifacts", "Upload verified files and return generated reports, documents, PDFs, images, and other deliverables."],
+  ["Files and image workflows", "Upload verified files, route owner-scoped images through exact connected-app schemas, and return generated deliverables."],
   ["Tasks and webhooks", "Move long work into durable task state and receive signed completion or failure events."],
-  ["Usage and audit", "Keep project limits, run status, tool activity, and safe audit records visible to your operations team."],
+  ["Operations and audit", "Inspect run timelines, receipts, verifications, provider-proof status, and safe audit records."],
 ];
 
 export function DeveloperPlatformSection() {
