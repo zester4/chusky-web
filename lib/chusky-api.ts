@@ -186,7 +186,7 @@ function putUploadOnce(url: string, file: File, contentType: string, onProgress?
     // This must exactly match the ContentType used when the R2 URL was signed.
     xhr.setRequestHeader("Content-Type", contentType);
     xhr.upload.onprogress = (event) => { if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100)); };
-    xhr.onerror = () => { cleanup(); reject(new UploadTransportError("Could not reach file storage. Check your connection and the bucket CORS policy, then retry.", true)); };
+    xhr.onerror = () => { cleanup(); reject(new UploadTransportError("We couldn’t upload this file. Check your connection and retry. If it keeps failing, contact support.", true)); };
     xhr.ontimeout = () => { cleanup(); reject(new UploadTransportError("The upload timed out. Your file was not attached; retry when your connection is stable.", true)); };
     xhr.onabort = () => { cleanup(); reject(new UploadTransportError("The upload was cancelled.", false)); };
     xhr.onload = () => xhr.status >= 200 && xhr.status < 300
