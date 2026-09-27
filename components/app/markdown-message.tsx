@@ -24,6 +24,7 @@ import {
 } from "recharts";
 import mermaid from "mermaid";
 import type { Components } from "react-markdown";
+import { Check, Copy } from "lucide-react";
 
 type ChartDatum = Record<string, string | number>;
 type ChartSpec = {
@@ -155,12 +156,38 @@ function formatCodeLanguage(className?: string) {
   return /language-([\w-]+)/.exec(className || "")?.[1]?.toLowerCase();
 }
 
+const codeLanguageNames: Record<string, string> = {
+  bash: "Shell",
+  css: "CSS",
+  html: "HTML",
+  js: "JavaScript",
+  javascript: "JavaScript",
+  json: "JSON",
+  jsx: "JSX",
+  md: "Markdown",
+  markdown: "Markdown",
+  py: "Python",
+  python: "Python",
+  sh: "Shell",
+  shell: "Shell",
+  sql: "SQL",
+  ts: "TypeScript",
+  tsx: "TSX",
+  yaml: "YAML",
+  yml: "YAML",
+};
+
+function codeLanguageLabel(language?: string) {
+  if (!language) return "Code";
+  return codeLanguageNames[language] || language.toUpperCase();
+}
+
 const codeTokenPattern = /(\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:as|async|await|break|case|catch|class|const|continue|def|else|export|extends|false|for|from|function|if|import|in|interface|let|new|null|of|private|protected|public|return|static|this|throw|true|try|type|typeof|var|while|with|yield)\b|\b\d+(?:\.\d+)?\b)/g;
 
 function highlightedCode(source: string, language: string) {
   return source.split(codeTokenPattern).map((token, index) => {
     if (!token) return null;
-    const className = /^(\/\/|#|\/\*)/.test(token) ? "text-slate-500" : /^("|'|`)/.test(token) ? "text-emerald-700" : /^(?:true|false|null|\d)/.test(token) ? "text-orange-700" : /^(?:as|async|await|break|case|catch|class|const|continue|def|else|export|extends|for|from|function|if|import|in|interface|let|new|of|private|protected|public|return|static|this|throw|try|type|typeof|var|while|with|yield)$/.test(token) ? "text-indigo-700" : "text-foreground";
+    const className = /^(\/\/|#|\/\*)/.test(token) ? "text-slate-400" : /^("|'|`)/.test(token) ? "text-emerald-300" : /^(?:true|false|null|\d)/.test(token) ? "text-amber-300" : /^(?:as|async|await|break|case|catch|class|const|continue|def|else|export|extends|for|from|function|if|import|in|interface|let|new|of|private|protected|public|return|static|this|throw|try|type|typeof|var|while|with|yield)$/.test(token) ? "text-violet-300" : "text-[#f5f3ee]";
     return <span key={`${language}-${index}`} className={className}>{token}</span>;
   });
 }
@@ -181,15 +208,17 @@ const components: Components = {
   input: ({ type, ...props }) => <input type={type} className="mr-1.5 accent-foreground" {...props} />,
   img: ({ alt, ...props }) => <img alt={alt || ""} loading="lazy" className="my-2 max-h-72 max-w-full rounded-md object-contain" {...props} />,
   code: ({ children, className, ...props }) => {
-    const source = String(children).replace(/\n$/, "");
+    const rawSource = String(children);
+    const source = rawSource.replace(/\n$/, "");
     const language = formatCodeLanguage(className);
     if (language === "mermaid" || language === "flowchart") return <MermaidBlock source={source} />;
     if (language === "chart" || language === "charts") return <DataChart source={source} />;
-    return <code className={`rounded bg-foreground/[0.06] px-1 py-0.5 font-mono text-[10px] ${className || ""}`} {...props}>{language ? highlightedCode(source, language) : children}</code>;
+    if (language || rawSource.endsWith("\n")) return <CodeBlock source={source} language={language} />;
+    return <code className={`rounded bg-foreground/[0.07] px-1 py-0.5 font-mono text-[0.88em] ${className || ""}`} {...props}>{children}</code>;
   },
   pre: ({ children, ...props }) => {
     const child = React.isValidElement(children) ? children : undefined;
-    if (child && (child.type === MermaidBlock || child.type === DataChart)) return child;
+    if (child && (child.type === MermaidBlock || child.type === DataChart || child.type === CodeBlock)) return child;
     return <pre className="my-2 max-w-full overflow-x-auto rounded-md border border-foreground/10 bg-foreground/[0.04] p-2.5 font-mono text-[10px] leading-4" {...props}>{children}</pre>;
   },
   table: ({ children, ...props }) => <div className="my-2 max-w-full overflow-x-auto rounded-md border border-foreground/10"><table className="min-w-full border-collapse text-left text-[10px] sm:text-[11px]" {...props}>{children}</table></div>,
@@ -201,5 +230,35 @@ const components: Components = {
 export function MarkdownMessage({ content }: { content: string }) {
   return <div className="min-w-0 break-words tabular-nums text-foreground [&_.katex-display]:my-2 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[0.9em]">
     <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>{normalizeMarkdownContent(content)}</ReactMarkdown>
+  </div>;
+}
+
+function CodeBlock({ source, language }: { source: string; language?: string }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const copyResetTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(copyResetTimer.current), []);
+
+  const copy = async () => {
+    window.clearTimeout(copyResetTimer.current);
+    try {
+      await navigator.clipboard.writeText(source);
+      setCopyState("copied");
+      copyResetTimer.current = window.setTimeout(() => setCopyState("idle"), 1600);
+    } catch {
+      setCopyState("error");
+      copyResetTimer.current = window.setTimeout(() => setCopyState("idle"), 2000);
+    }
+  };
+
+  return <div className="my-2.5 w-full min-w-0 overflow-hidden rounded-lg bg-[#111318] text-[#f5f3ee] shadow-[0_1px_2px_rgb(0_0_0_/_0.14)]">
+    <div className="flex min-h-8 items-center justify-between gap-3 border-b border-white/10 px-2.5 sm:px-3">
+      <span className="truncate font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-white/55">{codeLanguageLabel(language)}</span>
+      <button type="button" onClick={() => void copy()} className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded px-1.5 font-sans text-[9px] text-white/60 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/70" aria-label={copyState === "copied" ? "Code copied" : copyState === "error" ? "Code could not be copied" : "Copy code to clipboard"}>
+        {copyState === "copied" ? <Check size={11} aria-hidden="true" /> : <Copy size={11} aria-hidden="true" />}
+        <span aria-live="polite">{copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy"}</span>
+      </button>
+    </div>
+    <pre className="max-w-full overflow-x-auto overscroll-x-contain p-3 font-mono text-[10px] leading-[1.6] [tab-size:2] sm:p-3.5 sm:text-[11px]" tabIndex={0} aria-label={`${codeLanguageLabel(language)} code`}><code className="whitespace-pre">{highlightedCode(source, language || "text")}</code></pre>
   </div>;
 }
