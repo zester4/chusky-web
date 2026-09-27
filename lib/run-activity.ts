@@ -20,6 +20,39 @@ export type PresentedToolActivity = Omit<ToolActivity, "status" | "batchActions"
   parallelBatch?: boolean;
 };
 
+const normalizedToolkit = (value: string) => value.replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+/**
+ * Uses persisted toolkit metadata when available. Older run records predate
+ * that metadata, so the prefix is only used as a catalogue lookup candidate;
+ * the UI still verifies it against the returned toolkit slug before branding.
+ */
+export function toolkitSlugForActivity(activity: Pick<PresentedToolActivity, "toolSlug" | "toolkitSlug">): string | undefined {
+  if (activity.toolkitSlug?.trim()) return activity.toolkitSlug.trim().toLowerCase();
+  if (/^(CHUCK|COMPOSIO|MCP)_/i.test(activity.toolSlug)) return undefined;
+  const prefix = activity.toolSlug.split("_", 1)[0]?.trim().toLowerCase();
+  return prefix && /^[a-z0-9-]{1,120}$/.test(prefix) ? prefix : undefined;
+}
+
+/** A compact, provider-neutral action token for the timeline; never reads tool arguments. */
+export function actionTokenForActivity(activity: Pick<PresentedToolActivity, "toolSlug" | "toolkitSlug">): string {
+  const toolkit = toolkitSlugForActivity(activity);
+  const compactToolkit = toolkit ? normalizedToolkit(toolkit).toUpperCase() : "";
+  const normalizedSlug = activity.toolSlug.trim().toUpperCase();
+  const withoutToolkit = compactToolkit && normalizedSlug.startsWith(`${compactToolkit}_`)
+    ? normalizedSlug.slice(compactToolkit.length + 1)
+    : normalizedSlug;
+  return withoutToolkit.toLowerCase() || "action";
+}
+
+/** Result summaries are optional detail, not the primary action label. */
+export function activityDetailSummary(summary?: string): string | undefined {
+  const value = summary?.replace(/\s+/g, " ").trim();
+  if (!value || value.length > 96) return undefined;
+  if (/^(?:result returned|batch response (?:received|returned)|provider confirmed this action|individual outcome (?:was )?not (?:identified|available)|waiting for approval|provider reported this action failed|batch (?:was )?interrupted)/i.test(value)) return undefined;
+  return value;
+}
+
 const successfulDiscoveryTools = new Set(["COMPOSIO_SEARCH_TOOLS", "COMPOSIO_GET_TOOL_SCHEMAS"]);
 const successfulPreparationTools = new Set(["CHUCK_SEARCH_SKILLS", "CHUCK_LIST_SKILL_FILES", "CHUCK_READ_SKILL_FILE"]);
 const hiddenSetupStatuses = new Set<ToolActivity["status"]>(["started", "completed"]);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
+import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
 
 const activity = (id: string, status: ToolActivity["status"], at: number, overrides: Partial<ToolActivity> = {}): ToolActivity => ({
   id,
@@ -176,4 +176,20 @@ test("failed internal skill discovery remains visible", () => {
   ]);
   assert.equal(visible.length, 1);
   assert.equal(visible[0]?.status, "failed");
+});
+
+test("legacy activity records get a bounded connected-app catalogue candidate and compact action token", () => {
+  const legacy = {
+    ...activity("legacy", "completed", 1, { toolSlug: "GMAIL_FETCH_EMAILS" }),
+    status: "completed" as const,
+  };
+  assert.equal(toolkitSlugForActivity(legacy), "gmail");
+  assert.equal(actionTokenForActivity(legacy), "fetch_emails");
+  assert.equal(actionTokenForActivity({ ...legacy, toolSlug: "GOOGLECALENDAR_EVENTS_LIST_ALL_CALENDARS", toolkitSlug: "googlecalendar" }), "events_list_all_calendars");
+});
+
+test("compact rows omit mechanical result summaries but preserve a short safe detail", () => {
+  assert.equal(activityDetailSummary("Batch response received; individual outcome was not identified"), undefined);
+  assert.equal(activityDetailSummary("Result returned"), undefined);
+  assert.equal(activityDetailSummary("Jane Doe · warm HM note"), "Jane Doe · warm HM note");
 });
