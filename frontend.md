@@ -97,6 +97,13 @@ history or connection state.
   `X_ENCRYPTION_KEY`. Keep these in the backend deployment secret store. The
   regular X Activity webhook is `/x/webhook`; encrypted XChat remains a distinct
   adapter at `/xchat/webhook` and keeps its own `XCHAT_BOT_TOKEN` and PIN.
+- The dashboard OAuth setup starts at `/api/x/oauth/start`. Configure the
+  dashboard-only `X_CLIENT_ID` (and `X_CLIENT_SECRET` for a confidential X
+  client) plus `X_OAUTH_REDIRECT_URI`, and register that exact callback URL in
+  the X Developer Portal. The callback validates PKCE state and requests
+  `offline.access`; it shows the returned refresh token once so an operator can
+  place it in Railway as the backend `X_REFRESH_TOKEN`. It never logs the token
+  or puts it in a URL.
 - The Cloudflare R2 bucket needs a CORS rule permitting `PUT` with the
   `Content-Type` header from `https://chusky-web.vercel.app` and, once DNS is
   live, `https://agent.selithub.shop`. Add `http://localhost:3000` only for
