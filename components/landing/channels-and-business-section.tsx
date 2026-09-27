@@ -9,7 +9,7 @@ const channels = [
   { name: "WhatsApp", logo: "/logos/whatsapp.svg" },
   { name: "iMessage via Sendblue" },
   { name: "SMS via Twilio", logo: "/logos/twilio.svg" },
-  { name: "XChat", logo: "/logos/x-twitter.svg" },
+  { name: "X Direct Messages", logo: "/logos/x-twitter.svg" },
   { name: "Web dashboard" },
   { name: "Terminal CLI" },
 ];

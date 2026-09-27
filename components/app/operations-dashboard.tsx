@@ -6,8 +6,8 @@ import { chuskyApi, type AccountOverview, type HealthSnapshot, type ReliabilityH
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
-const labels: Record<string, string> = { redis: "Redis persistence", qstash: "QStash workflows", vector: "Semantic memory search", composioTriggers: "Composio triggers", sendblue: "Sendblue iMessage", twilio: "Twilio voice", twilioSms: "Twilio SMS", xchat: "X Chat", telegram: "Telegram bot" };
-const channelLabels: Record<string, string> = { telegram: "Telegram", cli: "CLI", slack: "Slack", whatsapp: "WhatsApp", sendblue: "Sendblue", sms: "SMS", xchat: "X Chat" };
+const labels: Record<string, string> = { redis: "Redis persistence", qstash: "QStash workflows", vector: "Semantic memory search", composioTriggers: "Composio triggers", sendblue: "Sendblue iMessage", twilio: "Twilio voice", twilioSms: "Twilio SMS", x: "X Direct Messages", xchat: "Encrypted XChat", telegram: "Telegram bot" };
+const channelLabels: Record<string, string> = { telegram: "Telegram", cli: "CLI", slack: "Slack", whatsapp: "WhatsApp", sendblue: "Sendblue", sms: "SMS", x: "X Direct Messages", xchat: "Encrypted XChat" };
 
 function tone(value: string): "green" | "amber" | "gray" { return value === "ok" || value === "configured" ? "green" : value === "disabled" ? "gray" : "amber"; }
 function formatTime(value?: string) { return value ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "No failures recorded"; }

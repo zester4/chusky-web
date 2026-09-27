@@ -92,12 +92,11 @@ history or connection state.
   `NEXT_PUBLIC_CHUSKY_MCP_URL` to the deployed MCP `/mcp` endpoint. The
   Organizations page shows a copyable MCP config for each selected project;
   it contains environment-variable placeholders, never a project key.
-- X Developer Portal OAuth redirects may use
-  `https://chusky-web.vercel.app/api/x/oauth/callback`. The route is a safe
-  acknowledgement endpoint: it never renders or logs authorization codes or
-  tokens. Keep the bot's resulting OAuth user token in the deployment secret
-  store as `XCHAT_BOT_TOKEN`; the XChat event webhook remains the separate
-  `https://chusky.up.railway.app/xchat/webhook` endpoint.
+- Standard, unencrypted X Direct Messages use separate OAuth user credentials:
+  `X_USER_ACCESS_TOKEN`, or managed `X_CLIENT_ID` plus `X_REFRESH_TOKEN` and
+  `X_ENCRYPTION_KEY`. Keep these in the backend deployment secret store. The
+  regular X Activity webhook is `/x/webhook`; encrypted XChat remains a distinct
+  adapter at `/xchat/webhook` and keeps its own `XCHAT_BOT_TOKEN` and PIN.
 - The Cloudflare R2 bucket needs a CORS rule permitting `PUT` with the
   `Content-Type` header from `https://chusky-web.vercel.app` and, once DNS is
   live, `https://agent.selithub.shop`. Add `http://localhost:3000` only for
