@@ -58,13 +58,15 @@ export function xAuthorizationUrl(config: XOAuthConfig, flow: XOAuthFlow & { cha
 export async function exchangeXAuthorizationCode(config: XOAuthConfig, code: string, verifier: string, fetchImpl: typeof fetch = fetch): Promise<XTokenResponse> {
   const headers: Record<string, string> = { accept: "application/json", "content-type": "application/x-www-form-urlencoded" };
   if (config.clientSecret) headers.authorization = `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`, "utf8").toString("base64")}`;
-  const response = await fetchImpl("https://api.x.com/2/oauth2/token", { method: "POST", headers, body: new URLSearchParams({ code, grant_type: "authorization_code", client_id: config.clientId, redirect_uri: config.redirectUri, code_verifier: verifier }).toString(), cache: "no-store" });
+  const requestBody = new URLSearchParams({ code, grant_type: "authorization_code", redirect_uri: config.redirectUri, code_verifier: verifier });
+  if (!config.clientSecret) requestBody.set("client_id", config.clientId);
+  const response = await fetchImpl("https://api.x.com/2/oauth2/token", { method: "POST", headers, body: requestBody.toString(), cache: "no-store" });
   const declaredLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_TOKEN_RESPONSE_BYTES) throw new Error("X returned an oversized token response");
-  const body = await response.text();
-  if (body.length > MAX_TOKEN_RESPONSE_BYTES) throw new Error("X returned an oversized token response");
+  const responseBody = await response.text();
+  if (responseBody.length > MAX_TOKEN_RESPONSE_BYTES) throw new Error("X returned an oversized token response");
   let parsed: unknown;
-  try { parsed = JSON.parse(body); } catch { throw new Error("X returned an invalid token response"); }
+  try { parsed = JSON.parse(responseBody); } catch { throw new Error("X returned an invalid token response"); }
   if (!response.ok) {
     const error = parsed && typeof parsed === "object" && typeof (parsed as Record<string, unknown>).error === "string" ? (parsed as Record<string, string>).error : "token_exchange_failed";
     throw new Error(`X authorization failed (${error})`);
