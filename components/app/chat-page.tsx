@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUp,
   CheckCircle2,
@@ -23,7 +23,8 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
+import { chuskyApi, type AccountHistoryMessage, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
+import { unrepresentedAccountHistory } from "@/lib/account-history";
 import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
@@ -55,6 +56,8 @@ type Message = {
   time?: string;
   pending?: boolean;
   runId?: string;
+  historyCommitted?: boolean;
+  historyContent?: string;
   statusText?: string;
   tool?: string;
   activities?: RunToolActivity[];
@@ -247,6 +250,8 @@ export function ChatPage() {
   const requestedDraft = searchParams.get("draft");
   const [thread, setThread] = useState<Thread>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sharedHistory, setSharedHistory] = useState<AccountHistoryMessage[]>();
+  const [sharedHistoryError, setSharedHistoryError] = useState(false);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [account, setAccount] = useState<AccountOverview>();
@@ -278,6 +283,21 @@ export function ChatPage() {
     activeRunIdRef.current = runId;
     setActiveRunId(runId);
   };
+
+  const refreshSharedHistory = async () => {
+    try {
+      const result = await chuskyApi.account.history();
+      setSharedHistory(result.data);
+      setSharedHistoryError(false);
+    } catch {
+      setSharedHistoryError(true);
+    }
+  };
+
+  const earlierAccountMessages = useMemo(() => unrepresentedAccountHistory(
+    sharedHistory ?? [],
+    messages.filter((item) => item.historyCommitted).map((item) => ({ role: item.role, content: item.historyContent ?? item.text })),
+  ), [messages, sharedHistory]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -314,6 +334,7 @@ export function ChatPage() {
     setAccount(next);
     if (!runModel) setRunModel(next.model);
   }).catch(() => undefined), 10_000);
+  useLiveData(refreshSharedHistory, 15_000);
 
   useEffect(() => {
     setChatHeader({ title: thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky", status });
@@ -325,6 +346,8 @@ export function ChatPage() {
     setStatus("loading");
     setThread(undefined);
     setMessages([]);
+    setSharedHistory(undefined);
+    setSharedHistoryError(false);
     syncActiveRunId(undefined);
     (async () => {
       try {
@@ -338,15 +361,19 @@ export function ChatPage() {
           setThread(current);
           setStatus("ready");
         }
-        const [runs, artifactPage] = await Promise.all([
+        const [runs, artifactPage, historyResult] = await Promise.all([
           chuskyApi.threads.runs(current.id, { limit: 50 }),
           chuskyApi.artifacts.list({ limit: 100 }).catch(() => ({ data: [] as Artifact[] })),
+          chuskyApi.account.history().then((result) => ({ result })).catch(() => undefined),
         ]);
         if (active) {
           setArtifactCatalog(artifactPage.data);
+          setSharedHistory(historyResult?.result.data);
+          setSharedHistoryError(!historyResult);
           const threadMessages: Message[] = [];
           for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
-            if (run.input || run.attachments?.length) threadMessages.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments });
+            const userHistoryContent = `${run.input || "Attached file(s)"}${run.attachments?.length ? `\n[Attachments: ${run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
+            if (run.input || run.attachments?.length) threadMessages.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent });
             const approval = run.status === "requires_approval" && run.approvalId
               ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
               : undefined;
@@ -355,12 +382,8 @@ export function ChatPage() {
             const active = run.status === "queued" || run.status === "running";
             const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
             if (active) syncActiveRunId(run.id);
-            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Reconnecting to this run…" : undefined, approval });
+            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Reconnecting to this run…" : undefined, approval, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
           }
-          // The account history is private model context, not a second UI
-          // transcript. Each saved dashboard thread must render only its own
-          // runs; the backend merges account history into the next run when a
-          // linked private-channel workspace needs shared context.
           setMessages(threadMessages);
         }
         void chuskyApi.account.get().then((next) => { if (active) { setAccount(next); setRunModel(next.model); } }).catch(() => undefined);
@@ -638,7 +661,12 @@ export function ChatPage() {
           const runArtifacts = typed.run.artifacts ?? [];
           const runImages = await hydrateRunImages(typed.run.images);
           syncActiveRunId(undefined);
-          updateLastAssistant({ text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, pending: false, statusText: undefined, tool: undefined });
+          const userHistoryContent = `${typed.run.input || "Attached file(s)"}${typed.run.attachments?.length ? `\n[Attachments: ${typed.run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
+          setMessages((current) => current.map((item, index) => {
+            if (index === current.length - 2 && item.role === "user") return { ...item, historyCommitted: true, historyContent: userHistoryContent };
+            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, pending: false, statusText: undefined, tool: undefined, historyCommitted: true, historyContent: output };
+            return item;
+          }));
         } else if (typed.type === "run.approval_required") {
           notifyChuskyDataChanged();
           syncActiveRunId(undefined);
@@ -691,6 +719,19 @@ export function ChatPage() {
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-1.5 py-2 sm:px-5 sm:py-6 lg:px-8">
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-3.5 sm:space-y-4">
+              {earlierAccountMessages.length ? <details className="mb-4 overflow-hidden rounded-md border border-foreground/10 bg-background/70">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[11px] hover:bg-foreground/[0.025]">
+                  <span className="min-w-0"><span className="font-medium">Earlier shared account history</span><span className="ml-2 text-muted-foreground">Private context available to Chusky across this account</span></span>
+                  <span className="shrink-0 rounded border border-foreground/10 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">{earlierAccountMessages.length}</span>
+                </summary>
+                <div className="max-h-72 space-y-2 overflow-y-auto border-t border-foreground/10 px-3 py-2.5">
+                  {earlierAccountMessages.slice(-40).map((entry, index) => <div key={`${entry.role}-${entry.createdAt ?? "legacy"}-${index}`} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-2 text-[10px] leading-4">
+                    <span className="pt-0.5 text-muted-foreground">{entry.role === "user" ? "You" : "Chusky"}{entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}</span>
+                    <p className="whitespace-pre-wrap break-words text-foreground/80">{entry.content.slice(0, 4_000)}{entry.content.length > 4_000 ? "…" : ""}</p>
+                  </div>)}
+                  {earlierAccountMessages.length > 40 ? <p className="border-t border-foreground/10 pt-2 text-[9px] text-muted-foreground">Showing the 40 most recent messages. Older account context remains available to Chusky.</p> : null}
+                </div>
+              </details> : sharedHistoryError ? <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-amber-700/20 bg-amber-50/50 px-3 py-2 text-[10px] text-amber-900"><span>Shared account history could not be loaded.</span><button type="button" onClick={() => void refreshSharedHistory()} className="shrink-0 underline underline-offset-2">Retry</button></div> : null}
               {!messages.length && status === "ready" && <div className="mx-auto mt-10 max-w-sm text-center"><p className="text-xs font-medium">Start a new conversation</p><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Ask Chusky to research, write, plan, or act. Your chat will be saved automatically so you can return to it later.</p><button type="button" onClick={() => inputRef.current?.focus()} className="mt-3 text-[11px] font-medium underline underline-offset-4">Write the first message</button></div>}
               {messages.map((item, index) => {
                 const visibleActivities = item.activities?.length ? presentToolActivities(item.activities) : [];
