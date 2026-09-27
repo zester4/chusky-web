@@ -64,7 +64,9 @@ history or connection state.
   and **View all conversations** actions. Starting a chat creates a new durable
   thread; it does not replace or clear the previous thread. The first message
   becomes the thread title after the run settles, so old chats remain easy to
-  identify and revisit.
+  identify and revisit. Private account history from a linked Telegram workspace
+  is rendered inline in timestamp order with the open web thread, and refreshes
+  as new channel messages arrive; it is not hidden in a collapsed context panel.
 - `/app/conversations` loads active and archived threads, supports loading older
   pages, and lets users restore an archived conversation. Deletion remains an
   explicit confirmed action.

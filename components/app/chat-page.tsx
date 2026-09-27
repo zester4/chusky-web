@@ -24,7 +24,7 @@ import {
     X,
 } from "lucide-react";
 import { chuskyApi, type AccountHistoryMessage, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
-import { unrepresentedAccountHistory } from "@/lib/account-history";
+import { mergeAccountHistoryIntoThread } from "@/lib/account-history";
 import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
@@ -54,10 +54,13 @@ type Message = {
   role: "user" | "assistant";
   text: string;
   time?: string;
+  createdAt?: number;
   pending?: boolean;
   runId?: string;
   historyCommitted?: boolean;
   historyContent?: string;
+  sharedHistory?: boolean;
+  sourceThreadIndex?: number;
   statusText?: string;
   tool?: string;
   activities?: RunToolActivity[];
@@ -294,10 +297,28 @@ export function ChatPage() {
     }
   };
 
-  const earlierAccountMessages = useMemo(() => unrepresentedAccountHistory(
-    sharedHistory ?? [],
-    messages.filter((item) => item.historyCommitted).map((item) => ({ role: item.role, content: item.historyContent ?? item.text })),
-  ), [messages, sharedHistory]);
+  const timelineMessages = useMemo(() => {
+    const committedThread = messages.flatMap((item, index) => item.historyCommitted ? [{
+      ...item,
+      content: item.historyContent ?? item.text,
+      sourceThreadIndex: index,
+    }] : []);
+    const merged = mergeAccountHistoryIntoThread(sharedHistory ?? [], committedThread).map((entry) => {
+      const { content, source, ...message } = entry;
+      const timestamp = entry.createdAt;
+      return {
+        ...message,
+        text: content,
+        time: source === "account" && timestamp
+          ? new Date(timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+          : "time" in message ? message.time : undefined,
+        sharedHistory: source === "account",
+      } as Message;
+    });
+    const uncommittedThread = messages.flatMap((item, index) => !item.historyCommitted ? [{ ...item, sourceThreadIndex: index }] : []);
+    return [...merged, ...uncommittedThread].sort((left, right) =>
+      (left.createdAt ?? Number.POSITIVE_INFINITY) - (right.createdAt ?? Number.POSITIVE_INFINITY));
+  }, [messages, sharedHistory]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -373,7 +394,7 @@ export function ChatPage() {
           const threadMessages: Message[] = [];
           for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
             const userHistoryContent = `${run.input || "Attached file(s)"}${run.attachments?.length ? `\n[Attachments: ${run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
-            if (run.input || run.attachments?.length) threadMessages.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent });
+            if (run.input || run.attachments?.length) threadMessages.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), createdAt: Date.parse(run.createdAt), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent });
             const approval = run.status === "requires_approval" && run.approvalId
               ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
               : undefined;
@@ -382,7 +403,7 @@ export function ChatPage() {
             const active = run.status === "queued" || run.status === "running";
             const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
             if (active) syncActiveRunId(run.id);
-            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Reconnecting to this run…" : undefined, approval, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
+            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), createdAt: Date.parse(run.updatedAt), pending: active, statusText: active && !hasCurrentToolActivity(activities) ? "Reconnecting to this run…" : undefined, approval, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
           }
           setMessages(threadMessages);
         }
@@ -616,8 +637,9 @@ export function ChatPage() {
     setController(abort);
     setInput("");
     setAttachments([]);
-    const outgoing: Message = { role: "user", text: text || "Attached file(s)", time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size, previewUrl, downloadUrl }) => ({ id, name, contentType, size, previewUrl, downloadUrl })) };
-    setMessages((current) => editingMessageIndex === undefined ? [...current, outgoing, { role: "assistant", text: "", pending: true }] : [...current.slice(0, editingMessageIndex), outgoing, { role: "assistant", text: "", pending: true }]);
+    const submittedAt = Date.now();
+    const outgoing: Message = { role: "user", text: text || "Attached file(s)", time: "Now", createdAt: submittedAt, attachments: readyAttachments.map(({ id, name, contentType, size, previewUrl, downloadUrl }) => ({ id, name, contentType, size, previewUrl, downloadUrl })) };
+    setMessages((current) => editingMessageIndex === undefined ? [...current, outgoing, { role: "assistant", text: "", createdAt: submittedAt, pending: true }] : [...current.slice(0, editingMessageIndex), outgoing, { role: "assistant", text: "", createdAt: submittedAt, pending: true }]);
     setEditingMessageIndex(undefined);
     const shouldTitle = Boolean(text && !thread.metadata.title);
     try {
@@ -719,24 +741,13 @@ export function ChatPage() {
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-1.5 py-2 sm:px-5 sm:py-6 lg:px-8">
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-3.5 sm:space-y-4">
-              {earlierAccountMessages.length ? <details className="mb-4 overflow-hidden rounded-md border border-foreground/10 bg-background/70">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-[11px] hover:bg-foreground/[0.025]">
-                  <span className="min-w-0"><span className="font-medium">Earlier shared account history</span><span className="ml-2 text-muted-foreground">Private context available to Chusky across this account</span></span>
-                  <span className="shrink-0 rounded border border-foreground/10 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">{earlierAccountMessages.length}</span>
-                </summary>
-                <div className="max-h-72 space-y-2 overflow-y-auto border-t border-foreground/10 px-3 py-2.5">
-                  {earlierAccountMessages.slice(-40).map((entry, index) => <div key={`${entry.role}-${entry.createdAt ?? "legacy"}-${index}`} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-2 text-[10px] leading-4">
-                    <span className="pt-0.5 text-muted-foreground">{entry.role === "user" ? "You" : "Chusky"}{entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}</span>
-                    <p className="whitespace-pre-wrap break-words text-foreground/80">{entry.content.slice(0, 4_000)}{entry.content.length > 4_000 ? "…" : ""}</p>
-                  </div>)}
-                  {earlierAccountMessages.length > 40 ? <p className="border-t border-foreground/10 pt-2 text-[9px] text-muted-foreground">Showing the 40 most recent messages. Older account context remains available to Chusky.</p> : null}
-                </div>
-              </details> : sharedHistoryError ? <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-amber-700/20 bg-amber-50/50 px-3 py-2 text-[10px] text-amber-900"><span>Shared account history could not be loaded.</span><button type="button" onClick={() => void refreshSharedHistory()} className="shrink-0 underline underline-offset-2">Retry</button></div> : null}
-              {!messages.length && status === "ready" && <div className="mx-auto mt-10 max-w-sm text-center"><p className="text-xs font-medium">Start a new conversation</p><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Ask Chusky to research, write, plan, or act. Your chat will be saved automatically so you can return to it later.</p><button type="button" onClick={() => inputRef.current?.focus()} className="mt-3 text-[11px] font-medium underline underline-offset-4">Write the first message</button></div>}
-              {messages.map((item, index) => {
+              {sharedHistoryError && <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-amber-700/20 bg-amber-50/50 px-3 py-2 text-[10px] text-amber-900"><span>Shared account history could not be loaded.</span><button type="button" onClick={() => void refreshSharedHistory()} className="shrink-0 underline underline-offset-2">Retry</button></div>}
+              {!timelineMessages.length && status === "ready" && <div className="mx-auto mt-10 max-w-sm text-center"><p className="text-xs font-medium">Start a new conversation</p><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Ask Chusky to research, write, plan, or act. Your chat will be saved automatically so you can return to it later.</p><button type="button" onClick={() => inputRef.current?.focus()} className="mt-3 text-[11px] font-medium underline underline-offset-4">Write the first message</button></div>}
+              {timelineMessages.map((item, index) => {
                 const visibleActivities = item.activities?.length ? presentToolActivities(item.activities) : [];
                 return <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : containsVisualBlock(item.text) ? "group relative w-full max-w-3xl" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
+                    {item.sharedHistory && <p className={`mb-1 font-mono text-[8px] uppercase tracking-[0.14em] ${item.role === "user" ? "text-background/65" : "text-muted-foreground"}`}>Shared history{item.time ? ` · ${item.time}` : ""}</p>}
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && !hasCurrentToolActivity(item.activities) && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
                     {visibleActivities.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl">
@@ -769,7 +780,7 @@ export function ChatPage() {
                     {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
                       {item.role === "user" ? <>
                         <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={11} /> : <Copy size={11} />}</button>
-                        <button type="button" onClick={() => editMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label="Edit message" title="Edit"><Pencil size={11} /></button>
+                        {!item.sharedHistory && item.sourceThreadIndex !== undefined && <button type="button" onClick={() => editMessage(item.sourceThreadIndex!, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label="Edit message" title="Edit"><Pencil size={11} /></button>}
                       </> : <>
                         <button type="button" onClick={() => setLikedMessageIndex((current) => current === index ? undefined : index)} className={`flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground ${likedMessageIndex === index ? "text-emerald-600" : ""}`} aria-label={likedMessageIndex === index ? "Unlike message" : "Like message"} aria-pressed={likedMessageIndex === index} title="Like"><ThumbsUp size={11} fill={likedMessageIndex === index ? "currentColor" : "none"} /></button>
                         <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={11} /> : <Copy size={11} />}</button>
