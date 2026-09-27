@@ -15,6 +15,62 @@ export type ToolActivity = {
   durationMs?: number;
 };
 
+export type PresentedToolActivity = Omit<ToolActivity, "status" | "batchActions"> & {
+  status: ToolActivity["status"] | "unknown";
+  parallelBatch?: boolean;
+};
+
+const successfulDiscoveryTools = new Set(["COMPOSIO_SEARCH_TOOLS", "COMPOSIO_GET_TOOL_SCHEMAS"]);
+const successfulPreparationTools = new Set(["CHUCK_SEARCH_SKILLS", "CHUCK_LIST_SKILL_FILES", "CHUCK_READ_SKILL_FILE"]);
+const hiddenSetupStatuses = new Set<ToolActivity["status"]>(["started", "completed"]);
+
+/** Keep internal discovery out of the timeline and surface batch actions individually. */
+export function presentToolActivities(activities: ToolActivity[]): PresentedToolActivity[] {
+  return activities.flatMap((activity): PresentedToolActivity[] => {
+    if (successfulPreparationTools.has(activity.toolSlug) && hiddenSetupStatuses.has(activity.status)) return [];
+    if (successfulPreparationTools.has(activity.toolSlug)) {
+      return [{
+        ...activity,
+        toolSlug: "CHUCK_PREPARATION",
+        toolkitName: "Chusky",
+        actionLabel: "Couldn’t load the relevant guidance",
+        message: "Couldn’t load the relevant guidance",
+        summary: "Try the request again. If it keeps failing, contact support.",
+      }];
+    }
+    if (successfulDiscoveryTools.has(activity.toolSlug) && hiddenSetupStatuses.has(activity.status)) return [];
+    if (successfulDiscoveryTools.has(activity.toolSlug)) {
+      const actionLabel = activity.toolSlug === "COMPOSIO_SEARCH_TOOLS"
+        ? "Couldn’t find the right connected capability"
+        : "Couldn’t load the connected action details";
+      return [{
+        ...activity,
+        toolSlug: "CHUCK_COMPOSIO_DISCOVERY",
+        toolkitName: "Chusky",
+        actionLabel,
+        message: actionLabel,
+        summary: "Try the request again. If it keeps failing, refresh your connected apps and retry.",
+      }];
+    }
+    if (!activity.batchActions?.length) return [{ ...activity, status: activity.status }];
+    return activity.batchActions.map((action) => ({
+      id: action.id,
+      type: "run.tool_activity",
+      at: activity.at,
+      toolSlug: action.toolSlug,
+      callId: activity.callId,
+      status: action.status,
+      message: action.actionLabel || activity.message,
+      ...(action.actionLabel ? { actionLabel: action.actionLabel } : {}),
+      ...(action.toolkitSlug ? { toolkitSlug: action.toolkitSlug } : {}),
+      ...(action.toolkitName ? { toolkitName: action.toolkitName } : {}),
+      ...(action.toolkitLogo ? { toolkitLogo: action.toolkitLogo } : {}),
+      ...(action.summary ? { summary: action.summary } : {}),
+      parallelBatch: true,
+    }));
+  });
+}
+
 const activityKey = (activity: Pick<ToolActivity, "toolSlug" | "message" | "callId">) => activity.callId ? `call:${activity.callId}` : `${activity.toolSlug}\u0000${activity.message}`;
 
 /** Collapse start/finish events into one durable step, including restored history. */

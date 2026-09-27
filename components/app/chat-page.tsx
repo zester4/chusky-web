@@ -24,10 +24,11 @@ import {
     X,
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread } from "@/lib/chusky-api";
-import { coalesceSubagentActivities, coalesceToolActivities, upsertSubagentActivity, upsertToolActivity, type SubagentActivity } from "@/lib/run-activity";
+import { coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, upsertSubagentActivity, upsertToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
+import { ToolkitLogo } from "./toolkit-logo";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
 
@@ -92,15 +93,10 @@ const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + wo
 const activityStatusText = (activity: SubagentActivity, isLive: boolean) => activity.status === "started" ? isLive ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for approval" : activity.status === "waiting" ? "Waiting for Chusky" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step";
 
 function ActivityBrand({ toolSlug, toolkitName, toolkitLogo, size = 18 }: { toolSlug?: string; toolkitName?: string; toolkitLogo?: string; size?: number }) {
-  const sizeClass = size === 16 ? "size-4" : "size-[18px]";
-  const fallback = toolSlug?.startsWith("CHUCK_") ? <img src="/icon.svg" alt="" className={`${sizeClass} object-contain`} /> : toolkitName || toolkitLogo ? <span className="font-medium text-muted-foreground">{(toolkitName || "App").slice(0, 1).toUpperCase()}</span> : <PlugZap size={size - 2} className="text-muted-foreground" />;
-  return <span className={`relative flex ${sizeClass} shrink-0 items-center justify-center overflow-hidden`} aria-hidden="true">
-    {fallback}
-    {toolkitLogo ? <img src={toolkitLogo} alt="" loading="lazy" decoding="async" className={`absolute inset-0 ${sizeClass} bg-background object-contain`} onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}
-  </span>;
+  if (toolSlug?.startsWith("CHUCK_")) return <img src="/icon.svg" alt="" aria-hidden="true" className="size-[18px] shrink-0 object-contain" />;
+  if (toolkitName || toolkitLogo) return <ToolkitLogo name={toolkitName || "Connected app"} logo={toolkitLogo} size={size} />;
+  return <PlugZap size={size - 2} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
 }
-
-const batchStatusText = (action: NonNullable<RunToolActivity["batchActions"]>[number], live: boolean) => action.status === "started" ? live ? "In progress" : "No final result was recorded" : action.status === "completed" ? action.summary ?? "Provider confirmed this action" : action.status === "failed" ? action.summary ?? "Provider reported this action failed" : action.status === "approval_required" ? "Waiting for approval" : action.status === "cancelled" ? "Cancelled" : action.summary ?? "Individual result unavailable";
 
 function SubagentTree({ activities, parentToolCallId, live }: { activities: RunSubagentActivity[]; parentToolCallId: string; live: boolean }) {
   const related = activities.filter((activity) => activity.parentToolCallId === parentToolCallId);
@@ -640,38 +636,25 @@ export function ChatPage() {
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-3.5 sm:space-y-4">
               {!messages.length && status === "ready" && <div className="mx-auto mt-10 max-w-sm text-center"><p className="text-xs font-medium">Start a new conversation</p><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Ask Chusky to research, write, plan, or act. Your chat will be saved automatically so you can return to it later.</p><button type="button" onClick={() => inputRef.current?.focus()} className="mt-3 text-[11px] font-medium underline underline-offset-4">Write the first message</button></div>}
-              {messages.map((item, index) => (
-                <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
+              {messages.map((item, index) => {
+                const visibleActivities = item.activities?.length ? presentToolActivities(item.activities) : [];
+                return <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && !hasCurrentToolActivity(item.activities) && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText || (isDelegation(item.tool) ? "🤖 I’m delegating to a domain specialist…" : item.tool ? `Using ${formatToolLabel(item.tool)}` : "I’m working through that…")}</span></div>}
-                    {item.activities?.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl">
-                      <div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-[11px] font-medium">Activity</p><span className="text-[10px] text-muted-foreground">{item.activities.length} {item.activities.length === 1 ? "step" : "steps"}</span></div>
+                    {visibleActivities.length ? <section aria-label="Tool activity" className="my-2 w-full min-w-0 max-w-2xl">
                       <ol className="space-y-2">
-                        {item.activities.map((activity, activityIndex) => {
-                          const isCurrent = item.pending && activity.status === "started" && activityIndex === item.activities!.length - 1;
+                        {visibleActivities.map((activity, activityIndex) => {
+                          const isCurrent = item.pending && activity.status === "started" && (activity.parallelBatch || activityIndex === visibleActivities.length - 1);
                           return <li key={activity.id} className="flex min-w-0 gap-2.5">
-                            <span className="mt-0.5 shrink-0" aria-hidden="true">{isCurrent ? <LoaderCircle size={12} className="animate-spin text-muted-foreground" /> : activity.status === "started" ? <span className="mt-1 block size-1.5 rounded-full bg-muted-foreground/45" /> : activity.status === "completed" ? <CheckCircle2 size={12} className="text-emerald-700" /> : activity.status === "approval_required" ? <ShieldCheck size={12} className="text-amber-700" /> : activity.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : <X size={12} className="text-rose-700" />}</span>
+                            <span className="mt-0.5 shrink-0" aria-hidden="true">{isCurrent ? <LoaderCircle size={12} className="animate-spin text-muted-foreground" /> : activity.status === "started" ? <span className="mt-1 block size-1.5 rounded-full bg-muted-foreground/45" /> : activity.status === "completed" ? <CheckCircle2 size={12} className="text-emerald-700" /> : activity.status === "approval_required" ? <ShieldCheck size={12} className="text-amber-700" /> : activity.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : activity.status === "unknown" ? <span className="mt-1 block size-1.5 rounded-full bg-amber-600/70" /> : <X size={12} className="text-rose-700" />}</span>
                             <ActivityBrand toolSlug={activity.toolSlug} toolkitName={activity.toolkitName} toolkitLogo={activity.toolkitLogo} />
                             <div className="min-w-0 flex-1">
                               <p className="text-[12px] leading-[1.45]">{activity.actionLabel || activity.message}</p>
                               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
                                 <span>{activity.toolkitName || activity.toolkitSlug || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : formatToolLabel(activity.toolSlug))}</span>
-                                <span>{activity.status === "started" ? isCurrent ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for your approval" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step"}</span>
+                                <span>{activity.status === "started" ? isCurrent ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "unknown" ? activity.summary || "Individual outcome unavailable" : activity.status === "approval_required" ? "Waiting for your approval" : activity.status === "cancelled" ? "Cancelled" : activity.status === "failed" ? activity.summary || "Couldn’t complete this step" : "Couldn’t complete this step"}</span>
                               </div>
-                              {activity.batchActions?.length ? <details className="mt-1.5" open={activity.batchActions.length <= 3}>
-                                <summary className="cursor-pointer text-[10px] leading-4 text-muted-foreground">{activity.batchActions.length} actions submitted in parallel</summary>
-                                <ol className="mt-1 space-y-1.5 pl-0.5">
-                                  {activity.batchActions.map((action) => {
-                                    const actionCurrent = action.status === "started" && isCurrent;
-                                    return <li key={action.id} className="flex min-w-0 items-start gap-2">
-                                      <span className="mt-0.5 shrink-0" aria-hidden="true">{actionCurrent ? <LoaderCircle size={11} className="animate-spin text-muted-foreground" /> : action.status === "completed" ? <CheckCircle2 size={11} className="text-emerald-700" /> : action.status === "failed" ? <X size={11} className="text-rose-700" /> : action.status === "approval_required" ? <ShieldCheck size={11} className="text-amber-700" /> : action.status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : action.status === "started" ? <span className="mt-1 block size-1.5 rounded-full bg-muted-foreground/45" /> : <span className="mt-1 block size-1.5 rounded-full bg-amber-600/70" />}</span>
-                                      <ActivityBrand toolSlug={action.toolSlug} toolkitName={action.toolkitName} toolkitLogo={action.toolkitLogo} size={16} />
-                                      <div className="min-w-0 flex-1"><p className="text-[11px] leading-4">{action.actionLabel || formatToolLabel(action.toolSlug)}</p><p className="text-[10px] leading-4 text-muted-foreground">{action.toolkitName || action.toolkitSlug || "Connected app"} · {batchStatusText(action, Boolean(item.pending))}</p></div>
-                                    </li>;
-                                  })}
-                                </ol>
-                              </details> : null}
                               {activity.callId && item.subagentActivities?.length ? <SubagentTree activities={item.subagentActivities} parentToolCallId={activity.callId} live={Boolean(item.pending)} /> : null}
                             </div>
                             <span className="sr-only">Step {activityIndex + 1}</span>
@@ -696,8 +679,8 @@ export function ChatPage() {
                       </>}
                     </div> : null}
                   </div>
-                </div>
-              ))}
+                </div>;
+              })}
               <div ref={endRef} />
             </div>
             </div>

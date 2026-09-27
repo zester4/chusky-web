@@ -6,6 +6,7 @@ import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoiceP
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
+import { ToolkitLogo } from "./toolkit-logo";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings";
@@ -59,13 +60,6 @@ function SettingsPanel({ initialModel, initialVoice, initialPreferences }: { ini
   const update = async (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => { setBusy(true); setMessage(undefined); try { const next = await chuskyApi.account.updatePreferences(input); setModel(next.model); setVoice(next.voiceReplies); setPreferences(next.voicePreferences); setOpen(false); setMessage("Saved across supported Chusky channels."); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this preference."); } finally { setBusy(false); } };
   const fluxSelector = (provider: "twilio" | "meetings", label: string) => <label className="block text-xs text-muted-foreground">{label}<select disabled={busy} value={preferences[provider] ?? ""} onChange={(event) => void update({ liveVoice: { provider, voice: event.target.value || null } })} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Provider default</option>{preferences[provider] && !voiceOptions?.fluxVoices.some((item) => item.id === preferences[provider]) && <option value={preferences[provider]}>{preferences[provider]} · saved selection</option>}{voiceOptions?.fluxVoices.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.accent} ({item.id})</option>)}</select>{!voiceOptions && <span className="mt-1 block text-[10px]">Voice catalogue unavailable; existing selection can still be reset.</span>}</label>;
   return <Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Runtime preferences</p><div className="mt-4 space-y-4"><div><label className="text-xs text-muted-foreground">Selected model</label><div className="relative mt-1.5"><Popover open={open} onOpenChange={setOpen}><PopoverTrigger asChild><button type="button" disabled={busy} aria-expanded={open} className="flex min-h-9 w-full items-center justify-between border border-foreground/15 px-2.5 py-2 text-left text-xs hover:border-foreground/40"><span className="truncate">{model}</span><ChevronDown size={14} /></button></PopoverTrigger><PopoverContent align="start" sideOffset={5} className="max-h-64 w-[min(24rem,calc(100vw-1rem))] overflow-auto p-1">{models.map((item) => <button key={item.id} type="button" onClick={() => void update({ model: item.id })} className="block min-h-8 w-full px-2.5 py-2 text-left text-xs hover:bg-foreground/5"><span className="block truncate">{item.name}</span><span className="mt-0.5 block truncate font-mono text-[9px] text-muted-foreground">{item.id}</span></button>)}{!models.length && <p className="p-3 text-xs text-muted-foreground">Loading models…</p>}</PopoverContent></Popover></div></div><div className="flex items-center justify-between gap-3 border-t border-foreground/10 pt-3"><div className="min-w-0"><p className="text-xs">Voice replies</p><p className="mt-1 text-[10px] text-muted-foreground">Read Chusky responses aloud where supported.</p></div><button type="button" role="switch" aria-checked={voice} disabled={busy} onClick={() => void update({ voiceReplies: !voice })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${voice ? "bg-foreground" : "bg-foreground/15"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-background transition-transform ${voice ? "translate-x-6" : "translate-x-1"}`} /></button></div><div className="space-y-3 border-t border-foreground/10 pt-3"><p className="text-xs font-medium">Voice selection by provider</p>{fluxSelector("twilio", "Twilio / phone calls")}{fluxSelector("meetings", "Recall meetings")}{voiceOptions?.blandAvailable ? <label className="block text-xs text-muted-foreground">Bland<select disabled={busy} value={preferences.bland?.id ?? ""} onChange={(event) => { const selected = voiceOptions.blandVoices.find((item) => item.id === event.target.value); if (!event.target.value || selected) void update({ liveVoice: { provider: "bland", voice: selected ? { id: selected.id, name: selected.name } : null } }); }} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Provider default{preferences.bland ? ` · current ${preferences.bland.name}` : ""}</option>{preferences.bland && !voiceOptions.blandVoices.some((item) => item.id === preferences.bland?.id) && <option value={preferences.bland.id}>{preferences.bland.name} · saved selection</option>}{voiceOptions.blandVoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="mt-1 block text-[10px]">{voiceOptions.blandCatalogueAvailable ? "Applies to Bland calls." : "Bland voice catalogue is temporarily unavailable; existing selection can still be reset."}</span></label> : <p className="text-[10px] text-muted-foreground">Bland voice is not configured on this deployment.</p>}</div>{message && <p role="status" className="text-[11px] text-muted-foreground">{message}</p>}</div></Card>;
-}
-
-function ToolkitLogo({ item }: { item: Toolkit }) {
-  const [failed, setFailed] = useState(false);
-  return <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.04] text-sm font-medium">
-    {item.logo && !failed ? <img src={item.logo} alt="" loading="lazy" className="h-8 w-8 object-contain" onError={() => setFailed(true)} /> : <span aria-hidden="true">{item.name.slice(0, 1).toUpperCase()}</span>}
-  </div>;
 }
 
 function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
@@ -186,7 +180,7 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
           const canConnect = !item.noAuth;
           return <article key={item.slug} className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-4">
             <div className="flex min-w-0 items-start gap-3">
-              <ToolkitLogo item={item} />
+              <ToolkitLogo name={item.name} logo={item.logo} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h2 className="text-sm font-medium">{item.name}</h2>
@@ -351,7 +345,7 @@ function ComprehensiveTriggersPanel() {
           const expanded = item.slug === toolkit;
           return <article key={item.slug} className={`flex min-w-0 flex-col gap-3 border p-3.5 transition-colors ${expanded ? "border-foreground/45 bg-foreground/[0.03] sm:col-span-2 lg:col-span-3" : "border-foreground/10"}`}>
             <button type="button" onClick={() => toggleToolkit(item.slug)} aria-expanded={expanded} aria-label={`${expanded ? "Hide" : "View"} ${item.name} triggers`} className="flex w-full min-w-0 items-start gap-3 text-left">
-              <ToolkitLogo item={item} />
+              <ToolkitLogo name={item.name} logo={item.logo} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h3 className="truncate text-sm font-medium">{item.name}</h3>
