@@ -707,7 +707,7 @@ export function ChatPage() {
                           const attention = activity.status === "failed" || activity.status === "approval_required" || activity.status === "cancelled" || activity.status === "unknown";
                           return <li key={activity.id} className="min-w-0">
                             <div className={`flex min-w-0 items-center gap-2.5 rounded-2xl border bg-background/90 px-3 py-2 shadow-[0_1px_2px_rgb(0_0_0_/_0.05)] ${attention ? "border-amber-500/25" : "border-foreground/10"}`}>
-                              <ActivityBrand toolSlug={activity.toolSlug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={24} />
+                              <ActivityBrand toolSlug={activity.toolSlug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={20} />
                               <p className="min-w-0 flex-1 truncate font-mono text-[11px] leading-5 sm:text-xs" title={`${toolkit.slug || "Chusky"} · ${actionTokenForActivity(activity)}`}>
                                 <span className="text-muted-foreground">{toolkit.slug || (activity.toolSlug.startsWith("CHUCK_") ? "chusky" : "connected app")}</span><span className="px-1.5 text-muted-foreground/65">·</span><span className="text-foreground">{actionTokenForActivity(activity)}</span>{detail ? <><span className="px-1.5 text-muted-foreground/65">·</span><span className="text-muted-foreground">{detail}</span></> : null}
                               </p>
