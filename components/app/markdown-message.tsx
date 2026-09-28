@@ -127,9 +127,12 @@ function normalizeMarkdownContent(content: string) {
     .replace(/\\\(([\s\S]*?)\\\)/g, (_, expression: string) => `$${expression.trim()}$`)
     // A price such as $500_{setup}+$750 is not an equation. Keep the labels and amounts as literal text.
     .replace(/(?<!\\)\$(\d[\d,]*(?:\.\d+)?)_\{([^}\n]+)\}\s*\+\s*\$?(\d[\d,]*(?:\.\d+)?)(?:\$)?/g, (_, setup: string, label: string, monthly: string) => `\\$${setup} ${label} + \\$${monthly}`)
+    // Keep numeric prose with a TeX-looking subscript literal, e.g. $550M_{at 12.55B valuation}.
+    // Real equations normally begin with a variable or command, not a currency-sized number.
+    .replace(/(?<!\\)\$(\d[\d,]*(?:\.\d+)?\s*[A-Za-z%]+)_\{([^}\n]+)\}/g, (_, value: string, label: string) => `\\$${value} ${label}`)
     .replace(/(\\\$\d[\d,]*(?:\.\d+)?)_\{([^}\n]+)\}/g, "$1 $2")
     // Protect ordinary dollar amounts from being consumed as inline math while preserving $x$, $E=mc^2$, etc.
-    .replace(/(?<!\\)\$(?=\s*(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(?=\s*(?:[-–—/,]|_\{|[A-Za-z]{2,}\b|$)))/g, "\\$");
+    .replace(/(?<!\\)\$(?=\s*(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(?:\s*[KMBkmb%])?(?=\s*(?:[-–—/,.;:_)]|_\{|[A-Za-z]{1,4}\b|\||$)))/g, "\\$");
 }
 
 function DataChart({ source }: { source: string }) {
@@ -221,10 +224,10 @@ const components: Components = {
     if (child && (child.type === MermaidBlock || child.type === DataChart || child.type === CodeBlock)) return child;
     return <pre className="my-2 max-w-full overflow-x-auto rounded-md border border-foreground/10 bg-foreground/[0.04] p-2.5 font-mono text-[10px] leading-4" {...props}>{children}</pre>;
   },
-  table: ({ children, ...props }) => <div className="my-2 max-w-full overflow-x-auto rounded-md border border-foreground/10"><table className="min-w-full border-collapse text-left text-[10px] sm:text-[11px]" {...props}>{children}</table></div>,
+  table: ({ children, ...props }) => <div className="my-2 max-w-full overflow-x-auto overscroll-x-contain rounded-md border border-foreground/10"><table className="min-w-[34rem] w-full border-collapse text-left text-[10px] leading-4 [font-variant-numeric:tabular-nums] sm:text-[11px]" {...props}>{children}</table></div>,
   thead: ({ children, ...props }) => <thead className="bg-foreground/[0.04]" {...props}>{children}</thead>,
-  th: ({ children, ...props }) => <th className="whitespace-nowrap border-b border-foreground/10 px-2 py-1.5 font-medium" {...props}>{children}</th>,
-  td: ({ children, ...props }) => <td className="min-w-24 border-b border-foreground/10 px-2 py-1.5 align-top last:border-0" {...props}>{children}</td>,
+  th: ({ children, ...props }) => <th className="whitespace-nowrap border-b border-foreground/10 px-2.5 py-1.5 font-medium" {...props}>{children}</th>,
+  td: ({ children, ...props }) => <td className="min-w-24 border-b border-foreground/10 px-2.5 py-2 align-top [overflow-wrap:break-word] [word-break:normal] last:border-0" {...props}>{children}</td>,
 };
 
 export function MarkdownMessage({ content }: { content: string }) {
