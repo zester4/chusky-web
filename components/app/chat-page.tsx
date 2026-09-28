@@ -203,6 +203,11 @@ const stripArtifactLinks = (content: string, artifacts: ChatArtifact[]) => {
 const containsVisualBlock = (content: string) => /(?:```|~~~)/.test(content);
 
 function ArtifactCard({ artifact }: { artifact: ChatArtifact }) {
+  const isImage = artifact.contentType.startsWith("image/") || artifact.type === "image";
+  if (isImage) return <figure className="mt-2 max-w-xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025]">
+    <img src={chuskyApi.artifacts.downloadHref(artifact.id)} alt={artifact.name} loading="lazy" decoding="async" className="max-h-[28rem] w-auto max-w-full object-contain" />
+    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><a href={chuskyApi.artifacts.downloadHref(artifact.id)} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+  </figure>;
   return <div className="mt-2 flex max-w-full items-center gap-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2.5">
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-foreground/10 bg-background text-muted-foreground"><FileText size={15} /></div>
     <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</p><p className="mt-0.5 text-[10px] capitalize text-muted-foreground">{artifact.type} · {formatArtifactSize(artifact.size)}</p></div>
