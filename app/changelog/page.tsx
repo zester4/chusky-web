@@ -10,6 +10,18 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    date: "2026-09-28",
+    dateLabel: "September 28, 2026",
+    area: "Agent · Decision routing",
+    title: "Chusky now finds the right connected app faster",
+    summary: "Jev now helps Chusky route requests across skills, Composio apps, actions, and Treg endpoints while preserving deterministic fallbacks and approval rules.",
+    details: [
+      "Connected apps are ranked by the user's request and the most suitable action is selected from the provider catalogue, so Gmail requests can reach Gmail actions directly.",
+      "If a request names an app that is not connected, Chusky identifies it, presents the connection path, and keeps that app's actions unavailable until the account is connected.",
+      "Routing runs inside a shared deadline and falls back to the existing deterministic routes; Jev never grants approval or overrides budgets, account isolation, or native tool policy.",
+    ],
+  },
+  {
     date: "2026-09-27",
     dateLabel: "September 27, 2026",
     area: "Agent · Private owner context",
