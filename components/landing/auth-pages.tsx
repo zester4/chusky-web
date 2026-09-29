@@ -6,6 +6,8 @@ import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+import { chuskyApi } from "@/lib/chusky-api";
+import { ONBOARDING_MEMORY_KEY } from "@/lib/onboarding";
 import { InputDialog } from "@/components/app/input-dialog";
 
 type AuthVariant = "sign-in" | "sign-up" | "forgot-password" | "reset-password" | "verify-email" | "email-verified";
@@ -78,7 +80,16 @@ function SignInCard() {
       const callbackPath = requestedCallback.startsWith("/") && !requestedCallback.startsWith("//") && !requestedCallback.includes("\\") ? requestedCallback : "/app";
       const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: new URL(callbackPath, window.location.origin).toString() });
       if (result.error) setMessage(result.error.message || "We couldn’t sign you in. Check your email and password and try again.");
-      else window.location.assign(callbackPath);
+      else {
+        let targetPath = callbackPath;
+        if (callbackPath.startsWith("/app") && !callbackPath.startsWith("/app/onboarding")) {
+          try {
+            const memories = await chuskyApi.memory.list(ONBOARDING_MEMORY_KEY);
+            if (!memories.data.some((item) => item.key === ONBOARDING_MEMORY_KEY)) targetPath = `/app/onboarding?returnTo=${encodeURIComponent(callbackPath)}`;
+          } catch { /* A failed profile lookup should never block a successful sign-in. */ }
+        }
+        window.location.assign(targetPath);
+      }
     } catch (error) {
       setMessage(authErrorMessage(error, "We couldn’t sign you in. Please try again."));
     } finally {
