@@ -89,8 +89,9 @@ export type TelegramLinkCode = { code: string; expiresAt: string };
 export type Model = { id: string; name: string };
 export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string; description?: string; appUrl?: string; categories?: string[]; toolsCount?: number; triggersCount?: number; authSchemes?: string[]; noAuth?: boolean; accountCount?: number; aliases?: string[] };
 export type ConnectedAccount = { id: string; alias?: string; toolkit: string; status: string; createdAt?: string; updatedAt?: string };
-export type Trigger = { id: string; slug: string; status: string; config: Record<string, unknown> };
-export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; instructions?: string; toolkit: { slug: string; name: string; logo?: string }; config: Record<string, unknown> };
+export type Trigger = { id: string; slug: string; status: string; enabled: boolean; config: Record<string, unknown>; instructions?: string };
+export type TriggerConfigField = { name: string; required: boolean; sensitive?: boolean; type?: string; description?: string; allowedValues?: Array<string | number | boolean>; minLength?: number; maxLength?: number };
+export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; setupInstructions?: string; toolkit: { slug: string; name: string; logo?: string }; requiredFields: string[]; fields: TriggerConfigField[] };
 export type TriggerToolkit = { slug: string; name: string; logo?: string; triggerCount: number; connected: boolean; accountCount: number };
 export type McpCatalogEntry = { id: string; name: string; url: string; auth: "none" | "bearer" | "oauth"; scopes?: string[]; enabled?: boolean; allowedTools?: string[]; requireApproval?: boolean; custom?: boolean };
 export type McpConnection = { serverId: string; name: string; auth: "none" | "bearer" | "oauth"; enabled: boolean; connectedAt: string; updatedAt: string; verifiedToolCount?: number };
@@ -434,8 +435,9 @@ export const chuskyApi = {
       toolkits: (connectedOnly = false) => request<{ data: TriggerToolkit[] }>(`/triggers/catalog/toolkits?connectedOnly=${connectedOnly}`),
       types: (toolkit: string, page = 1, pageSize = 50) => request<{ data: TriggerCatalogueItem[]; page: number; pageSize: number; total: number; totalPages: number }>(`/triggers/catalog/toolkits/${encodeURIComponent(toolkit)}?page=${page}&pageSize=${pageSize}`),
     },
-    create: (slug: string, triggerConfig: Record<string, unknown> = {}, connectedAccountId?: string) => request<Trigger>("/triggers", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ slug, triggerConfig, ...(connectedAccountId ? { connectedAccountId } : {}) }) }),
+    create: (slug: string, triggerConfig: Record<string, unknown> = {}, connectedAccountId?: string, instructions?: string, idempotencyKey = idempotency()) => request<Trigger>("/triggers", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ slug, triggerConfig, ...(connectedAccountId ? { connectedAccountId } : {}), ...(instructions ? { instructions } : {}) }) }),
     setEnabled: (id: string, enabled: boolean) => request<unknown>(`/triggers/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ enabled }) }),
+    updateInstructions: (id: string, instructions: string) => request<{ id: string; instructions: string }>(`/triggers/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ instructions }) }),
     remove: (id: string) => request<void>(`/triggers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tools: {
