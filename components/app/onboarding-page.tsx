@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ArrowUpRight, BriefcaseBusiness, Building2, Check, CircleHelp, Globe2, LoaderCircle, MessagesSquare, PlugZap, RefreshCw, Search, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { chuskyApi } from "@/lib/chusky-api";
+import { ChuskyApiError, chuskyApi } from "@/lib/chusky-api";
 import {
   ONBOARDING_MEMORY_KEY,
   clearOnboardingDraft,
@@ -222,8 +222,8 @@ export function OnboardingPage() {
     try {
       const result = await chuskyApi.onboarding.researchWebsite(profile.websiteUrl.trim());
       setProfile((current) => ({ ...current, websiteUrl: result.data.websiteUrl, websiteSummary: result.data.summary, websiteSummaryUrl: result.data.websiteUrl, websiteSummaryUpdatedAt: result.data.researchedAt }));
-    } catch {
-      setWebsiteResearchError("Chusky could not read that public website right now. You can continue without it or try again.");
+    } catch (error) {
+      setWebsiteResearchError(error instanceof ChuskyApiError ? error.message : "Chusky could not read that public website right now. You can continue without it or try again.");
     } finally {
       setWebsiteResearching(false);
     }
