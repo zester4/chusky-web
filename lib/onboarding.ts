@@ -19,6 +19,10 @@ export type OnboardingProfile = {
   companyName: string;
   teamSize: string;
   businessGoal: string;
+  websiteUrl: string;
+  websiteSummary?: string;
+  websiteSummaryUrl?: string;
+  websiteSummaryUpdatedAt?: string;
   goals: string[];
   firstOutcome: string;
   tone: OnboardingTone;
@@ -38,6 +42,7 @@ export const defaultOnboardingProfile = (name = ""): OnboardingProfile => ({
   companyName: "",
   teamSize: "",
   businessGoal: "",
+  websiteUrl: "",
   goals: [],
   firstOutcome: "",
   tone: "professional",
@@ -150,6 +155,10 @@ export function parseOnboardingProfile(value: string): OnboardingProfile | undef
       companyName: cleanText(parsed.companyName, 180),
       teamSize: cleanText(parsed.teamSize, 40),
       businessGoal: cleanText(parsed.businessGoal, 2400),
+      websiteUrl: cleanText(parsed.websiteUrl, 2_000),
+      ...(typeof parsed.websiteSummary === "string" ? { websiteSummary: cleanText(parsed.websiteSummary, 8_000) } : {}),
+      ...(typeof parsed.websiteSummaryUrl === "string" ? { websiteSummaryUrl: cleanText(parsed.websiteSummaryUrl, 2_000) } : {}),
+      ...(typeof parsed.websiteSummaryUpdatedAt === "string" ? { websiteSummaryUpdatedAt: cleanText(parsed.websiteSummaryUpdatedAt, 40) } : {}),
       goals: Array.isArray(parsed.goals) ? parsed.goals.filter((item): item is string => typeof item === "string" && goals.has(item)).slice(0, 8) : [],
       firstOutcome: cleanText(parsed.firstOutcome, 2400),
       tone: typeof parsed.tone === "string" && tones.has(parsed.tone as OnboardingTone) ? parsed.tone as OnboardingTone : fallback.tone,
@@ -172,7 +181,12 @@ export function serializeOnboardingProfile(profile: OnboardingProfile): string {
     timezone: cleanText(profile.timezone, 100),
     workDescription: cleanText(profile.workDescription, 2400),
     companyName: cleanText(profile.companyName, 180),
+    teamSize: cleanText(profile.teamSize, 40),
     businessGoal: cleanText(profile.businessGoal, 2400),
+    websiteUrl: cleanText(profile.websiteUrl, 2_000),
+    ...(profile.websiteSummary ? { websiteSummary: cleanText(profile.websiteSummary, 8_000) } : {}),
+    ...(profile.websiteSummaryUrl ? { websiteSummaryUrl: cleanText(profile.websiteSummaryUrl, 2_000) } : {}),
+    ...(profile.websiteSummaryUpdatedAt ? { websiteSummaryUpdatedAt: cleanText(profile.websiteSummaryUpdatedAt, 40) } : {}),
     goals: profile.goals.filter((goal) => goals.has(goal)).slice(0, 8),
     firstOutcome: cleanText(profile.firstOutcome, 2400),
     tone: tones.has(profile.tone) ? profile.tone : "professional",

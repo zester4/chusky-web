@@ -501,6 +501,9 @@ export const chuskyApi = {
     save: (input: { category: string; key: string; value: string; confidence?: number; sensitivity: "normal" | "sensitive"; projectId?: string; personKey?: string; reviewAt?: number; expiresAt?: number }) => request<MemoryFact>("/memory", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     remove: (id: string) => request<void>(`/memory/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
+  onboarding: {
+    researchWebsite: (websiteUrl: string) => request<{ data: { websiteUrl: string; summary: string; researchedAt: string } }>("/onboarding/site-summary", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ websiteUrl }) }),
+  },
   scratchpad: {
     list: (query = "") => request<{ data: ScratchpadNote[] }>(`/scratchpad${query ? `?query=${encodeURIComponent(query)}` : ""}`),
     save: (key: string, content: string) => request<ScratchpadNote>(`/scratchpad/${encodeURIComponent(key)}`, { method: "PUT", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ content }) }),
