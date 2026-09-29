@@ -24,6 +24,8 @@ import {
     X,
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
+import { authClient } from "@/lib/auth-client";
+import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
 import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
@@ -248,10 +250,12 @@ const attachmentContentType = (file: File) => {
 
 export function ChatPage() {
   const searchParams = useSearchParams();
+  const { data: session } = authClient.useSession();
   const requestedThreadId = searchParams.get("thread");
   const requestedNew = searchParams.get("new") === "1";
   const newConversationNonce = searchParams.get("nonce");
   const requestedDraft = searchParams.get("draft");
+  const requestedOnboarding = searchParams.get("onboarding") === "1";
   const [thread, setThread] = useState<Thread>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -382,7 +386,14 @@ export function ChatPage() {
 
   useEffect(() => {
     if (requestedDraft) setInput(requestedDraft);
-  }, [requestedDraft, newConversationNonce]);
+    if (requestedOnboarding && !requestedDraft) {
+      const draft = consumeOnboardingActivationDraft(session?.user?.id);
+      if (draft) {
+        setInput(draft);
+        window.setTimeout(() => inputRef.current?.focus(), 0);
+      }
+    }
+  }, [newConversationNonce, requestedDraft, requestedOnboarding, session?.user?.id]);
 
   useEffect(() => () => {
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);

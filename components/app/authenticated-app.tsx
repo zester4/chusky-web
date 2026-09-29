@@ -5,7 +5,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi } from "@/lib/chusky-api";
-import { ONBOARDING_MEMORY_KEY } from "@/lib/onboarding";
+import { ONBOARDING_MEMORY_KEY, clearOnboardingSkip, hasSkippedOnboarding } from "@/lib/onboarding";
 
 export function AuthenticatedApp({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -25,6 +25,10 @@ export function AuthenticatedApp({ children }: { children: React.ReactNode }) {
       setOnboardingChecked(true);
       return;
     }
+    if (hasSkippedOnboarding(session.user.id)) {
+      setOnboardingChecked(true);
+      return;
+    }
     let active = true;
     setOnboardingChecked(false);
     void chuskyApi.memory.list(ONBOARDING_MEMORY_KEY).then((result) => {
@@ -33,6 +37,7 @@ export function AuthenticatedApp({ children }: { children: React.ReactNode }) {
         router.replace(`/app/onboarding?returnTo=${encodeURIComponent(pathname || "/app")}`);
         return;
       }
+      clearOnboardingSkip(session.user.id);
       setOnboardingChecked(true);
     }).catch(() => {
       // A profile check must never turn a valid authenticated session into a lockout.
