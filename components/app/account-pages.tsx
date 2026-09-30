@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
-import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoicePreferences, type Model, type TelegramLinkCode, type Toolkit, type Trigger, type TriggerCatalogueItem, type TriggerConfigField, type TriggerToolkit, type VoiceOptions } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoicePreferences, type Model, type TelegramLinkCode, type Toolkit, type Trigger, type TriggerEventActivity, type TriggerCatalogueItem, type TriggerConfigField, type TriggerToolkit, type VoiceOptions } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -297,6 +297,7 @@ function TriggerConfigEditor({ fields, values, onChange }: { fields: TriggerConf
 function ComprehensiveTriggersPanel() {
   const createAttempt = useRef<{ signature: string; key: string } | undefined>(undefined);
   const [items, setItems] = useState<Trigger[]>([]);
+  const [activity, setActivity] = useState<TriggerEventActivity[]>([]);
   const [toolkits, setToolkits] = useState<TriggerToolkit[]>([]);
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [types, setTypes] = useState<TriggerCatalogueItem[]>([]);
@@ -318,8 +319,9 @@ function ComprehensiveTriggersPanel() {
     setError(undefined);
     setLoading(true);
     try {
-      const [owned, catalogue, accounts] = await Promise.all([chuskyApi.triggers.list(), chuskyApi.triggers.catalogue.toolkits(false), chuskyApi.apps.connections()]);
+      const [owned, catalogue, accounts, overview] = await Promise.all([chuskyApi.triggers.list(), chuskyApi.triggers.catalogue.toolkits(false), chuskyApi.apps.connections(), chuskyApi.account.get()]);
       setItems(owned.data);
+      setActivity(overview.triggerEvents ?? []);
       setToolkits(catalogue.data);
       setConnectedAccounts(accounts.data);
       setToolkit((current) => current && catalogue.data.some((item) => item.slug === current) ? current : "");
@@ -465,6 +467,18 @@ function ComprehensiveTriggersPanel() {
       </div> : <Empty>{error || (loading ? "Loading trigger-enabled apps…" : "No trigger-enabled apps match your search.")}</Empty>}
     </Card>
     {success && <p role="status" className="text-[11px] text-emerald-800">{success}</p>}
+    <Card className="p-3.5 sm:p-4">
+      <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Durable activity</p><h3 className="mt-1 text-sm font-medium">Recent trigger events</h3><p className="mt-1 text-[11px] text-muted-foreground">{activity.length} recent · {activity.filter((event) => event.needsAttention).length} need attention · results remain here after refresh.</p></div><Button secondary disabled={loading} onClick={() => void load()}><RefreshCw size={12} /> Refresh</Button></div>
+      {activity.length ? <div className="mt-3 divide-y divide-foreground/10">{activity.map((event) => <article key={event.id} className="py-3 first:pt-0 last:pb-0">
+        <div className="flex flex-wrap items-center gap-2"><Status tone={event.status === "completed" ? "green" : event.status === "failed" ? "amber" : "gray"}>{event.status === "completed" ? "Agent completed" : event.status === "awaiting_approval" ? "Waiting for approval" : event.status === "failed" ? "Needs attention" : event.status}</Status><span className="font-mono text-[10px] text-muted-foreground">{event.slug}</span><time className="ml-auto text-[10px] text-muted-foreground" dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time></div>
+        <p className="mt-1.5 text-xs leading-5">{event.summary}</p>
+        {event.result && <details className="mt-1.5"><summary className="cursor-pointer text-[11px] font-medium text-muted-foreground">View Chusky’s saved result</summary><p className="mt-1.5 whitespace-pre-wrap break-words text-xs leading-5 text-foreground/80">{event.result}</p></details>}
+        <p className={`mt-1.5 text-[10px] ${event.notificationStatus === "unavailable" || event.notificationStatus === "failed" ? "text-amber-800" : "text-muted-foreground"}`}>
+          {event.notificationStatus === "delivered" ? "Owner notification delivered" : event.notificationStatus === "unavailable" ? "No private notification channel was available; the result is saved here." : event.notificationStatus === "failed" ? "Owner notification failed; the saved result is available here." : "Owner notification pending"}
+          {event.needsAttention && " · Review the saved outcome before retrying; the external action is not replayed automatically."}
+        </p>
+      </article>)}</div> : <p className="mt-3 border-t border-foreground/10 pt-3 text-xs text-muted-foreground">No trigger events have been recorded yet. Completed and unresolved events will appear here.</p>}
+    </Card>
     <Card>{items.length ? items.map((item) => <div key={item.id} className="min-w-0 border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex min-w-0 flex-col gap-2.5 sm:flex-row sm:items-center"><Webhook size={15} className="shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="break-all text-xs font-medium">{item.slug || item.id}</p>{calendarTriggerGuidance(item.slug) && <p className="mt-1 text-[11px] leading-5 text-sky-900">{calendarTriggerGuidance(item.slug)}</p>}<p className="mt-1 break-all font-mono text-[10px] text-muted-foreground">{item.id}</p></div><div className="flex flex-wrap items-center gap-2"><Status tone={["active", "enabled"].includes(item.status.toLowerCase()) ? "green" : "gray"}>{item.status}</Status><Button secondary disabled={busy === item.id} onClick={() => void toggle(item)}>{["active", "enabled"].includes(item.status.toLowerCase()) ? "Disable" : "Enable"}</Button><Button secondary disabled={busy === item.id} onClick={() => setConfirmId(item.id)}><Trash2 size={12} /> Delete</Button></div></div>
       <div className="mt-2 border-t border-foreground/10 pt-2"><details><summary className="cursor-pointer text-[11px] text-muted-foreground">Handling instructions</summary>{editingInstructions === item.id ? <div className="mt-2 space-y-2"><textarea value={instructionDraft} onChange={(event) => setInstructionDraft(event.target.value)} maxLength={2_000} rows={4} className="w-full resize-y border border-foreground/15 bg-background px-2.5 py-2 text-xs leading-5 outline-none focus:border-foreground/40" aria-label={`Handling instructions for ${item.slug || "trigger"}`} /><div className="flex items-center justify-between gap-2"><span className="font-mono text-[9px] text-muted-foreground">{instructionDraft.length} / 2,000</span><div className="flex gap-2"><Button secondary disabled={busy === `instructions:${item.id}`} onClick={() => setEditingInstructions(undefined)}>Cancel</Button><Button disabled={!instructionDraft.trim() || instructionDraft.trim().length > 2_000 || busy === `instructions:${item.id}`} onClick={() => void saveInstructions(item.id)}>{busy === `instructions:${item.id}` ? "Saving…" : "Save instructions"}</Button></div></div></div> : <div className="mt-2"><p className="whitespace-pre-wrap break-words text-[11px] leading-5 text-muted-foreground">{item.instructions || "No custom event instructions saved. Chusky will use its standard event handling and approval rules."}</p><Button secondary className="mt-2" onClick={() => { setInstructionDraft(item.instructions ?? ""); setEditingInstructions(item.id); }}><span className="hidden sm:inline-flex"><Check size={12} /></span> Edit instructions</Button></div>}</details></div>
     </div>) : <Empty>No triggers yet. Choose a provider-backed event above or ask Chusky in Telegram.</Empty>}{error && <p role="alert" className="border-t border-amber-700/15 p-3 text-xs text-amber-800">{error}</p>}</Card>

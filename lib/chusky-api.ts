@@ -74,6 +74,7 @@ export type AccountOverview = {
   memory: MemoryFact[];
   scratchpad: Array<{ key: string; content: string; updatedAt: string }>;
   triggers: string[];
+  triggerEvents: TriggerEventActivity[];
   devices: Array<{ id: string; name: string; createdAt: string; lastSeenAt: string }>;
   workspace: { sandboxId: string; name: string; lastKnownState?: string; createdAt: string; updatedAt: string; ptySessions: number; lastUrl?: string } | null;
   webhooks: Array<{ id: string; url: string; createdAt: string }>;
@@ -90,6 +91,7 @@ export type Model = { id: string; name: string };
 export type Toolkit = { slug: string; name: string; connected: boolean; logo?: string; description?: string; appUrl?: string; categories?: string[]; toolsCount?: number; triggersCount?: number; authSchemes?: string[]; noAuth?: boolean; accountCount?: number; aliases?: string[] };
 export type ConnectedAccount = { id: string; alias?: string; toolkit: string; status: string; createdAt?: string; updatedAt?: string };
 export type Trigger = { id: string; slug: string; status: string; enabled: boolean; config: Record<string, unknown>; instructions?: string };
+export type TriggerEventActivity = { id: string; triggerId?: string; slug: string; summary: string; status: string; notificationStatus: "pending" | "delivered" | "unavailable" | "failed"; result?: string; needsAttention?: boolean; createdAt: string; updatedAt: string };
 export type TriggerConfigField = { name: string; required: boolean; sensitive?: boolean; type?: string; description?: string; allowedValues?: Array<string | number | boolean>; minLength?: number; maxLength?: number };
 export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; setupInstructions?: string; toolkit: { slug: string; name: string; logo?: string }; requiredFields: string[]; fields: TriggerConfigField[] };
 export type TriggerToolkit = { slug: string; name: string; logo?: string; triggerCount: number; connected: boolean; accountCount: number };

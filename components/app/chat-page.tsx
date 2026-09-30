@@ -733,7 +733,7 @@ export function ChatPage() {
                               </p>
                               <ActivityState activity={activity} current={Boolean(isCurrent)} />
                             </div>
-                            {attention ? <p className={`ml-3 mt-1.5 text-[10px] leading-4 ${activity.status === "failed" ? "text-rose-700" : "text-amber-800"}`}>{activity.status === "approval_required" ? "Waiting for your approval to continue." : activity.status === "cancelled" ? "This action was cancelled before its outcome was confirmed." : activity.status === "unknown" ? "The provider did not confirm this action’s individual outcome." : activity.summary || "This step could not be completed."}</p> : null}
+                            {attention ? <p className={`ml-3 mt-1.5 text-[10px] leading-4 ${activity.status === "failed" ? "text-rose-700" : "text-amber-800"}`}>{activity.status === "approval_required" ? "Waiting for your approval to continue." : activity.status === "cancelled" ? "This action was cancelled before its outcome was confirmed." : activity.status === "unknown" ? "The batch response did not include a status for this action. Check the connected app before retrying." : activity.summary || "This step could not be completed."}</p> : null}
                             {activity.callId && item.subagentActivities?.length ? <SubagentTree activities={item.subagentActivities} parentToolCallId={activity.callId} live={Boolean(item.pending)} /> : null}
                           </li>;
                         })}
