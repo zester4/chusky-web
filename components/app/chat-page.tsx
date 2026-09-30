@@ -102,7 +102,9 @@ const runStatusText = (run: Run) => {
 const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + worker.slice(1);
 const activityStatusText = (activity: SubagentActivity, isLive: boolean) => activity.status === "started" ? isLive ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for approval" : activity.status === "waiting" ? "Waiting for Chusky" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step";
 
-function ActivityBrand({ toolSlug, toolkitName, toolkitLogo, size = 16 }: { toolSlug?: string; toolkitName?: string; toolkitLogo?: string; size?: number }) {
+function ActivityBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo, size = 16 }: { toolSlug?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; size?: number }) {
+  const isTreg = [toolkitSlug, toolkitName, toolSlug].some((value) => value?.split(/[_\s-]+/).some((part) => part.toLowerCase() === "treg"));
+  if (isTreg) return <ToolkitLogo name="Treg" logo="/logos/treg.svg" size={size} />;
   if (toolSlug?.startsWith("CHUCK_")) return <img src="/brand/chusky-logo.png" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
   if (toolkitName || toolkitLogo) return <ToolkitLogo name={toolkitName || "Connected app"} logo={toolkitLogo} size={size} />;
   return <PlugZap size={size - 2} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
@@ -152,7 +154,7 @@ function SubagentTree({ activities, parentToolCallId, live }: { activities: RunS
           </div>
           {steps.length ? <ol className="ml-3 mt-1 space-y-1 border-l border-foreground/10 pl-3">
             {steps.map((step) => <li key={step.activityId} className="flex min-w-0 items-start gap-2">
-              <ActivityBrand toolSlug={step.toolSlug} toolkitName={step.toolkitName} toolkitLogo={step.toolkitLogo} size={14} />
+              <ActivityBrand toolSlug={step.toolSlug} toolkitSlug={step.toolkitSlug} toolkitName={step.toolkitName} toolkitLogo={step.toolkitLogo} size={14} />
               <div className="min-w-0 flex-1"><p className="text-[11px] leading-4">{step.actionLabel || step.message}</p><div className="text-[10px] leading-4 text-muted-foreground">{step.toolkitName || step.toolkitSlug || (step.toolSlug ? formatToolLabel(step.toolSlug) : "Chusky tool")} · {activityStatusText(step, live)}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
             </li>)}
           </ol> : null}
@@ -742,7 +744,7 @@ export function ChatPage() {
                             <span aria-hidden="true" className="absolute -left-px top-0 h-5 w-3 rounded-bl-lg border-b border-l border-foreground/15" />
                             <p className="mb-1.5 break-words text-[11px] leading-5 text-muted-foreground sm:text-xs">{activity.actionLabel || activity.message}</p>
                             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
-                              <ActivityBrand toolSlug={activity.toolSlug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={14} />
+                              <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={14} />
                               <span className="text-[10px] text-muted-foreground">{toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app")}</span>
                               <code className="min-w-0 break-all text-[10px] leading-4 text-foreground/80">{actionTokenForActivity(activity)}</code>
                               <ActivityState activity={activity} current={Boolean(isCurrent)} />
