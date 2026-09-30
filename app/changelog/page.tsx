@@ -10,6 +10,18 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    date: "2026-09-30",
+    dateLabel: "September 30, 2026",
+    area: "Developer platform · TypeScript SDK",
+    title: "The TypeScript SDK now works without API URL setup",
+    summary: "Hosted SDK applications can connect with their API key and user ID while Chusky handles the API address internally.",
+    details: [
+      "New SDK clients can start with only an API key and a stable user ID; no base URL environment variable is required.",
+      "The quickstart, cookbook, API contract, and OpenAPI documentation now focus on creating an API key in the Chusky dashboard.",
+      "SDK version 1.7.1 includes the updated default, a regression test, and rebuilt distribution files.",
+    ],
+  },
+  {
     date: "2026-09-28",
     dateLabel: "September 28, 2026",
     area: "Agent · Decision routing",
