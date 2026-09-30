@@ -1,4 +1,5 @@
-import { CircleDot, LockKeyhole, RefreshCw, Route, UserRound } from "lucide-react";
+import Link from "next/link";
+import { Activity, CircleDot, FileCheck2, LockKeyhole, Radio, RefreshCw, Route, UserRound } from "lucide-react";
 
 const executionStages = [
   { icon: UserRound, label: "Identity", title: "The request enters an owned workspace", description: "A verified channel or trusted application maps the request to one Chusky account. That boundary determines which history, explicit memories, connected apps, files, and approvals are available." },
@@ -41,6 +42,46 @@ export function HowItWorksDetails() {
             {["Queued · accepted and waiting to execute", "Running · the agent is reasoning or using a tool", "Approval required · a person must review the exact action", "Completed · the result and any artifacts are available", "Failed or cancelled · the state explains what can be retried"].map((item, index) => (
               <div key={item} className="flex items-start gap-3 border-b border-foreground/10 px-4 py-4 last:border-0 sm:px-5"><CircleDot className={`mt-0.5 h-4 w-4 shrink-0 ${index === 2 ? "text-chusky-amber" : "text-foreground/35"}`} /><span className="text-xs leading-relaxed text-foreground/80 sm:text-sm">{item}</span></div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-foreground/10 py-16 sm:py-20 lg:py-28">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-12">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Beyond the first reply</p>
+            <h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Useful work, ready to pick up.</h2>
+            <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">Chusky can turn a request into a deliverable, keep authorized work moving, and bring the result back to the places you already work.</p>
+            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <Link href="/features" className="underline underline-offset-4 transition-colors hover:text-foreground">Explore capabilities</Link>
+              <Link href="/integrations" className="underline underline-offset-4 transition-colors hover:text-foreground">See integrations</Link>
+            </div>
+          </div>
+
+          <div className="divide-y divide-foreground/10 border-y border-foreground/10">
+            <article className="grid gap-3 py-5 sm:grid-cols-[2.5rem_1fr] sm:gap-4 sm:py-6">
+              <FileCheck2 className="mt-1 h-5 w-5 text-chusky-amber" strokeWidth={1.5} aria-hidden="true" />
+              <div>
+                <h3 className="font-display text-xl tracking-tight sm:text-2xl">Create files you can use</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Turn research and business work into reports, PDFs, Word documents, presentations, spreadsheets, and other supported artifacts. Where a guarded builder is available, it checks the output before registering it so you can retrieve or download the result.</p>
+              </div>
+            </article>
+
+            <article className="grid gap-3 py-5 sm:grid-cols-[2.5rem_1fr] sm:gap-4 sm:py-6">
+              <Activity className="mt-1 h-5 w-5 text-chusky-amber" strokeWidth={1.5} aria-hidden="true" />
+              <div>
+                <h3 className="font-display text-xl tracking-tight sm:text-2xl">Keep authorized work moving</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Missions, tasks, reminders, triggers, and the Attention Pulse preserve progress and revisit work on schedule. Pulse can review durable work and watches you configured, then handle or delegate within their existing permissions. It does not silently monitor every connected app. Reliable background continuation requires production Redis and QStash setup.</p>
+              </div>
+            </article>
+
+            <article className="grid gap-3 py-5 sm:grid-cols-[2.5rem_1fr] sm:gap-4 sm:py-6">
+              <Radio className="mt-1 h-5 w-5 text-chusky-amber" strokeWidth={1.5} aria-hidden="true" />
+              <div>
+                <h3 className="font-display text-xl tracking-tight sm:text-2xl">Work across your channels</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Reach Chusky on the web, Telegram, Slack, WhatsApp, linked iMessage, or the CLI. With supported providers connected, it can also help with meetings and business calls. Each channel and provider must be linked and configured; available actions still follow its permissions and approval rules.</p>
+              </div>
+            </article>
           </div>
         </div>
       </section>

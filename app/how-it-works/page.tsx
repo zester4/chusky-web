@@ -4,7 +4,7 @@ import { ContentPage } from "@/components/landing/content-page";
 
 export const metadata: Metadata = {
   title: "How it works | Chusky AI Agent",
-  description: "Follow a Chusky run from request and tool selection through approval, result delivery, and recovery.",
+  description: "See how Chusky routes tools, creates files, preserves long-running work, and keeps approvals and recovery visible.",
 };
 
 export default function HowItWorksPage() {
