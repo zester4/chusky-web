@@ -1,6 +1,6 @@
 "use client";
 
-import { BackendConversationsPage, BackendDashboardPage, BackendTasksPage } from "./backend-pages";
+import { BackendConversationsPage, BackendTasksPage } from "./backend-pages";
 import { AccountDataPage } from "./account-pages";
 import { CallsPage } from "./calls-page";
 import { CapabilitiesPage } from "./capabilities-page";
@@ -17,6 +17,7 @@ import { McpPage } from "./mcp-page";
 import { ComposerPage } from "./composer-page";
 import { MissionsPage } from "./missions-page";
 import { AutonomyPage } from "./autonomy-page";
+import { OverviewPage } from "./overview-page";
 
 export function AppPage({ section }: { section: string }) {
   if (section === "organizations") return <OrganizationsPage />;
@@ -43,5 +44,5 @@ export function AppPage({ section }: { section: string }) {
   if (section === "autonomy") return <AutonomyPage />;
   if (section === "operations") return <OperationsDashboard />;
   if (section === "delivery") return <OperationsDashboard deliveryOnly />;
-  return <BackendDashboardPage />;
+  return <OverviewPage />;
 }

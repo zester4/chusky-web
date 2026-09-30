@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowUpRight, LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
 import { chuskyApi } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
-import type { Artifact, ChannelConnection, Delivery, Page, Task, Thread, Usage, Worker } from "@/lib/chusky-api";
+import type { Page, Task, Thread } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 import { InputDialog } from "./input-dialog";
@@ -22,23 +21,6 @@ function LoadingState({ label = "Loading your workspace…" }: { label?: string 
 function OfflineState({ onRetry }: { onRetry: () => void }) {
   return <Card className="flex flex-col items-start gap-3 p-4"><Status tone="amber">Backend unavailable</Status><p className="max-w-xl text-xs leading-relaxed text-muted-foreground">The dashboard is ready for the Chusky API, but the local service did not respond. Start the backend and retry.</p><Button secondary onClick={onRetry}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Retry</Button></Card>;
 }
-
-function ThreadRows({ threads }: { threads: Thread[] }) {
-  if (!threads.length) return <p className="p-4 text-xs text-muted-foreground sm:p-5">No conversations yet. Start one from Chat.</p>;
-  return <div>{threads.map((thread) => <a href={`/app/chat?thread=${encodeURIComponent(thread.id)}`} key={thread.id} className="flex min-w-0 items-center justify-between gap-2.5 border-b border-foreground/10 px-3.5 py-2.5 last:border-0 hover:bg-foreground/[0.03] sm:px-4 sm:py-3"><div className="min-w-0"><p className="truncate text-xs font-medium">{String(thread.metadata.title || thread.metadata.prompt || "Untitled conversation")}</p><p className="mt-1 text-[10px] text-muted-foreground sm:text-[11px]">Updated {formatDate(thread.updatedAt)}</p></div><ArrowUpRight size={13} className="shrink-0 text-muted-foreground" /></a>)}</div>;
-}
-
-export function BackendDashboardPage() {
-  const router = useRouter();
-  const [data, setData] = useState<{ usage: Usage; threads: Page<Thread>; workers: Worker[]; artifacts: Artifact[]; channels: ChannelConnection[]; deliveries: Delivery[] }>();
-  const [offline, setOffline] = useState(false);
-  const load = async () => { setOffline(false); try { const [usage, threads, workers, artifacts, channels, deliveries] = await Promise.all([chuskyApi.usage.get(), chuskyApi.threads.list(), chuskyApi.workers.list(), chuskyApi.artifacts.list(), chuskyApi.channels.list(), chuskyApi.deliveries.list()]); setData({ usage, threads, workers: workers.data, artifacts: artifacts.data, channels: channels.data, deliveries: deliveries.data }); } catch { setOffline(true); } };
-  useEffect(() => { void load(); }, []);
-  useLiveData(load);
-  return <><PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="Live activity and usage from your authenticated Chusky workspace." action={<Button onClick={() => router.push("/app/chat?new=1")}>New conversation</Button>} />{offline ? <OfflineState onRetry={() => void load()} /> : !data ? <LoadingState /> : <><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6"><Metric label="Messages" value={data.usage.messages.toLocaleString()} detail="This billing period" /><Metric label="Active runs" value={data.usage.runs.active.toLocaleString()} detail={`${data.usage.runs.count.toLocaleString()} total runs`} /><Metric label="Tasks" value={data.usage.tasks.count.toLocaleString()} detail="Tracked by Chusky" /><Metric label="Workers" value={data.workers.filter((item) => !["success", "completed", "cancelled", "failed"].includes(item.status)).length.toLocaleString()} detail={`${data.workers.length} total delegations`} /><Metric label="Artifacts" value={data.artifacts.length.toLocaleString()} detail="Generated files" /><Metric label="Channels" value={data.channels.length.toLocaleString()} detail={`${data.deliveries.filter((item) => item.status === "failed").length} failed deliveries`} /></div><Card className="mt-6"><div className="border-b border-foreground/10 p-4"><h2 className="font-display text-xl">Recent conversations</h2><p className="mt-1 text-[11px] text-muted-foreground">Synced from the Chusky Developer API</p></div><ThreadRows threads={data.threads.data.slice(0, 5)} /></Card></>}</>;
-}
-
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) { return <Card className="p-4"><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p><p className="mt-3 font-display text-3xl">{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{detail}</p></Card>; }
 
 export function BackendConversationsPage() {
   const [page, setPage] = useState<Page<Thread>>(); const [offline, setOffline] = useState(false); const [busy, setBusy] = useState<string>(); const [loadingMore, setLoadingMore] = useState(false); const [showArchived, setShowArchived] = useState(false); const [deleteThread, setDeleteThread] = useState<Thread>(); const [renameThread, setRenameThread] = useState<Thread>(); const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set()); const [deleteSelectedOpen, setDeleteSelectedOpen] = useState(false); const [actionError, setActionError] = useState<string>();
