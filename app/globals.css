@@ -499,6 +499,17 @@
     filter: drop-shadow(0 0.5rem 0.75rem rgb(42 34 22 / 0.14));
   }
 
+  .chusky-shimmer-text {
+    color: var(--muted-foreground);
+    background: linear-gradient(105deg, color-mix(in srgb, var(--muted-foreground) 72%, transparent) 20%, var(--foreground) 50%, color-mix(in srgb, var(--muted-foreground) 72%, transparent) 80%);
+    background-size: 220% 100%;
+    background-position: 200% 0;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: chusky-shimmer 1.8s linear infinite;
+  }
+
   .landing-motion-root[data-motion-ready="true"] [data-motion-reveal] {
     opacity: 0;
     transform: translate3d(0, 18px, 0);
@@ -539,6 +550,10 @@
     0%, 100% { transform: scale(0.92) rotate(0deg); opacity: 0.55; }
     50% { transform: scale(1.04) rotate(8deg); opacity: 1; }
   }
+
+  @keyframes chusky-shimmer {
+    to { background-position: -200% 0; }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -576,5 +591,11 @@
   .chusky-loading-mark::after,
   .chusky-loading-logo {
     animation: none !important;
+  }
+
+  .chusky-shimmer-text {
+    animation: none !important;
+    background: none;
+    -webkit-text-fill-color: currentColor;
   }
 }
