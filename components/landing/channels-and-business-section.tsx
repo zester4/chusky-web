@@ -7,11 +7,11 @@ const channels = [
   { name: "Telegram", logo: "/logos/telegram.svg" },
   { name: "Slack", logo: "/logos/slack.svg" },
   { name: "WhatsApp", logo: "/logos/whatsapp.svg" },
-  { name: "iMessage via Sendblue" },
-  { name: "SMS via Twilio", logo: "/logos/twilio.svg" },
-  { name: "X Direct Messages", logo: "/logos/x-twitter.svg" },
-  { name: "Web dashboard" },
-  { name: "Terminal CLI" },
+  { name: "iMessage" },
+  { name: "SMS", logo: "/logos/twilio.svg" },
+  { name: "X", logo: "/logos/x-twitter.svg" },
+  { name: "Web" },
+  { name: "CLI" },
 ];
 
 const meetingPlatforms = [
