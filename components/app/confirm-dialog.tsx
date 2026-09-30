@@ -29,7 +29,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
           <AlertDialogTitle className="text-base sm:text-lg">{title}</AlertDialogTitle>
           <AlertDialogDescription className="text-xs leading-5 sm:text-sm">{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="gap-2 sm:flex-row sm:justify-end">
+        <AlertDialogFooter className="flex-row flex-wrap justify-end gap-2">
           <AlertDialogCancel className="mt-0 h-9 rounded-full px-3 text-xs">Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => void onConfirm()}
