@@ -464,6 +464,41 @@
     animation: chusky-orbit 5s ease-in-out infinite;
   }
 
+  .chusky-loading-mark {
+    position: relative;
+    display: grid;
+    width: 4.75rem;
+    height: 4.75rem;
+    place-items: center;
+  }
+
+  .chusky-loading-mark::before,
+  .chusky-loading-mark::after {
+    position: absolute;
+    content: "";
+    border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+    border-radius: 1.45rem;
+    inset: 0.1rem;
+    animation: chusky-loading-ring 2.4s ease-in-out infinite;
+  }
+
+  .chusky-loading-mark::after {
+    border-color: rgb(var(--chusky-amber-rgb) / 0.24);
+    border-radius: 1.15rem;
+    inset: 0.55rem;
+    animation-direction: reverse;
+    animation-duration: 2.8s;
+  }
+
+  .chusky-loading-logo {
+    position: relative;
+    z-index: 1;
+    width: 3.5rem;
+    height: 3.5rem;
+    animation: chusky-loading-float 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 0.5rem 0.75rem rgb(42 34 22 / 0.14));
+  }
+
   .landing-motion-root[data-motion-ready="true"] [data-motion-reveal] {
     opacity: 0;
     transform: translate3d(0, 18px, 0);
@@ -493,6 +528,16 @@
   @keyframes chusky-orbit {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     50% { transform: translateY(-9px) rotate(8deg); }
+  }
+
+  @keyframes chusky-loading-float {
+    0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+    50% { transform: translateY(-0.3rem) rotate(3deg) scale(1.035); }
+  }
+
+  @keyframes chusky-loading-ring {
+    0%, 100% { transform: scale(0.92) rotate(0deg); opacity: 0.55; }
+    50% { transform: scale(1.04) rotate(8deg); opacity: 1; }
   }
 }
 
@@ -525,5 +570,11 @@
 
   .chusky-orbit {
     animation: none;
+  }
+
+  .chusky-loading-mark::before,
+  .chusky-loading-mark::after,
+  .chusky-loading-logo {
+    animation: none !important;
   }
 }
