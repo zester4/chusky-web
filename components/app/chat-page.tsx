@@ -96,7 +96,7 @@ const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + wo
 const activityStatusText = (activity: SubagentActivity, isLive: boolean) => activity.status === "started" ? isLive ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for approval" : activity.status === "waiting" ? "Waiting for Chusky" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step";
 
 function ActivityBrand({ toolSlug, toolkitName, toolkitLogo, size = 16 }: { toolSlug?: string; toolkitName?: string; toolkitLogo?: string; size?: number }) {
-  if (toolSlug?.startsWith("CHUCK_")) return <img src="/icon.svg" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
+  if (toolSlug?.startsWith("CHUCK_")) return <img src="/brand/chusky-logo.png" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
   if (toolkitName || toolkitLogo) return <ToolkitLogo name={toolkitName || "Connected app"} logo={toolkitLogo} size={size} />;
   return <PlugZap size={size - 2} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
 }
@@ -719,9 +719,9 @@ export function ChatPage() {
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && item.statusText && <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 text-[10px] text-muted-foreground"><LoaderCircle size={11} className="shrink-0 animate-spin" /><span className="truncate">{item.statusText}</span></div>}
                     {headlineActivity ? <details className="group/timeline my-2 w-full min-w-0 max-w-2xl">
-                      <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-md px-1 text-[11px] leading-5 text-muted-foreground transition-colors hover:bg-foreground/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 sm:text-xs [&::-webkit-details-marker]:hidden">
+                      <summary className="flex min-h-10 min-w-0 cursor-pointer list-none items-center gap-2 rounded-md px-1 text-[11px] leading-5 text-muted-foreground transition-colors hover:bg-foreground/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 sm:text-xs [&::-webkit-details-marker]:hidden">
                         <ActivityBrand toolSlug="CHUCK_ACTIVITY" size={16} />
-                        <span className="min-w-0 flex-1 break-words">{headlineActivity.actionLabel || headlineActivity.message}{visibleActivities.length > 1 ? <span className="text-muted-foreground"> · {visibleActivities.length - 1} other {visibleActivities.length === 2 ? "task" : "tasks"}</span> : null}</span>
+                        <span className="min-w-0 flex-1 truncate md:overflow-visible md:whitespace-normal md:break-words">{headlineActivity.actionLabel || headlineActivity.message}{visibleActivities.length > 1 ? <span className="text-muted-foreground"> · {visibleActivities.length - 1} other {visibleActivities.length === 2 ? "task" : "tasks"}</span> : null}</span>
                         {item.pending && visibleActivities.some((activity) => activity.status === "started") ? <LoaderCircle size={12} aria-label="Tool activity in progress" className="shrink-0 animate-spin motion-reduce:animate-none" /> : null}
                         <span aria-hidden="true" className="mr-1 size-1.5 shrink-0 -rotate-45 border-b border-l border-current transition-transform group-open/timeline:-rotate-[225deg] motion-reduce:transition-none" />
                       </summary>
