@@ -86,6 +86,12 @@ const runSubagentActivities = (run: Run): RunSubagentActivity[] => coalesceSubag
 })).map((activity) => ({ ...activity, type: "run.subagent_activity" as const }));
 const runDeltaText = (run: Run) => (run.events ?? []).filter((event) => event.type === "run.delta" && typeof event.text === "string").map((event) => event.text).join("");
 const runProgressText = (run: Run) => [...(run.events ?? [])].reverse().find((event) => event.type === "run.status" && typeof event.text === "string" && event.text.trim())?.text;
+const reconcileStreamedText = (current: string, snapshot: string) => {
+  if (!snapshot || !current) return snapshot || current;
+  if (snapshot.startsWith(current)) return snapshot;
+  if (current.startsWith(snapshot)) return current;
+  return current;
+};
 const runStatusText = (run: Run) => {
   if (run.status === "requires_approval") return "Chusky needs your approval to continue with this action.";
   if (run.status === "failed") return "I couldn’t complete this run. The recorded steps remain above.";
@@ -439,7 +445,7 @@ export function ChatPage() {
     setMessages((current) => current.map((item) => {
       if (item.role !== "assistant" || item.runId !== run.id) return item;
       const streamedOutput = runDeltaText(run);
-      const text = run.status === "running" ? streamedOutput || item.text : runStatusText(run) || (run.status === "completed" ? "Done." : "");
+      const text = run.status === "running" ? reconcileStreamedText(item.text, streamedOutput) : runStatusText(run) || (run.status === "completed" ? "Done." : "");
       const artifacts = run.artifacts?.length ? run.artifacts : run.status === "completed" ? item.artifacts : undefined;
       return { ...item, text, activities, subagentActivities, artifacts, images: images?.length ? images : item.images, pending: active, statusText: active ? runProgressText(run) : undefined, approval };
     }));
@@ -746,7 +752,7 @@ export function ChatPage() {
                         })}
                       </ol>
                     </details> : null}
-                    {item.text ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
+                    {item.text ? item.role === "assistant" ? item.pending ? <p aria-live="polite" className="whitespace-pre-wrap text-[12px] leading-[1.45rem] sm:text-[13px]">{item.text}</p> : <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? <div className="mt-2 space-y-2">{item.images.map((image) => <GeneratedImageCard key={image.id} image={image} />)}</div> : null}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} title={file.name} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background">{file.previewUrl || file.downloadUrl ? <img src={file.previewUrl || file.downloadUrl} alt={`Attached image: ${file.name}`} className="size-8 rounded object-cover" /> : <FileText size={12} />} <span className="max-w-48 truncate">{file.name}</span></span>)}</div> : null}
