@@ -28,7 +28,7 @@ const examples = [
 
 export function WorkExamplesSection() {
   return (
-    <section className="border-b border-foreground/10 bg-[#f7f7f4] py-16 sm:py-20 lg:py-28">
+    <section className="border-b border-foreground/10 bg-background py-16 sm:py-20 lg:py-28">
       <div className="mx-auto grid max-w-[1400px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20 lg:px-12">
         <div data-motion-reveal className="lg:sticky lg:top-28 lg:self-start">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">A few ways to put it to work</p>

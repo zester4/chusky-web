@@ -74,7 +74,7 @@ export function ChannelsSection() {
 
 export function MeetingsAndCallsSection() {
   return (
-    <section className="border-b border-foreground/10 bg-[#f7f7f4] py-16 sm:py-20 lg:py-28">
+    <section className="border-b border-foreground/10 bg-background py-16 sm:py-20 lg:py-28">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         <div data-motion-reveal className="max-w-3xl">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">For work that happens in real time</p>

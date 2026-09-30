@@ -50,6 +50,46 @@
   --depth-floating-shadow: inset 0 1px 0 rgb(255 255 255 / 0.78), 0 14px 38px rgb(var(--depth-shadow-rgb) / 0.13), 0 3px 9px rgb(var(--depth-shadow-rgb) / 0.07);
 }
 
+.dark {
+  --background: oklch(0.16 0.012 70);
+  --foreground: oklch(0.94 0.012 75);
+  --card: oklch(0.195 0.012 70);
+  --card-foreground: oklch(0.94 0.012 75);
+  --popover: oklch(0.21 0.014 70);
+  --popover-foreground: oklch(0.94 0.012 75);
+  --primary: oklch(0.94 0.012 75);
+  --primary-foreground: oklch(0.16 0.012 70);
+  --secondary: oklch(0.245 0.014 70);
+  --secondary-foreground: oklch(0.94 0.012 75);
+  --muted: oklch(0.245 0.014 70);
+  --muted-foreground: oklch(0.71 0.018 70);
+  --accent: oklch(0.285 0.018 70);
+  --accent-foreground: oklch(0.96 0.01 75);
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(0.96 0.01 75);
+  --border: oklch(0.31 0.018 70);
+  --input: oklch(0.285 0.018 70);
+  --ring: oklch(0.78 0.025 75);
+  --chart-1: oklch(0.78 0.16 75);
+  --chart-2: oklch(0.7 0.12 185);
+  --chart-3: oklch(0.72 0.12 230);
+  --chart-4: oklch(0.72 0.16 310);
+  --chart-5: oklch(0.72 0.18 25);
+  --sidebar: oklch(0.145 0.012 70);
+  --sidebar-foreground: oklch(0.94 0.012 75);
+  --sidebar-primary: oklch(0.78 0.16 75);
+  --sidebar-primary-foreground: oklch(0.16 0.012 70);
+  --sidebar-accent: oklch(0.245 0.014 70);
+  --sidebar-accent-foreground: oklch(0.94 0.012 75);
+  --sidebar-border: oklch(0.31 0.018 70);
+  --sidebar-ring: oklch(0.78 0.025 75);
+  --depth-shadow-rgb: 0 0 0;
+  --depth-highlight: rgb(255 255 255 / 0.06);
+  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.32), 0 10px 28px rgb(var(--depth-shadow-rgb) / 0.24);
+  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.055), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.38), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.2);
+  --depth-floating-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 16px 40px rgb(var(--depth-shadow-rgb) / 0.42), 0 3px 10px rgb(var(--depth-shadow-rgb) / 0.3);
+}
+
 @theme inline {
   --font-sans: var(--font-instrument), 'Instrument Sans', system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), 'JetBrains Mono', monospace;
@@ -101,6 +141,7 @@
     @apply overflow-x-hidden bg-background text-foreground;
   }
   html {
+    color-scheme: light;
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
     scrollbar-width: thin;
@@ -462,6 +503,10 @@
 
   .chusky-orbit {
     animation: chusky-orbit 5s ease-in-out infinite;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   .chusky-loading-mark {

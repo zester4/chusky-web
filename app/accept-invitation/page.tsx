@@ -49,7 +49,7 @@ export default function AcceptInvitationPage() {
   const signInUrl = `/sign-in?callbackURL=${encodeURIComponent(`/accept-invitation?id=${invitationId}`)}`;
   const emailMatches = !session?.user?.email || !invitation?.email || session.user.email.toLowerCase() === invitation.email.toLowerCase();
 
-  return <main className="flex min-h-screen items-center justify-center bg-[#f7f7f4] p-4 text-foreground">
+  return <main className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
     <section className="w-full max-w-lg border border-foreground/10 bg-background p-5 shadow-sm sm:p-7" aria-labelledby="invitation-title">
       <div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center border border-foreground/10"><ShieldCheck size={17} /></span><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Chusky workspace</p><h1 id="invitation-title" className="mt-1 font-display text-2xl">Accept invitation</h1></div></div>
       {loading || sessionPending ? <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> Checking this invitation…</p>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 const navLinks = [
   { name: "Capabilities", href: "/features" },
@@ -78,6 +79,7 @@ export function Navigation() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
+            <ThemeSwitcher className="mr-1" />
             <Link href="/sign-in" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
               Sign in
             </Link>
@@ -142,6 +144,7 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
+            <ThemeSwitcher className="absolute bottom-[7.25rem] left-5 sm:left-8" />
             <Button 
               variant="outline" 
               className="h-12 flex-1 rounded-full text-sm"

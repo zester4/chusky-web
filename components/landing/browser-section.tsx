@@ -24,7 +24,7 @@ const browserSteps = [
 
 export function BrowserSection() {
   return (
-    <section className="border-b border-foreground/10 bg-[#f7f7f4] py-16 sm:py-20 lg:py-28">
+    <section className="border-b border-foreground/10 bg-background py-16 sm:py-20 lg:py-28">
       <div className="mx-auto grid max-w-[1400px] items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 lg:px-12">
         <div data-motion-reveal>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">The Chusky browser</p>
@@ -58,12 +58,12 @@ export function BrowserSection() {
           </Link>
         </div>
 
-        <div data-motion-reveal data-motion-card className="relative mx-auto w-full max-w-2xl border border-foreground/15 bg-white p-3 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.45)] sm:p-5">
+        <div data-motion-reveal data-motion-card className="relative mx-auto w-full max-w-2xl border border-foreground/15 bg-background p-3 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.45)] sm:p-5">
           <div className="flex items-center gap-2 border-b border-foreground/10 pb-3">
             <span className="h-2 w-2 rounded-full bg-[#d8a22e]" />
             <span className="h-2 w-2 rounded-full bg-foreground/15" />
             <span className="h-2 w-2 rounded-full bg-foreground/15" />
-            <div className="ml-3 flex min-w-0 flex-1 items-center gap-2 border border-foreground/10 bg-[#f7f7f4] px-3 py-2 text-[10px] text-muted-foreground sm:text-xs">
+            <div className="ml-3 flex min-w-0 flex-1 items-center gap-2 border border-foreground/10 bg-background px-3 py-2 text-[10px] text-muted-foreground sm:text-xs">
               <Globe2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">A website you ask Chusky to visit</span>
             </div>
@@ -77,12 +77,12 @@ export function BrowserSection() {
               <div className="mt-2 h-2 w-5/6 bg-foreground/5" />
               <div className="mt-7 grid grid-cols-2 gap-3">
                 <div className="border border-foreground/10 p-3">
-                  <div className="h-16 bg-[#f3f0e8]" />
+                  <div className="h-16 bg-muted" />
                   <div className="mt-3 h-2 w-4/5 bg-foreground/10" />
                   <div className="mt-2 h-2 w-1/2 bg-foreground/5" />
                 </div>
                 <div className="border border-foreground/10 p-3">
-                  <div className="h-16 bg-[#f3f0e8]" />
+                  <div className="h-16 bg-muted" />
                   <div className="mt-3 h-2 w-3/4 bg-foreground/10" />
                   <div className="mt-2 h-2 w-2/5 bg-foreground/5" />
                 </div>

@@ -711,7 +711,7 @@ export function ChatPage() {
   const isWorking = Boolean(controller) || messages.some((item) => item.role === "assistant" && item.pending && Boolean(item.runId));
 
   return (
-    <div className="-mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-[#f7f7f4] sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
+    <div className="-mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-background sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
       {notice && <div className={`fixed left-1/2 top-16 z-50 flex w-[min(calc(100%-1rem),32rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border px-3 py-2 text-[11px] shadow-lg ${notice.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`} role="alert"><span>{notice.message}</span><button type="button" onClick={() => setNotice(undefined)} className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss notification"><X size={13} /></button></div>}
 
       <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_250px]">

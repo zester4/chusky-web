@@ -7,7 +7,7 @@ const surfaces = [
 
 export function AgentLoopSection() {
   return (
-    <section className="relative border-y border-foreground/10 bg-[#f7f7f4] py-16 sm:py-20 lg:py-24">
+    <section className="relative border-y border-foreground/10 bg-background py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         <div className="grid gap-8 lg:grid-cols-[0.8fr_1.4fr] lg:gap-16">
           <div data-motion-reveal>
