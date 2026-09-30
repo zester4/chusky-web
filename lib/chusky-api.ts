@@ -54,7 +54,9 @@ export type CompanyAgentTemplate = { slug: string; name: string; outcome: string
 export type CompanyAgent = { id: string; name: string; template: string; instructions: string; tools: RunToolPolicy; budget: RunBudget; createdAt: string; updatedAt: string };
 export type CompanyPolicy = { tools?: RunToolPolicy; budget?: RunBudget };
 export type AutonomyQueueItem = { id: string; kind: string; title: string; status: string; source: string; priority: number; nextAction?: string; nextCheckAt?: number; blockedReason?: string; updatedAt: number };
-export type AutonomySnapshot = { userId: number; mode: "personal" | "business"; profile: { enabled: boolean; defaultAuthority: string; maxChecksPerDay: number; maxAutonomousActionsPerDay: number; notifyOn: string }; watches: Array<{ id: string; name: string; domain: string; objective: string; status: string; nextCheckAt?: number; lastError?: string }>; queue: AutonomyQueueItem[]; counts: Record<string, number>; generatedAt: number };
+export type AutonomyWatch = { id: string; mode?: "personal" | "business"; name: string; domain: string; objective: string; status: string; nextCheckAt?: number; lastCheckedAt?: number; lastChangedAt?: number; lastResult?: string; lastError?: string; cadenceSeconds: number; freshnessMs?: number; consecutiveFailures?: number };
+export type AutonomySnapshot = { userId: number; mode: "personal" | "business"; profile: { enabled: boolean; defaultAuthority: string; maxChecksPerDay: number; maxAutonomousActionsPerDay: number; notifyOn: string }; watches: AutonomyWatch[]; queue: AutonomyQueueItem[]; counts: Record<string, number>; generatedAt: number };
+export type AutonomyReconcileResult = { watchId: string; status: "completed" | "skipped" | "failed"; changed: boolean; summary: string; gaps: number; nextCheckAt?: number; error?: string };
 export type CompanyRun = { id: string; status: Run["status"]; agentId?: string; agentName?: string; cost?: number; errorCode?: string; createdAt: string; updatedAt: string };
 export type CompanyAuditEvent = { id: string; requestId: string; action: string; status: number; at: string };
 export type CompanyUsagePeriod = { month: string; completedRuns: number; costUsd: number };
@@ -166,6 +168,35 @@ async function publicRequest<T>(path: string): Promise<T> {
 }
 
 const idempotency = () => crypto.randomUUID();
+
+function parseAutonomyReconcileResponse(value: unknown): { data: AutonomyReconcileResult[] } {
+  if (!value || typeof value !== "object" || !Array.isArray((value as { data?: unknown }).data)) {
+    throw new Error("Chusky returned an invalid reconciliation response. Refresh the page and try again.");
+  }
+  const data = (value as { data: unknown[] }).data;
+  return { data: data.map((raw) => {
+    if (!raw || typeof raw !== "object") throw new Error("Chusky returned an invalid watch result. Refresh the page and try again.");
+    const item = raw as Record<string, unknown>;
+    if (typeof item.watchId !== "string" || !["completed", "skipped", "failed"].includes(String(item.status)) || typeof item.changed !== "boolean" || typeof item.summary !== "string" || typeof item.gaps !== "number" || !Number.isFinite(item.gaps)) {
+      throw new Error("Chusky returned an incomplete watch result. Refresh the page and try again.");
+    }
+    return {
+      watchId: item.watchId.slice(0, 180),
+      status: item.status as AutonomyReconcileResult["status"],
+      changed: item.changed,
+      summary: item.summary.slice(0, 1200),
+      gaps: Math.max(0, Math.floor(item.gaps)),
+      ...(typeof item.nextCheckAt === "number" && Number.isFinite(item.nextCheckAt) ? { nextCheckAt: item.nextCheckAt } : {}),
+      ...(typeof item.error === "string" ? { error: item.error.slice(0, 1000) } : {}),
+    };
+  }) };
+}
+
+async function reconcileAutonomy(path: string, body: Record<string, unknown>): Promise<{ data: AutonomyReconcileResult[] }> {
+  const value = await request<unknown>(path, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(body) });
+  return parseAutonomyReconcileResponse(value);
+}
+
 type PageOptions = { limit?: number; cursor?: string; includeArchived?: boolean };
 const pageQuery = ({ limit, cursor, includeArchived }: PageOptions = {}) => {
   const query = new URLSearchParams();
@@ -312,9 +343,9 @@ export const chuskyApi = {
     history: () => request<{ data: AccountHistoryMessage[] }>("/account/history"),
     autonomy: {
       queue: (mode: "personal" | "business" = "personal") => request<AutonomySnapshot>(`/account/autonomy/queue?mode=${mode}`),
-      reconcile: (mode: "personal" | "business" = "personal", maxWatches = 8) => request<{ data: Array<Record<string, unknown>> }>("/account/autonomy/reconcile", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ mode, maxWatches }) }),
+      reconcile: (mode: "personal" | "business" = "personal", maxWatches = 8) => reconcileAutonomy("/account/autonomy/reconcile", { mode, maxWatches }),
       businessQueue: (projectId: string) => request<AutonomySnapshot>(`/account/projects/${encodeURIComponent(projectId)}/autonomy/queue`),
-      businessReconcile: (projectId: string, maxWatches = 8) => request<{ data: Array<Record<string, unknown>> }>(`/account/projects/${encodeURIComponent(projectId)}/autonomy/reconcile`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ maxWatches }) }),
+      businessReconcile: (projectId: string, maxWatches = 8) => reconcileAutonomy(`/account/projects/${encodeURIComponent(projectId)}/autonomy/reconcile`, { maxWatches }),
     },
     createTelegramLink: () => request<TelegramLinkCode>("/account/telegram-link", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     models: () => request<Page<Model>>("/account/models"),
