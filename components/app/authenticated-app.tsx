@@ -46,6 +46,6 @@ export function AuthenticatedApp({ children }: { children: React.ReactNode }) {
     return () => { active = false; };
   }, [isPending, pathname, router, session]);
 
-  if (isPending || !session || (!onboardingChecked && pathname !== "/app/onboarding")) return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Checking your workspace…</div>;
+  if (isPending || !session || (!onboardingChecked && pathname !== "/app/onboarding")) return <div className="flex min-h-screen items-center justify-center bg-background" role="status" aria-label="Checking your workspace"><div className="chusky-loading-mark"><img src="/brand/chusky-logo.png" alt="Chusky" className="chusky-loading-logo object-contain" /></div></div>;
   return <>{children}</>;
 }
