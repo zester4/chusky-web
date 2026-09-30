@@ -213,23 +213,35 @@ const stripArtifactLinks = (content: string, artifacts: ChatArtifact[]) => {
 const containsVisualBlock = (content: string) => /(?:```|~~~)/.test(content);
 
 function ArtifactCard({ artifact }: { artifact: ChatArtifact }) {
+  const href = chuskyApi.artifacts.downloadHref(artifact.id);
   const isImage = artifact.contentType.startsWith("image/") || artifact.type === "image";
+  const isVideo = artifact.contentType.startsWith("video/") || artifact.type === "video";
+  const isAudio = artifact.contentType.startsWith("audio/");
   if (isImage) return <figure className="mt-2 max-w-xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025]">
-    <img src={chuskyApi.artifacts.downloadHref(artifact.id)} alt={artifact.name} loading="lazy" decoding="async" className="max-h-[28rem] w-auto max-w-full object-contain" />
-    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><a href={chuskyApi.artifacts.downloadHref(artifact.id)} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+    <img src={href} alt={artifact.name} loading="lazy" decoding="async" className="max-h-[32rem] w-auto max-w-full object-contain" />
+    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><a href={href} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+  </figure>;
+  if (isVideo) return <figure className="mt-2 max-w-2xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025]">
+    <video controls playsInline preload="metadata" className="max-h-[32rem] w-full bg-black object-contain" aria-label={artifact.name}><source src={href} type={artifact.contentType || undefined} />Your browser cannot play this video.</video>
+    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><a href={href} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+  </figure>;
+  if (isAudio) return <figure className="mt-2 max-w-2xl rounded-md border border-foreground/10 bg-foreground/[0.025] p-3">
+    <div className="mb-2 flex min-w-0 items-center gap-2"><FileText size={14} className="shrink-0 text-muted-foreground" /><span className="min-w-0 truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</span></div>
+    <audio controls preload="metadata" className="w-full" aria-label={artifact.name}><source src={href} type={artifact.contentType || undefined} />Your browser cannot play this audio.</audio>
+    <figcaption className="mt-2 flex items-center justify-between gap-3 text-[10px] text-muted-foreground"><span>{formatArtifactSize(artifact.size)}</span><a href={href} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
   </figure>;
   return <div className="mt-2 flex max-w-full items-center gap-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2.5">
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-foreground/10 bg-background text-muted-foreground"><FileText size={15} /></div>
     <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</p><p className="mt-0.5 text-[10px] capitalize text-muted-foreground">{artifact.type} · {formatArtifactSize(artifact.size)}</p></div>
-    <a href={chuskyApi.artifacts.downloadHref(artifact.id)} download={artifact.name} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-foreground/15 px-2.5 py-1.5 text-[10px] font-medium hover:bg-foreground/5" aria-label={`Download ${artifact.name}`}><Download size={12} />Download</a>
+    <a href={href} download={artifact.name} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-foreground/15 px-2.5 py-1.5 text-[10px] font-medium hover:bg-foreground/5" aria-label={`Download ${artifact.name}`}><Download size={12} />Download</a>
   </div>;
 }
 
 function GeneratedImageCard({ image }: { image: RunImage & { downloadUrl?: string } }) {
   if (!image.downloadUrl) return <div className="mt-2 rounded-md border border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground">{image.name} · preview unavailable</div>;
-  return <figure className="mt-2 max-w-xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025]">
+  return <figure className="mt-2 max-w-2xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025] shadow-sm">
     {/* Signed, short-lived R2 URLs are account-authorized and bypass Next's image optimizer. */}
-    <img src={image.downloadUrl} alt="Image generated by Chusky" loading="lazy" decoding="async" className="max-h-[28rem] w-auto max-w-full object-contain" />
+    <img src={image.downloadUrl} alt={image.name || "Image generated by Chusky"} loading="lazy" decoding="async" className="max-h-[32rem] w-auto max-w-full object-contain" />
     <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{image.name} · {formatArtifactSize(image.size)}</span><a href={image.downloadUrl} download={image.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
   </figure>;
 }
