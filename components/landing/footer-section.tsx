@@ -2,6 +2,7 @@
 
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { AnimatedWave } from "./animated-wave";
 import type { CSSProperties } from "react";
 
@@ -52,6 +53,7 @@ export function FooterSection() {
             {/* Brand Column */}
             <div data-motion-reveal className="col-span-2">
               <Link href="/" className="mb-4 inline-flex items-center gap-2">
+                <Image src="/brand/chusky-logo.png" alt="" aria-hidden="true" width={30} height={30} className="h-7 w-7 object-contain" />
                 <span className="font-display text-xl">Chusky</span>
                 <span className="font-mono text-[10px] text-muted-foreground">TM</span>
               </Link>

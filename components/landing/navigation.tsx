@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 
@@ -48,8 +49,16 @@ export function Navigation() {
         >
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group" aria-label="Chusky home">
+            <Image
+              src="/brand/chusky-logo.png"
+              alt=""
+              aria-hidden="true"
+              width={36}
+              height={36}
+              priority
+              className={`object-contain transition-all duration-500 ${isScrolled ? "h-7 w-7" : "h-8 w-8"}`}
+            />
             <span className={`font-display tracking-tight transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>Chusky</span>
-            <span className="flex gap-0.5 pb-2" aria-hidden="true"><i className="h-1.5 w-1.5 rounded-full bg-chusky-amber" /><i className="h-1.5 w-1.5 rounded-full bg-chusky-amber" /></span>
             <span className={`text-muted-foreground font-mono transition-all duration-500 ${isScrolled ? "text-[10px] mt-0.5" : "text-xs mt-1"}`}>TM</span>
           </Link>
 
