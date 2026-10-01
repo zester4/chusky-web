@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
 import { authClient } from "@/lib/auth-client";
+import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
 import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
@@ -537,20 +538,39 @@ export function ChatPage() {
   };
 
   const decideApproval = async (approvalId: string, decision: "approve" | "deny") => {
-    const currentRunId = [...messagesRef.current].reverse().find((item) => item.role === "assistant" && item.approval?.id === approvalId)?.runId;
+    const original = [...messagesRef.current].reverse().find((item) => item.role === "assistant" && item.approval?.id === approvalId);
+    if (!original?.approval || original.approval.deciding) return;
+    const currentRunId = original.runId;
+    const updateApprovalMessage = (update: Partial<Message>) => setMessages((current) => current.map((item) => item === original || (currentRunId && item.runId === currentRunId) || item.approval?.id === approvalId ? { ...item, ...update } : item));
     if (decision === "approve" && currentRunId) syncActiveRunId(currentRunId);
-    updateLastAssistant({ pending: decision === "approve", approval: { id: approvalId, toolSlug: "", expiresAt: "", deciding: true } });
+    updateApprovalMessage({ pending: decision === "approve", approval: { ...original.approval, deciding: true } });
     try {
       const run = await chuskyApi.approvals.decide(approvalId, decision);
       if ("threadId" in run) await applyRunSnapshot(run);
       else {
         if (currentRunId) syncActiveRunId(undefined);
+        if (currentRunId && thread && decision === "deny") {
+          await applyRunSnapshot(await chuskyApi.runs.get(thread.id, currentRunId));
+          return;
+        }
         const output = "text" in run && run.text ? run.text : undefined;
-        updateLastAssistant({ text: decision === "approve" ? (output || "Approved and completed.") : "Action denied; no action was taken.", approval: undefined, pending: false });
+        updateApprovalMessage({ text: decision === "approve" ? (output || "Approval accepted. Check the saved action status for its execution result.") : "Action denied; no action was taken.", approval: undefined, pending: false });
       }
-    } catch {
-      showNotice("That approval could not be completed. It may have expired or already been decided.");
-      updateLastAssistant({ approval: undefined, pending: false, text: "Approval could not be completed. Your recorded steps are preserved above." });
+    } catch (error) {
+      // A lost HTTP response is not evidence that execution failed. Reconcile
+      // persisted state before allowing a retry or removing the approval.
+      const [savedApproval, savedRun] = await Promise.all([
+        chuskyApi.approvals.get(approvalId).catch(() => undefined),
+        currentRunId && thread ? chuskyApi.runs.get(thread.id, currentRunId).catch(() => undefined) : Promise.resolve(undefined),
+      ]);
+      if (savedRun) await applyRunSnapshot(savedRun);
+      const recovery = approvalRecoveryState(savedApproval?.status, savedRun?.status);
+      if (recovery === "retry" && savedApproval) {
+        updateApprovalMessage({ approval: { ...savedApproval, deciding: false }, pending: false });
+        showNotice(error instanceof Error ? error.message : "Approval is still pending. Please retry.");
+      } else if (recovery !== "run") {
+        updateApprovalMessage({ approval: undefined, pending: false, text: recovery === "accepted" ? "Approval was accepted. Execution is not yet confirmed; check the saved run before retrying." : recovery === "denied" ? "Action denied; no action was taken." : "Could not confirm the approval state. Refresh before trying again." });
+      }
     }
   };
 

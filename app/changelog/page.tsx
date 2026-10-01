@@ -12,6 +12,20 @@ const updates = [
   {
     date: "2026-10-01",
     dateLabel: "October 1, 2026",
+    area: "Missions · Timing and approval recovery · SDK 1.9.0",
+    title: "Mission execution time pauses while work waits",
+    summary: "New missions track active execution separately from their overall deadline, while approved resume actions update the original chat activity with their saved result.",
+    details: [
+      "Waiting, paused, blocked, and approval-held time no longer consumes the active execution budget of new missions. Existing missions retain their original wall-clock timing contract.",
+      "Automatic extensions require an owner-authorized allowance and new trusted completed-step progress. They cannot reset spend, tool-call limits, permissions, or the overall deadline.",
+      "Approved mission resume executes the exact stored arguments without another model decision. The original activity shows execution success, failure, or denial and remains accurate after refresh.",
+      "If an approval response is lost, the dashboard checks the saved approval and run before offering retry. Approval acceptance is not presented as proof that the mission completed.",
+      "SDK 1.9.0 exposes the new mission timing settings and persisted extension usage, with updated API and mission documentation.",
+    ],
+  },
+  {
+    date: "2026-10-01",
+    dateLabel: "October 1, 2026",
     area: "Missions · Change lock and verification",
     title: "Mission changes now require trusted proof",
     summary: "Strict mission verification now binds each receipt, artifact, or human confirmation to trusted evidence owned by that mission before the outcome can be closed.",
