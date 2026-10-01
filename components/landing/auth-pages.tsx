@@ -84,7 +84,7 @@ function SignInCard() {
         let targetPath = callbackPath;
         if (callbackPath.startsWith("/app") && !callbackPath.startsWith("/app/onboarding")) {
           try {
-            const memories = await chuskyApi.memory.list(ONBOARDING_MEMORY_KEY);
+            const memories = await chuskyApi.memory.getByKey(ONBOARDING_MEMORY_KEY);
             if (!memories.data.some((item) => item.key === ONBOARDING_MEMORY_KEY)) targetPath = `/app/onboarding?returnTo=${encodeURIComponent(callbackPath)}`;
           } catch { /* A failed profile lookup should never block a successful sign-in. */ }
         }

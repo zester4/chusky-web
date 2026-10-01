@@ -31,7 +31,7 @@ export function AuthenticatedApp({ children }: { children: React.ReactNode }) {
     }
     let active = true;
     setOnboardingChecked(false);
-    void chuskyApi.memory.list(ONBOARDING_MEMORY_KEY).then((result) => {
+    void chuskyApi.memory.getByKey(ONBOARDING_MEMORY_KEY).then((result) => {
       if (!active) return;
       if (!result.data.some((item) => item.key === ONBOARDING_MEMORY_KEY)) {
         router.replace(`/app/onboarding?returnTo=${encodeURIComponent(pathname || "/app")}`);

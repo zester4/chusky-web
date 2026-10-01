@@ -534,6 +534,7 @@ export const chuskyApi = {
   },
   memory: {
     list: (query = "") => request<{ data: MemoryFact[] }>(`/memory${query ? `?query=${encodeURIComponent(query)}` : ""}`),
+    getByKey: (key: string) => request<{ data: MemoryFact[] }>(`/memory?key=${encodeURIComponent(key)}`),
     save: (input: { category: string; key: string; value: string; confidence?: number; sensitivity: "normal" | "sensitive"; projectId?: string; personKey?: string; reviewAt?: number; expiresAt?: number }) => request<MemoryFact>("/memory", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     remove: (id: string) => request<void>(`/memory/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },

@@ -172,7 +172,7 @@ export function OnboardingPage() {
     if (candidate === "/app" || candidate?.startsWith("/app/")) setReturnTo(candidate);
     setLoading(true);
     setLoadFailed(false);
-    void chuskyApi.memory.list(ONBOARDING_MEMORY_KEY).then((result) => {
+    void chuskyApi.memory.getByKey(ONBOARDING_MEMORY_KEY).then((result) => {
       if (!active) return;
       const saved = result.data.find((item) => item.key === ONBOARDING_MEMORY_KEY);
       const parsed = saved ? parseOnboardingProfile(saved.value) : undefined;
