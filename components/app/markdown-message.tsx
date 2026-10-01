@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -207,7 +207,7 @@ const codeTokenPattern = /(\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"
 function highlightedCode(source: string, language: string) {
   return source.split(codeTokenPattern).map((token, index) => {
     if (!token) return null;
-    const className = /^(\/\/|#|\/\*)/.test(token) ? "text-slate-400" : /^("|'|`)/.test(token) ? "text-emerald-300" : /^(?:true|false|null|\d)/.test(token) ? "text-amber-300" : /^(?:as|async|await|break|case|catch|class|const|continue|def|else|export|extends|for|from|function|if|import|in|interface|let|new|of|private|protected|public|return|static|this|throw|try|type|typeof|var|while|with|yield)$/.test(token) ? "text-violet-300" : "text-[#f5f3ee]";
+    const className = /^(\/\/|#|\/\*)/.test(token) ? "text-muted-foreground" : /^("|'|`)/.test(token) ? "text-emerald-700 dark:text-emerald-300" : /^(?:true|false|null|\d)/.test(token) ? "text-amber-700 dark:text-amber-300" : /^(?:as|async|await|break|case|catch|class|const|continue|def|else|export|extends|for|from|function|if|import|in|interface|let|new|of|private|protected|public|return|static|this|throw|try|type|typeof|var|while|with|yield)$/.test(token) ? "text-violet-700 dark:text-violet-300" : "text-foreground";
     return <span key={`${language}-${index}`} className={className}>{token}</span>;
   });
 }
@@ -245,11 +245,7 @@ const components: Components = {
     if (language || rawSource.endsWith("\n")) return <CodeBlock source={source} language={language} />;
     return <code className={`rounded bg-foreground/[0.07] px-1 py-0.5 font-mono text-[0.88em] ${className || ""}`} {...props}>{children}</code>;
   },
-  pre: ({ children, ...props }) => {
-    const child = React.isValidElement(children) ? children : undefined;
-    if (child && (child.type === MermaidBlock || child.type === DataChart || child.type === CodeBlock)) return child;
-    return <pre className="my-2 max-w-full overflow-x-auto rounded-md border border-foreground/10 bg-foreground/[0.04] p-2.5 font-mono text-[10px] leading-4" {...props}>{children}</pre>;
-  },
+  pre: ({ children }) => <>{children}</>,
   table: ({ children, ...props }) => <div className="my-3 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-foreground/10 bg-background shadow-sm"><table className="w-max min-w-full border-collapse text-left text-[10px] leading-4 [font-variant-numeric:tabular-nums] sm:text-[11px]" {...props}>{children}</table></div>,
   thead: ({ children, ...props }) => <thead className="bg-foreground/[0.045]" {...props}>{children}</thead>,
   tbody: ({ children, ...props }) => <tbody className="[&>tr:nth-child(even)]:bg-foreground/[0.018]" {...props}>{children}</tbody>,
@@ -282,10 +278,10 @@ function CodeBlock({ source, language }: { source: string; language?: string }) 
     }
   };
 
-  return <div className="my-2.5 w-full min-w-0 overflow-hidden rounded-lg bg-[#111318] text-[#f5f3ee] shadow-[0_1px_2px_rgb(0_0_0_/_0.14)]">
-    <div className="flex min-h-8 items-center justify-between gap-3 border-b border-white/10 px-2.5 sm:px-3">
-      <span className="truncate font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-white/55">{codeLanguageLabel(language)}</span>
-      <button type="button" onClick={() => void copy()} className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded px-1.5 font-sans text-[9px] text-white/60 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/70" aria-label={copyState === "copied" ? "Code copied" : copyState === "error" ? "Code could not be copied" : "Copy code to clipboard"}>
+  return <div className="my-2.5 w-full min-w-0 overflow-hidden rounded-lg border border-foreground/10 bg-muted/35 text-card-foreground shadow-[0_1px_2px_rgb(0_0_0_/_0.06)]">
+    <div className="flex min-h-8 items-center justify-between gap-3 border-b border-foreground/10 px-2.5 sm:px-3">
+      <span className="truncate font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{codeLanguageLabel(language)}</span>
+      <button type="button" onClick={() => void copy()} className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded px-1.5 font-sans text-[9px] text-muted-foreground transition-colors hover:bg-foreground/[0.07] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground/60" aria-label={copyState === "copied" ? "Code copied" : copyState === "error" ? "Code could not be copied" : "Copy code to clipboard"}>
         {copyState === "copied" ? <Check size={11} aria-hidden="true" /> : <Copy size={11} aria-hidden="true" />}
         <span aria-live="polite">{copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy"}</span>
       </button>
