@@ -10,6 +10,18 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    date: "2026-10-01",
+    dateLabel: "October 1, 2026",
+    area: "Missions · Change lock and verification",
+    title: "Mission changes now require trusted proof",
+    summary: "Strict mission verification now binds each receipt, artifact, or human confirmation to trusted evidence owned by that mission before the outcome can be closed.",
+    details: [
+      "Receipt, artifact, and human checks can reference an exact persisted evidence record; descriptions and model-authored pass results are never treated as proof.",
+      "Evidence is checked against the current owner and mission, including its kind, source, reference, and verification authority, so another mission or account cannot satisfy the check.",
+      "Provider-read checks still execute a fresh read-only action and compare the returned state. Turning a change into a completed mission requires the recorded proof, not only a checkpoint or optimistic response.",
+    ],
+  },
+  {
     date: "2026-09-30",
     dateLabel: "September 30, 2026",
     area: "Developer platform · TypeScript SDK",
