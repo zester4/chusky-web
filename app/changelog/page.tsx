@@ -12,6 +12,18 @@ const updates = [
   {
     date: "2026-10-01",
     dateLabel: "October 1, 2026",
+    area: "Missions · Recovery and approvals",
+    title: "Expired mission time now becomes a real approval",
+    summary: "A mission that needs more execution time pauses the same durable mission and puts an exact, bounded resume action in the owner’s approval queue.",
+    details: [
+      "Chusky no longer asks for a duration extension as plain assistant text. The saved approval contains the mission ID and exact proposed duration, and it is deduplicated across worker retries.",
+      "Approving resumes the original mission task exactly once and preserves the existing checkpoint, evidence, step, tool, spend, and account boundaries.",
+      "The dashboard shows the approval even when the original chat run is idle, so the owner can approve or deny it without hunting through an old message.",
+    ],
+  },
+  {
+    date: "2026-10-01",
+    dateLabel: "October 1, 2026",
     area: "Missions · Timing and approval recovery · SDK 1.9.0",
     title: "Mission execution time pauses while work waits",
     summary: "New missions track active execution separately from their overall deadline, while approved resume actions update the original chat activity with their saved result.",

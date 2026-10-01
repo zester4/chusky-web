@@ -96,7 +96,9 @@ const reconcileStreamedText = (current: string, snapshot: string) => {
 };
 const runStatusText = (run: Run) => {
   if (run.status === "requires_approval") return "Chusky needs your approval to continue with this action.";
-  if (run.status === "failed") return "I couldn’t complete this run. The recorded steps remain above.";
+  if (run.status === "failed") return run.error?.message
+    ? `I couldn’t complete this run: ${run.error.message}`
+    : "I couldn’t complete this run. The recorded steps remain above.";
   if (run.status === "cancelled") return [...(run.events ?? [])].reverse().find((event) => event.type === "run.cancelled")?.text || "Run cancelled. The completed steps are shown above.";
   return run.output ?? "";
 };
@@ -291,6 +293,7 @@ export function ChatPage() {
   const [likedMessageIndex, setLikedMessageIndex] = useState<number>();
   const [editingMessageIndex, setEditingMessageIndex] = useState<number>();
   const [notice, setNotice] = useState<{ kind: "error" | "info"; message: string }>();
+  const [globalApprovalBusy, setGlobalApprovalBusy] = useState<string>();
   const [artifactCatalog, setArtifactCatalog] = useState<Artifact[]>([]);
   const [toolkitCatalogue, setToolkitCatalogue] = useState<Record<string, Toolkit>>({});
   const [listening, setListening] = useState(false);
@@ -574,6 +577,28 @@ export function ChatPage() {
     }
   };
 
+  const decideGlobalApproval = async (approvalId: string, decision: "approve" | "deny") => {
+    if (globalApprovalBusy) return;
+    setGlobalApprovalBusy(approvalId);
+    try {
+      await chuskyApi.approvals.decide(approvalId, decision);
+      const next = await chuskyApi.account.get();
+      setAccount(next);
+      notifyChuskyDataChanged();
+      showNotice(decision === "approve" ? "Approval accepted. Chusky is resuming the saved mission." : "Approval denied; no action was taken.", "info");
+    } catch (error) {
+      const saved = await chuskyApi.approvals.get(approvalId).catch(() => undefined);
+      if (saved?.status === "pending") showNotice(error instanceof Error ? error.message : "Approval is still pending. Refresh and try again.");
+      else {
+        const next = await chuskyApi.account.get().catch(() => undefined);
+        if (next) setAccount(next);
+        showNotice(saved?.status === "approved" || saved?.status === "consumed" ? "Approval was accepted. Refresh to see the saved mission status." : "The approval state changed. Refresh before trying again.");
+      }
+    } finally {
+      setGlobalApprovalBusy(undefined);
+    }
+  };
+
   const uploadAttachment = async (localId: string, file: File, contentType: string) => {
     if (uploadAbortControllersRef.current.has(localId)) return;
     const controller = new AbortController();
@@ -751,6 +776,18 @@ export function ChatPage() {
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-1.5 py-2 sm:px-5 sm:py-6 lg:px-8">
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-3.5 sm:space-y-4">
+              {account?.approvals?.filter((approval) => !messages.some((message) => message.approval?.id === approval.id)).map((approval) => <div key={approval.id} className="mx-auto flex w-full max-w-2xl items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50/80 px-3 py-3 text-amber-950 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-100" role="alert">
+                <ShieldCheck size={17} className="mt-0.5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold">Approval required to continue</p>
+                  <p className="mt-1 break-words text-[11px] leading-5 text-amber-900/80 dark:text-amber-100/80">{approval.request || `Chusky is waiting to run ${approval.toolSlug}.`}</p>
+                  <p className="mt-1 break-all font-mono text-[10px] text-amber-900/65 dark:text-amber-100/65">{approval.toolSlug}{approval.missionId ? ` · mission ${approval.missionId}` : ""}</p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <button type="button" disabled={Boolean(globalApprovalBusy)} onClick={() => void decideGlobalApproval(approval.id, "approve")} className="rounded-full bg-amber-900 px-3 py-1.5 text-[11px] font-medium text-amber-50 disabled:opacity-50 dark:bg-amber-200 dark:text-amber-950">{globalApprovalBusy === approval.id ? "Updating…" : "Approve"}</button>
+                    <button type="button" disabled={Boolean(globalApprovalBusy)} onClick={() => void decideGlobalApproval(approval.id, "deny")} className="rounded-full border border-amber-900/20 px-3 py-1.5 text-[11px] font-medium disabled:opacity-50 dark:border-amber-100/20">Deny</button>
+                  </div>
+                </div>
+              </div>)}
               {!messages.length && status === "ready" && <div className="mx-auto mt-10 max-w-sm text-center"><p className="text-xs font-medium">Start a new conversation</p><p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">Ask Chusky to research, write, plan, or act. Your chat will be saved automatically so you can return to it later.</p><button type="button" onClick={() => inputRef.current?.focus()} className="mt-3 text-[11px] font-medium underline underline-offset-4">Write the first message</button></div>}
               {messages.map((item, index) => {
                 const visibleActivities = item.activities?.length ? presentToolActivities(item.activities) : [];

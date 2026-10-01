@@ -40,7 +40,7 @@ export type OutcomePlan = { outcome: OutcomePackage; inputs: Record<string, unkn
 export type ComposerStage = { id: string; title: string; objective: string; dependsOn: string[]; status: "pending" | "running" | "completed" | "blocked" | "failed" | "cancelled"; requiresApproval: boolean; retryLimit: number; budgetSeconds?: number; result?: string };
 export type ComposerWorkflow = { id: string; name: string; description?: string; stages: ComposerStage[]; status: "draft" | "queued" | "running" | "completed" | "failed" | "cancelled"; taskId?: string; workflowRunId?: string; createdAt: number; updatedAt: number };
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
-export type Approval = { id: string; status?: "pending" | "approved" | "denied" | "consumed"; toolSlug: string; args: Record<string, unknown>; request?: string; channelProvider?: string; handoffId?: string; createdAt?: string; expiresAt: string };
+export type Approval = { id: string; status?: "pending" | "approved" | "denied" | "consumed"; toolSlug: string; args: Record<string, unknown>; request?: string; missionId?: string; channelProvider?: string; handoffId?: string; createdAt?: string; expiresAt: string };
 export type ApprovalDecision = { id: string; status: "denied" | "consumed"; text?: string };
 export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; summary?: string; error?: string; createdAt: string; updatedAt: string };
 export type CallMode = "general" | "sales" | "onboarding" | "support" | "scheduling";
@@ -69,7 +69,7 @@ export type OperatorTraceEvent = { id: string; ownerId: number; kind: string; ty
 export type Compensation = { id: string; ownerId: number; missionId?: string; missionStepId?: string; originalActionId: string; provider: string; objective: string; status: "pending" | "running" | "succeeded" | "failed" | "blocked" | "cancelled"; attempts: number; maxAttempts: number; idempotencyKey: string; createdAt: number; updatedAt: number; error?: string; resultSummary?: string; executionToolSlug?: string; externalReceiptId?: string; providerReceiptId?: string; verificationId?: string };
 export type AccountOverview = {
   model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences;
-  approvals: Array<{ id: string; toolSlug: string; request: string; status: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
+  approvals: Array<{ id: string; toolSlug: string; request: string; status: string; missionId?: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
   channels: Array<{ id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
   reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
   jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string }>;
