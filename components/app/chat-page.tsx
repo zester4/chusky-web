@@ -551,6 +551,11 @@ export function ChatPage() {
       const run = await chuskyApi.approvals.decide(approvalId, decision);
       if ("threadId" in run) await applyRunSnapshot(run);
       else {
+        if ("run" in run && run.run) {
+          await applyRunSnapshot(run.run);
+          if (currentRunId) syncActiveRunId(undefined);
+          return;
+        }
         if (currentRunId) syncActiveRunId(undefined);
         if (currentRunId && thread && decision === "deny") {
           await applyRunSnapshot(await chuskyApi.runs.get(thread.id, currentRunId));
