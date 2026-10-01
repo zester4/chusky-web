@@ -17,7 +17,19 @@ const primary = [
   ["Overview", "/app", "⌂"], ["Chat", "/app/chat", "✦"], ["Conversations", "/app/conversations", "◌"],
   ["Approvals", "/app/approvals", "✓"], ["Calls", "/app/calls", "⌕"], ["Autonomy", "/app/autonomy", "◎"], ["Meetings", "/app/meetings", "◷"], ["Connected apps", "/app/apps", "⊞"], ["Channels", "/app/channels", "◉"], ["Capabilities", "/app/capabilities", "✧"], ["Workers", "/app/workers", "◈"], ["Tasks", "/app/tasks", "▣"], ["Missions", "/app/missions", "↻"], ["Operations", "/app/operations", "◉"], ["Delivery", "/app/delivery", "↗"],
 ];
-const work = [["Organizations", "/app/organizations", "◫"], ["MCP connections", "/app/mcp", "⌁"], ["Workflow Composer", "/app/composer", "⌘"], ["Reminders", "/app/reminders", "◷"], ["Recurring jobs", "/app/jobs", "↻"], ["Skills", "/app/skills", "▱"], ["Memory", "/app/memory", "◇"], ["Scratchpad", "/app/scratchpad", "✎"], ["Triggers", "/app/triggers", "⌁"], ["Workspace", "/app/workspace", "▤"]];
+const work = [
+  ["Organizations", "/app/organizations", "◫"],
+  // Temporarily hidden from the sidebar; the MCP page and route remain available.
+  // ["MCP connections", "/app/mcp", "⌁"],
+  ["Workflow Composer", "/app/composer", "⌘"],
+  ["Reminders", "/app/reminders", "◷"],
+  ["Recurring jobs", "/app/jobs", "↻"],
+  ["Skills", "/app/skills", "▱"],
+  ["Memory", "/app/memory", "◇"],
+  ["Scratchpad", "/app/scratchpad", "✎"],
+  ["Triggers", "/app/triggers", "⌁"],
+  ["Workspace", "/app/workspace", "▤"],
+];
 
 export type ChatHeader = { title: string; status: "loading" | "ready" | "offline" };
 export const AppShellContext = createContext<{ setChatHeader: (header?: ChatHeader) => void }>({ setChatHeader: () => undefined });
