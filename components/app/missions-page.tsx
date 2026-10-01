@@ -10,7 +10,59 @@ import { MarkdownMessage } from "./markdown-message";
 const tone = (status: Mission["status"]): "green" | "amber" | "gray" => status === "completed" ? "green" : ["blocked", "failed", "paused", "waiting"].includes(status) ? "amber" : "gray";
 const date = (value: number) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 const short = (value: string, max = 180) => value.length > max ? `${value.slice(0, max - 1)}…` : value;
+const label = (value: string) => value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (character) => character.toUpperCase());
 type MissionDetail = { mission: Mission; proof?: MissionProof; events: Mission["events"] };
+
+function EvidenceStatus({ verified, verifiedBy }: { verified: boolean; verifiedBy?: string }) {
+  return <span className={`inline-flex max-w-full items-center gap-1 rounded-full px-2 py-1 text-[9px] font-medium ${verified ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-800 dark:text-amber-200"}`}>
+    <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${verified ? "bg-emerald-500" : "bg-amber-500"}`} />
+    {verified ? "Verified" : "Not verified"}{verified && verifiedBy ? ` · ${label(verifiedBy)}` : ""}
+  </span>;
+}
+
+function EvidenceRecord({ item }: { item: MissionProof["evidence"][number] }) {
+  const hasFullSummary = item.summary.length > 320;
+  const hasMetadata = Boolean(item.source || item.ref || item.hash);
+  return <li className="min-w-0 rounded-md border border-foreground/10 bg-background/60 p-3 sm:p-3.5">
+    <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+      <div className="min-w-0">
+        <p className="break-words font-mono text-[10px] font-medium text-foreground">{label(item.kind)}</p>
+        {item.createdAt ? <time className="mt-1 block text-[9px] text-muted-foreground" dateTime={new Date(item.createdAt).toISOString()}>{date(item.createdAt)}</time> : null}
+      </div>
+      <EvidenceStatus verified={item.verified} verifiedBy={item.verifiedBy} />
+    </div>
+    <p className="mt-2 break-words text-[11px] leading-5 text-foreground">{short(item.summary, 320)}</p>
+    {hasFullSummary && <details className="mt-2 min-w-0 border-t border-foreground/10 pt-2">
+      <summary className="cursor-pointer text-[10px] font-medium text-foreground">View full record</summary>
+      <div className="mt-2 min-w-0 rounded-md bg-foreground/[0.025] p-2.5"><MarkdownMessage content={item.summary} /></div>
+    </details>}
+    {hasMetadata && <details className="mt-2 min-w-0 border-t border-foreground/10 pt-2">
+      <summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Record metadata</summary>
+      <dl className="mt-2 grid min-w-0 gap-1.5 text-[10px] sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-3">
+        {item.source ? <><dt className="font-medium text-muted-foreground">Source</dt><dd className="break-all font-mono text-foreground">{item.source}</dd></> : null}
+        {item.ref ? <><dt className="font-medium text-muted-foreground">Reference</dt><dd className="break-all font-mono text-foreground">{item.ref}</dd></> : null}
+        {item.hash ? <><dt className="font-medium text-muted-foreground">Hash</dt><dd className="break-all font-mono text-foreground">{item.hash}</dd></> : null}
+      </dl>
+    </details>}
+  </li>;
+}
+
+function ActivityRecord({ event }: { event: Mission["events"][number] }) {
+  const hasFullMessage = event.message.length > 360;
+  return <article className="grid min-w-0 gap-2 border-l-2 border-foreground/15 pl-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-3 sm:pl-3">
+    <time className="whitespace-nowrap pt-0.5 font-mono text-[9px] leading-4 text-muted-foreground" dateTime={new Date(event.at).toISOString()}>{date(event.at)}</time>
+    <div className="min-w-0 rounded-md border border-foreground/10 bg-background/60 p-3">
+      <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label(event.type)}</p>
+      {hasFullMessage ? <>
+        <p className="mt-2 break-words text-[11px] leading-5 text-foreground">{short(event.message, 360)}</p>
+        <details className="mt-2 border-t border-foreground/10 pt-2">
+          <summary className="cursor-pointer text-[10px] font-medium text-foreground">View full activity</summary>
+          <div className="mt-2 min-w-0 rounded-md bg-foreground/[0.025] p-2.5"><MarkdownMessage content={event.message} /></div>
+        </details>
+      </> : <div className="mt-1.5 min-w-0"><MarkdownMessage content={event.message || event.type} /></div>}
+    </div>
+  </article>;
+}
 
 export function MissionsPage() {
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -98,8 +150,8 @@ export function MissionsPage() {
             </li>;
           })}</ol> : <p className="rounded-md border border-dashed border-foreground/15 p-3 text-[10px]">This mission has no dependency steps; progress is tracked through its checkpoint and events.</p>}
         </section>
-        {(proof?.evidence ?? mission.evidence ?? []).length > 0 && <details className="min-w-0 rounded-md border border-foreground/10 p-2.5"><summary className="cursor-pointer font-medium text-foreground">Evidence records ({(proof?.evidence ?? mission.evidence ?? []).length})</summary><ul className="mt-2 space-y-2">{(proof?.evidence ?? mission.evidence ?? []).map((item) => <li key={item.id} className="min-w-0 border-l border-foreground/15 pl-2.5"><p className="text-foreground">{item.summary}</p><p className="mt-0.5 text-[10px]">{item.kind} · {item.verified ? `verified by ${item.verifiedBy ?? "system"}` : "not verified"}{item.createdAt ? ` · ${date(item.createdAt)}` : ""}</p></li>)}</ul></details>}
-        {eventList.length > 0 && <div className="min-w-0"><p className="mb-2 font-medium text-foreground">Recent activity</p><div className="space-y-2">{eventList.slice(-5).reverse().map((event) => <div key={event.id} className="grid min-w-0 gap-1 border-l border-foreground/15 pl-2.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-2"><time className="whitespace-nowrap font-mono text-[9px] leading-4 text-muted-foreground" dateTime={new Date(event.at).toISOString()}>{date(event.at)}</time><div className="min-w-0"><MarkdownMessage content={event.message || event.type} /></div></div>)}</div></div>}
+        {(proof?.evidence ?? mission.evidence ?? []).length > 0 && <details className="min-w-0 rounded-md border border-foreground/10 bg-foreground/[0.015] p-2.5 sm:p-3"><summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-medium text-foreground [&::-webkit-details-marker]:hidden"><span>Evidence records</span><span className="rounded-full bg-foreground/[0.06] px-2 py-1 font-mono text-[9px] text-muted-foreground">{(proof?.evidence ?? mission.evidence ?? []).length}</span></summary><ul className="mt-3 space-y-2">{(proof?.evidence ?? mission.evidence ?? []).map((item) => <EvidenceRecord key={item.id} item={item} />)}</ul></details>}
+        {eventList.length > 0 && <section className="min-w-0" aria-label="Recent activity"><div className="mb-2 flex items-baseline justify-between gap-2"><p className="font-medium text-foreground">Recent activity</p><span className="font-mono text-[9px] text-muted-foreground">{Math.min(eventList.length, 5)} shown</span></div><div className="space-y-2.5">{eventList.slice(-5).reverse().map((event) => <ActivityRecord key={event.id} event={event} />)}</div></section>}
         <div className="flex flex-wrap gap-2 border-t border-foreground/10 pt-3">{["running", "waiting"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "pause")}>Pause</Button>}{["paused", "blocked", "failed"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "resume")}>Resume</Button>}{["blocked", "failed"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "repair")}>Repair and resume</Button>}{!["completed", "cancelled"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "cancel")}>Cancel</Button>}</div>
       </div>}
     </div>;
