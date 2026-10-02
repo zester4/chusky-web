@@ -47,6 +47,7 @@ type SpeechRecognitionLike = {
   onend: (() => void) | null;
   onerror: (() => void) | null;
   start: () => void;
+  stop: () => void;
 };
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 type SpeechWindow = Window & {
@@ -298,6 +299,8 @@ export function ChatPage() {
   const [artifactCatalog, setArtifactCatalog] = useState<Artifact[]>([]);
   const [toolkitCatalogue, setToolkitCatalogue] = useState<Record<string, Toolkit>>({});
   const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | undefined>(undefined);
+  const voiceBaseInputRef = useRef<string | undefined>(undefined);
   const activeRunIdRef = useRef<string | undefined>(undefined);
   const [activeRunId, setActiveRunId] = useState<string>();
   const messagesRef = useRef<Message[]>(messages);
@@ -519,19 +522,64 @@ export function ChatPage() {
     }
   };
 
+  const stopVoiceInput = () => {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = undefined;
+    voiceBaseInputRef.current = undefined;
+    setListening(false);
+    recognition?.stop();
+  };
+
+  const cancelVoiceInput = () => {
+    const baseInput = voiceBaseInputRef.current;
+    stopVoiceInput();
+    if (baseInput !== undefined) setInput(baseInput);
+  };
+
+  const sendVoiceInput = () => {
+    stopVoiceInput();
+    void send();
+  };
+
   const toggleVoiceInput = () => {
     const speechWindow = window as SpeechWindow;
     const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!Recognition) { showNotice("Voice input is not supported in this browser.", "info"); return; }
-    if (listening) { setListening(false); return; }
+    if (listening) { stopVoiceInput(); return; }
     const recognition = new Recognition();
     recognition.lang = navigator.language || "en-US";
     recognition.interimResults = false;
-    recognition.onresult = (event) => setInput((current) => `${current}${current ? " " : ""}${event.results[0][0].transcript}`);
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
+    voiceBaseInputRef.current = input;
+    recognition.onresult = (event) => {
+      if (recognitionRef.current !== recognition) return;
+      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      if (!transcript) return;
+      const baseInput = voiceBaseInputRef.current ?? "";
+      setInput(`${baseInput}${baseInput ? " " : ""}${transcript}`.trim());
+    };
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = undefined;
+        voiceBaseInputRef.current = undefined;
+        setListening(false);
+      }
+    };
+    recognition.onerror = () => {
+      if (recognitionRef.current !== recognition) return;
+      recognitionRef.current = undefined;
+      voiceBaseInputRef.current = undefined;
+      setListening(false);
+      showNotice("Voice input could not start. Check microphone permissions.", "info");
+    };
+    recognitionRef.current = recognition;
     setListening(true);
-    recognition.start();
+    try { recognition.start(); }
+    catch {
+      recognitionRef.current = undefined;
+      voiceBaseInputRef.current = undefined;
+      setListening(false);
+      showNotice("Voice input could not start. Check microphone permissions.", "info");
+    }
   };
 
   const editMessage = (index: number, text: string) => {
@@ -862,7 +910,7 @@ export function ChatPage() {
             </div>
 
             <div className="shrink-0 pt-2 pb-[env(safe-area-inset-bottom)] sm:pt-4 sm:pb-0">
-              <div data-chat-composer className="chat-composer rounded-xl border border-foreground/10 bg-background">
+              <div data-chat-composer className="chat-composer rounded-2xl border border-foreground/10 bg-background">
                 <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.md,.zip,.docx,.pptx,.xlsx,.mp3,.ogg,.oga,.wav,.mp4,.webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} />
                 {attachments.length ? <div className="flex gap-2 overflow-x-auto px-3 pt-3 pb-2" aria-live="polite">{attachments.map((item) => <div key={item.localId} className={`w-[min(24rem,calc(100vw-3rem))] shrink-0 rounded-lg bg-foreground/[0.035] p-2.5 ${item.status === "error" ? "ring-1 ring-amber-600/25" : ""}`}>
                   <div className="flex min-w-0 items-start gap-3">
@@ -877,22 +925,30 @@ export function ChatPage() {
                   {item.error ? <p className="mt-2 break-words text-[11px] leading-4 text-amber-800" role="alert">{item.error}</p> : null}
                 </div>)}</div> : null}
                 {attachments.some((item) => item.status === "error") ? <p className="px-3 pb-1 text-[10px] text-amber-800" role="status">Retry or remove failed files before sending, so Chusky won’t miss an attachment.</p> : null}
-                <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Chusky is continuing this run…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || isWorking} className="chat-composer-input w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
-                <div className="chat-composer-controls flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
-                  <div className="flex min-w-0 flex-1 items-center gap-1">
-                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || isWorking || attachments.length >= 5 || attachments.some((item) => item.status === "uploading")} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button>
-                    <label className="sr-only" htmlFor="chat-model">Run model</label>
-                    <div className="relative min-w-0 max-w-28 sm:max-w-44">
-                      <select id="chat-model" aria-label="Run model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="chat-composer-model w-full min-w-0 max-w-full truncate text-[10px] font-medium"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select>
-                      <ChevronDown size={12} aria-hidden="true" className="pointer-events-none absolute right-0.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                {listening ? <div className="chat-voice-recording" role="status" aria-live="polite">
+                  <button type="button" onClick={cancelVoiceInput} className="chat-voice-control chat-voice-cancel" aria-label="Cancel voice input" title="Cancel voice input"><X size={14} strokeWidth={2} /></button>
+                  <span className="sr-only">Recording voice input</span>
+                  <div className="chat-voice-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <span key={index} style={{ height: `${8 + ((index * 7) % 14)}px`, animationDelay: `${index * 42}ms` }} />)}</div>
+                  <button type="button" onClick={stopVoiceInput} className="chat-voice-control chat-voice-stop" aria-label="Stop voice input" title="Stop voice input"><Square size={10} fill="currentColor" /></button>
+                  <button type="button" onClick={sendVoiceInput} disabled={!input.trim() || !thread} className="chat-voice-control chat-voice-send" aria-label="Send voice message" title="Send voice message"><ArrowUp size={15} /></button>
+                </div> : <>
+                  <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Chusky is continuing this run…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || isWorking} className="chat-composer-input w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
+                  <div className="chat-composer-controls flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || isWorking || attachments.length >= 5 || attachments.some((item) => item.status === "uploading")} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                      <label className="sr-only" htmlFor="chat-model">Run model</label>
+                      <div className="relative min-w-0 max-w-28 sm:max-w-44">
+                        <select id="chat-model" aria-label="Run model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="chat-composer-model w-full min-w-0 max-w-full truncate text-[10px] font-medium"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select>
+                        <ChevronDown size={12} aria-hidden="true" className="pointer-events-none absolute right-0.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                      <span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span>
+                      <button type="button" onClick={toggleVoiceInput} disabled={!thread || isWorking} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Start voice input" title="Start voice input"><Mic size={13} /></button>
+                      {isWorking ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
                     </div>
                   </div>
-                  <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                    <span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span>
-                    <button type="button" onClick={toggleVoiceInput} disabled={!thread || isWorking} className={`chat-composer-action flex h-7 w-7 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${listening ? "bg-rose-50 text-rose-700" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"} title={listening ? "Stop voice input" : "Start voice input"}><Mic size={13} /></button>
-                    {isWorking ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
-                  </div>
-                </div>
+                </>}
               </div>
             </div>
           </div>

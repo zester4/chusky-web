@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CheckCircle2, ChevronDown, CircleAlert, GitBranch, HeartPulse, RefreshCw, ShieldCheck, Timer } from "lucide-react";
 import { chuskyApi, type Mission, type MissionDoctor, type MissionProof, type MissionWorkSchedule, type OutcomePackage } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
@@ -125,6 +125,8 @@ export function MissionsPage() {
   const [detailBusy, setDetailBusy] = useState<string>();
   const [detailError, setDetailError] = useState<string>();
   const [outcomes, setOutcomes] = useState<OutcomePackage[]>([]);
+  const selectedMissionRef = useRef<string | undefined>(undefined);
+  const detailRequestRef = useRef(0);
 
   const load = async () => {
     setOffline(false);
@@ -133,6 +135,8 @@ export function MissionsPage() {
   };
 
   const loadDetail = async (mission: Mission) => {
+    const requestId = ++detailRequestRef.current;
+    selectedMissionRef.current = mission.id;
     setDetailBusy(mission.id);
     setDetailError(undefined);
     try {
@@ -142,16 +146,23 @@ export function MissionsPage() {
         chuskyApi.missions.doctor(mission.id).catch(() => undefined),
         chuskyApi.missions.events(mission.id, 5000).catch(() => ({ data: mission.events })),
       ]);
+      if (requestId !== detailRequestRef.current || selectedMissionRef.current !== mission.id) return;
       setMissions((current) => current.map((item) => item.id === fresh.id ? fresh : item));
       setSelected({ mission: fresh, proof, doctor, events: events.data });
     } catch (cause) {
+      if (requestId !== detailRequestRef.current || selectedMissionRef.current !== mission.id) return;
       setDetailError(cause instanceof Error ? cause.message : "Mission details could not be loaded.");
-    } finally { setDetailBusy(undefined); }
+    } finally {
+      if (requestId === detailRequestRef.current) setDetailBusy(undefined);
+    }
   };
 
   const toggleDetail = (mission: Mission, isSelected: boolean) => {
     if (isSelected) {
+      detailRequestRef.current += 1;
+      selectedMissionRef.current = undefined;
       setSelected(undefined);
+      setDetailBusy(undefined);
       setDetailError(undefined);
       return;
     }
@@ -161,7 +172,7 @@ export function MissionsPage() {
   useEffect(() => { void load(); void chuskyApi.outcomes.list().then((result) => setOutcomes(result.data)).catch(() => setOutcomes([])); }, []);
   useLiveData(async () => {
     await load();
-    if (selected) await loadDetail(selected.mission);
+    if (selected && selectedMissionRef.current === selected.mission.id) await loadDetail(selected.mission);
   });
 
   const act = async (mission: Mission, action: "pause" | "resume" | "cancel" | "repair") => {
@@ -201,7 +212,7 @@ export function MissionsPage() {
     const stepNames = new Map(mission.steps.map((step) => [step.id, step.title]));
     const detailId = `mission-details-${mission.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
     return <div key={mission.id} className="min-w-0 border-b border-foreground/10 p-3 last:border-0 sm:p-4">
-      <button type="button" className="min-h-11 w-full min-w-0 text-left" onClick={() => toggleDetail(mission, isSelected)} disabled={detailBusy === mission.id} aria-expanded={isSelected} aria-controls={detailId}>
+      <button type="button" className="min-h-11 w-full min-w-0 text-left" onClick={() => toggleDetail(mission, isSelected)} disabled={detailBusy === mission.id && !isSelected} aria-expanded={isSelected} aria-controls={detailId}>
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2"><div className="min-w-0"><p className="text-xs font-medium leading-4">{mission.title}</p><p className="mt-1 font-mono text-[9px] leading-4 text-muted-foreground [overflow-wrap:anywhere]">{mission.id} · updated {date(mission.updatedAt)}</p></div><span className="flex items-center gap-2"><Status tone={tone(mission.status)}>{mission.status}</Status><ChevronDown size={13} className={`mt-1 shrink-0 text-muted-foreground transition-transform ${isSelected ? "rotate-180" : ""}`} aria-hidden="true" /></span></div>
         <p className="mt-2 text-[11px] leading-[1.45rem] text-muted-foreground [overflow-wrap:anywhere]">{mission.nextAction || mission.checkpoint || short(mission.objective, 180)}</p>
         <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground"><span>{mission.consumedSteps} slices</span><span>{mission.toolCalls} tool calls</span><span>${mission.cost.toFixed(4)}</span><span>{mission.steps.length} steps</span>{mission.activeStepIds?.length ? <span>{mission.activeStepIds.length} active branches</span> : null}</div>

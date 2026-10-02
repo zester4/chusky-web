@@ -293,6 +293,8 @@
 
   .chat-composer {
     border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+    background: color-mix(in srgb, var(--foreground) 3.5%, var(--background));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 8px 24px rgb(var(--depth-shadow-rgb) / 0.08);
     transition: border-color 150ms ease, box-shadow 150ms ease;
   }
 
@@ -303,9 +305,115 @@
 
   .app-depth-root .app-shell .chat-composer textarea.chat-composer-input,
   .app-depth-root .app-shell .chat-composer textarea.chat-composer-input:focus-visible {
+    min-height: 5.25rem;
     border: 0;
     border-radius: 0;
     box-shadow: none;
+    padding: 0.8rem 0.9rem 0.35rem;
+  }
+
+  .chat-composer-controls {
+    min-height: 2.35rem;
+  }
+
+  .chat-voice-recording {
+    display: flex;
+    min-height: 3.1rem;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem;
+  }
+
+  .chat-voice-control {
+    display: inline-flex;
+    height: 2.15rem;
+    width: 2.15rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--muted-foreground);
+    box-shadow: none;
+    transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+  }
+
+  .chat-voice-control:hover {
+    background: color-mix(in srgb, var(--foreground) 7%, transparent);
+    color: var(--foreground);
+  }
+
+  .chat-voice-control:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--foreground) 48%, transparent);
+    outline-offset: 2px;
+  }
+
+  .chat-voice-cancel {
+    background: color-mix(in srgb, var(--foreground) 8%, transparent);
+    color: var(--foreground);
+  }
+
+  .chat-voice-stop {
+    background: color-mix(in srgb, var(--foreground) 8%, transparent);
+    color: var(--foreground);
+  }
+
+  .chat-voice-send {
+    background: var(--foreground);
+    color: var(--background);
+  }
+
+  .chat-voice-send:hover {
+    background: color-mix(in srgb, var(--foreground) 88%, var(--background));
+    color: var(--background);
+    transform: scale(1.04);
+  }
+
+  .chat-voice-send:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .chat-voice-wave {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    height: 1.35rem;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    overflow: hidden;
+    color: color-mix(in srgb, var(--foreground) 65%, var(--muted-foreground));
+  }
+
+  .chat-voice-wave span {
+    width: 2px;
+    flex: 0 0 2px;
+    max-height: 1.15rem;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: chat-voice-wave 700ms ease-in-out infinite alternate;
+  }
+
+  @keyframes chat-voice-wave {
+    from {
+      opacity: 0.45;
+      transform: scaleY(0.35);
+    }
+
+    to {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-voice-wave span {
+      animation: none;
+      opacity: 0.7;
+      transform: scaleY(0.65);
+    }
   }
 
   .app-depth-root .app-shell .chat-composer select.chat-composer-model {
