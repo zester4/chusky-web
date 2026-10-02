@@ -376,6 +376,13 @@ export function ChatPage() {
         if (active) {
           setThread(current);
           setStatus("ready");
+          if (requestedNew) {
+            const canonicalUrl = new URL(window.location.href);
+            canonicalUrl.searchParams.delete("new");
+            canonicalUrl.searchParams.delete("nonce");
+            canonicalUrl.searchParams.set("thread", current.id);
+            window.history.replaceState(window.history.state, "", `${canonicalUrl.pathname}${canonicalUrl.search}${canonicalUrl.hash}`);
+          }
         }
         const [runs, artifactPage] = await Promise.all([
           chuskyApi.threads.runs(current.id, { limit: 50 }),
