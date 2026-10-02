@@ -429,6 +429,36 @@
     background: color-mix(in srgb, var(--chusky-amber) 20%, var(--background));
   }
 
+  .mission-detail-panel {
+    border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+  }
+
+  .mission-disclosure > summary {
+    min-height: 1.75rem;
+  }
+
+  .mission-markdown-panel {
+    border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+    background: color-mix(in srgb, var(--background) 88%, var(--foreground));
+    border-radius: 0.5rem;
+  }
+
+  .mission-markdown {
+    max-width: 72ch;
+  }
+
+  .mission-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .mission-markdown > :last-child {
+    margin-bottom: 0;
+  }
+
+  .mission-markdown :is(h1, h2, h3) {
+    text-wrap: balance;
+  }
+
   .app-depth-root .app-shell :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
     box-shadow: inset 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), inset 0 -1px 0 rgb(255 255 255 / 0.72);
   }
