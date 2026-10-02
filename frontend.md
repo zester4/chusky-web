@@ -127,10 +127,8 @@ history or connection state.
 ### Verification for this update
 
 - Dashboard ESLint and TypeScript checks passed against the frozen lockfile.
-- The production webpack build compiled the application and completed its
-  TypeScript phase, but the existing `/docs/[slug]` prerender failed in
-  Next.js 16.3.3 with `Expected workStore to be initialized`; this is outside
-  the mission page change and remains a release risk to resolve separately.
+- The production webpack build passed with Next.js 16.3.4, including all 48
+  static pages and final page optimization.
 
 ## What was completed
 
