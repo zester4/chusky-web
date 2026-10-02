@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronDown, CircleAlert, GitBranch, RefreshCw, ShieldCheck, Timer } from "lucide-react";
-import { chuskyApi, type Mission, type MissionProof, type OutcomePackage } from "@/lib/chusky-api";
+import { useEffect, useState, type FormEvent } from "react";
+import { CheckCircle2, ChevronDown, CircleAlert, GitBranch, HeartPulse, RefreshCw, ShieldCheck, Timer } from "lucide-react";
+import { chuskyApi, type Mission, type MissionDoctor, type MissionProof, type MissionWorkSchedule, type OutcomePackage } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { useLiveData } from "@/lib/live-sync";
 import { MarkdownMessage } from "./markdown-message";
@@ -11,7 +11,7 @@ const tone = (status: Mission["status"]): "green" | "amber" | "gray" => status =
 const date = (value: number) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 const short = (value: string, max = 180) => value.length > max ? `${value.slice(0, max - 1)}…` : value;
 const label = (value: string) => value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (character) => character.toUpperCase());
-type MissionDetail = { mission: Mission; proof?: MissionProof; events: Mission["events"] };
+type MissionDetail = { mission: Mission; proof?: MissionProof; doctor?: MissionDoctor; events: Mission["events"] };
 
 function EvidenceStatus({ verified, verifiedBy }: { verified: boolean; verifiedBy?: string }) {
   return <span className={`inline-flex max-w-full items-center gap-1 rounded-full px-2 py-1 text-[9px] font-medium ${verified ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-800 dark:text-amber-200"}`}>
@@ -64,6 +64,59 @@ function ActivityRecord({ event }: { event: Mission["events"][number] }) {
   </article>;
 }
 
+const seconds = (value: number) => {
+  if (!Number.isFinite(value)) return "—";
+  if (value < 3600) return `${Math.floor(value / 60)}m`;
+  if (value < 86400) return `${(value / 3600).toFixed(1)}h`;
+  return `${(value / 86400).toFixed(1)}d`;
+};
+
+function MissionDoctorPanel({ doctor }: { doctor?: MissionDoctor }) {
+  if (!doctor) return <div className="rounded-md border border-dashed border-foreground/15 p-3 text-[10px] text-muted-foreground">Diagnosis is unavailable. Refresh to ask the server again.</div>;
+  const toneName = doctor.health === "healthy" ? "text-emerald-700" : doctor.health === "waiting" ? "text-amber-700" : "text-red-700";
+  return <section className="min-w-0 rounded-md border border-foreground/10 bg-foreground/[0.015] p-3" aria-label="Mission diagnosis">
+    <div className="flex min-w-0 items-start gap-2"><HeartPulse size={14} className={`mt-0.5 shrink-0 ${toneName}`} aria-hidden="true" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-medium text-foreground">Runtime diagnosis</p><span className={`font-mono text-[9px] uppercase tracking-[0.12em] ${toneName}`}>{doctor.health}</span></div><p className="mt-1 break-words text-[10px] leading-4">{doctor.summary}</p></div></div>
+    {doctor.reasons.length > 0 && <p className="mt-2 break-words text-[10px] text-muted-foreground">Signals: {doctor.reasons.join(" · ")}</p>}
+    {doctor.nextActions.length > 0 && <div className="mt-2 border-t border-foreground/10 pt-2"><p className="text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Next actions</p><ul className="mt-1 space-y-1 text-[10px] text-foreground">{doctor.nextActions.slice(0, 4).map((action) => <li key={action} className="break-words">{action}</li>)}</ul></div>}
+  </section>;
+}
+
+function MissionControlForm({ mission, onSave, disabled }: { mission: Mission; onSave: (input: { budget?: Record<string, number>; workSchedule?: MissionWorkSchedule }) => Promise<void>; disabled: boolean }) {
+  const schedule = mission.workSchedule;
+  const [values, setValues] = useState({
+    maxDurationSeconds: String(Math.round(mission.budget.maxDurationSeconds)),
+    maxSteps: String(mission.budget.maxSteps),
+    maxSlices: String(mission.budget.maxSlices ?? ""),
+    maxToolCalls: String(mission.budget.maxToolCalls),
+    maxCost: String(mission.budget.maxCost),
+    timezone: schedule?.timezone ?? "UTC",
+    windowStart: schedule?.windowStart ?? "09:00",
+    windowEnd: schedule?.windowEnd ?? "17:00",
+    dailyBudgetSeconds: String(schedule?.dailyBudgetSeconds ?? 3 * 3600),
+    cadenceSeconds: String(schedule?.cadenceSeconds ?? 900),
+  });
+  const [includeSchedule, setIncludeSchedule] = useState(Boolean(schedule));
+  const update = (key: keyof typeof values, value: string) => setValues((current) => ({ ...current, [key]: value }));
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const budget: Record<string, number> = {};
+    for (const key of ["maxDurationSeconds", "maxSteps", "maxSlices", "maxToolCalls", "maxCost"] as const) {
+      const value = Number(values[key]);
+      if (values[key] !== "" && Number.isFinite(value)) budget[key] = value;
+    }
+    const workSchedule = includeSchedule ? { timezone: values.timezone.trim(), windowStart: values.windowStart, windowEnd: values.windowEnd, dailyBudgetSeconds: Number(values.dailyBudgetSeconds), cadenceSeconds: Number(values.cadenceSeconds) } : undefined;
+    await onSave({ budget, workSchedule });
+  };
+  const field = (key: keyof typeof values, labelText: string, type = "number") => <label className="grid gap-1 text-[10px] text-muted-foreground"><span>{labelText}</span><input value={values[key]} onChange={(event) => update(key, event.target.value)} type={type} min={type === "number" ? 0 : undefined} className="min-h-8 rounded-md border border-foreground/15 bg-background px-2 text-[11px] text-foreground outline-none focus:border-foreground/40" /></label>;
+  return <details className="min-w-0 rounded-md border border-foreground/10 p-3"><summary className="cursor-pointer text-[10px] font-medium text-foreground">Execution policy and work window</summary><form onSubmit={(event) => void submit(event)} className="mt-3 grid gap-3">
+    <p className="text-[10px] leading-4 text-muted-foreground">Changes are validated against the owner-approved ceilings. Reducing a budget may deliberately block an already-over-budget mission; it never resets consumed work.</p>
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{field("maxDurationSeconds", "Max duration (seconds)")}{field("maxSteps", "Plan steps")}{field("maxSlices", "Execution slices")}{field("maxToolCalls", "Tool calls")}{field("maxCost", "Max cost (USD)")}</div>
+    <label className="flex min-h-8 items-center gap-2 text-[10px] text-foreground"><input type="checkbox" checked={includeSchedule} onChange={(event) => setIncludeSchedule(event.target.checked)} /> Use a daily work window</label>
+    {includeSchedule && <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{field("timezone", "Timezone", "text")}{field("windowStart", "Window starts", "time")}{field("windowEnd", "Window ends", "time")}{field("dailyBudgetSeconds", "Daily budget (seconds)")}{field("cadenceSeconds", "Cadence (seconds)")}</div>}
+    <Button disabled={disabled}>{disabled ? "Saving…" : "Save execution policy"}</Button>
+  </form></details>;
+}
+
 export function MissionsPage() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selected, setSelected] = useState<MissionDetail>();
@@ -83,13 +136,14 @@ export function MissionsPage() {
     setDetailBusy(mission.id);
     setDetailError(undefined);
     try {
-      const [fresh, proof, events] = await Promise.all([
+      const [fresh, proof, doctor, events] = await Promise.all([
         chuskyApi.missions.get(mission.id),
         chuskyApi.missions.proof(mission.id).catch(() => undefined),
-        chuskyApi.missions.events(mission.id).catch(() => ({ data: mission.events })),
+        chuskyApi.missions.doctor(mission.id).catch(() => undefined),
+        chuskyApi.missions.events(mission.id, 5000).catch(() => ({ data: mission.events })),
       ]);
       setMissions((current) => current.map((item) => item.id === fresh.id ? fresh : item));
-      setSelected({ mission: fresh, proof, events: events.data });
+      setSelected({ mission: fresh, proof, doctor, events: events.data });
     } catch (cause) {
       setDetailError(cause instanceof Error ? cause.message : "Mission details could not be loaded.");
     } finally { setDetailBusy(undefined); }
@@ -114,6 +168,18 @@ export function MissionsPage() {
     } finally { setBusy(undefined); }
   };
 
+  const saveControl = async (mission: Mission, input: { budget?: Record<string, number>; workSchedule?: MissionWorkSchedule }) => {
+    setBusy(mission.id);
+    setDetailError(undefined);
+    try {
+      const next = await chuskyApi.missions.control(mission.id, input);
+      setMissions((current) => current.map((item) => item.id === next.id ? next : item));
+      await loadDetail(next);
+    } catch (cause) {
+      setDetailError(cause instanceof Error ? cause.message : "The mission execution policy could not be saved.");
+    } finally { setBusy(undefined); }
+  };
+
   const active = missions.filter((mission) => ["queued", "running"].includes(mission.status));
   const needsAttention = missions.filter((mission) => ["waiting", "blocked", "paused", "failed"].includes(mission.status));
   const closed = missions.filter((mission) => ["completed", "cancelled"].includes(mission.status));
@@ -121,6 +187,7 @@ export function MissionsPage() {
   const renderMission = (mission: Mission) => {
     const isSelected = selected?.mission.id === mission.id;
     const proof = isSelected ? selected.proof : undefined;
+    const doctor = isSelected ? selected.doctor : undefined;
     const eventList = isSelected ? selected.events : [];
     const stepNames = new Map(mission.steps.map((step) => [step.id, step.title]));
     return <div key={mission.id} className="min-w-0 border-b border-foreground/10 p-3 last:border-0 sm:p-4">
@@ -131,12 +198,18 @@ export function MissionsPage() {
       </button>
       {isSelected && <div className="mt-3 min-w-0 space-y-3 border-t border-foreground/10 pt-3 text-[11px] text-muted-foreground sm:mt-4 sm:space-y-4 sm:pt-4">
         <details className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><summary className="cursor-pointer text-[10px] font-medium text-foreground">Objective and definition of done</summary><div className="mt-3 min-w-0 space-y-3"><div><p className="mb-1 text-[10px] font-medium text-foreground">Objective</p><MarkdownMessage content={mission.objective} /></div><div><p className="mb-1 text-[10px] font-medium text-foreground">Definition of done</p><MarkdownMessage content={mission.definitionOfDone} /></div></div></details>
+        <MissionDoctorPanel doctor={doctor} />
         {mission.waiting && <div className="flex min-w-0 items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 sm:p-3"><Timer size={14} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" /><p className="min-w-0 [overflow-wrap:anywhere]">Waiting for {mission.waiting.kind}{mission.waiting.provider ? ` from ${mission.waiting.provider}` : ""}{mission.waiting.providerEventId ? ` · ${mission.waiting.providerEventId}` : ""}</p></div>}
         <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
           <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Verification</p><p className="mt-1 flex items-center gap-1.5 text-foreground">{mission.verification?.verified ? <CheckCircle2 size={13} aria-hidden="true" /> : <CircleAlert size={13} aria-hidden="true" />}{mission.verification?.verified ? "Verified" : "Not verified"}</p><p className="mt-1 text-[10px]">{mission.verification?.mode === "strict" ? "Strict evidence gate" : "Legacy completion mode"}</p>{mission.verification?.reason && <p className="mt-1 [overflow-wrap:anywhere]">{mission.verification.reason}</p>}</div>
-          <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Budget</p><p className="mt-1 text-foreground">{mission.consumedSteps}/{mission.budget.maxSteps} slices</p><p className="mt-1 text-[10px] [overflow-wrap:anywhere]">{mission.toolCalls}/{mission.budget.maxToolCalls} tools · ${mission.cost.toFixed(4)} / ${mission.budget.maxCost.toFixed(4)}</p></div>
-          <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Proof</p><p className="mt-1 flex items-center gap-1.5 text-foreground"><ShieldCheck size={13} aria-hidden="true" />{(proof?.evidence ?? mission.evidence ?? []).length} evidence records</p><p className="mt-1 text-[10px]">{eventList.length} durable events</p></div>
+          <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Budget</p><p className="mt-1 text-foreground">{mission.consumedSteps}/{mission.budget.maxSteps} plan steps</p><p className="mt-1 text-[10px] [overflow-wrap:anywhere]">{mission.consumedSlices ?? 0}/{mission.budget.maxSlices ?? "∞"} slices · {mission.toolCalls}/{mission.budget.maxToolCalls} tools</p><p className="mt-1 text-[10px] [overflow-wrap:anywhere]">${mission.cost.toFixed(4)} / ${mission.budget.maxCost.toFixed(4)}</p></div>
+          <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Timing and proof</p><p className="mt-1 text-foreground">{mission.timing ? `${seconds(mission.timing.activeMs / 1000)} active` : "Timing unavailable"} · {mission.budget.durationMode ?? "wall_clock"}</p><p className="mt-1 flex items-center gap-1.5 text-foreground"><ShieldCheck size={13} aria-hidden="true" />{(proof?.evidence ?? mission.evidence ?? []).length} evidence records</p><p className="mt-1 text-[10px]">{eventList.length} durable events</p></div>
         </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="min-w-0 rounded-md border border-foreground/10 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Work window</p>{mission.workSchedule ? <><p className="mt-1 text-foreground">{mission.workSchedule.windowStart}–{mission.workSchedule.windowEnd} · {mission.workSchedule.timezone}</p><p className="mt-1 text-[10px]">{seconds(mission.workSchedule.dailyBudgetSeconds)} per day · wakes every {seconds(mission.workSchedule.cadenceSeconds)}</p></> : <p className="mt-1 text-[10px]">No daily window configured; the worker follows the mission’s durable timers and waits.</p>}</div>
+          <div className="min-w-0 rounded-md border border-foreground/10 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Continuation</p><p className="mt-1 break-words text-foreground">{mission.nextAction || "Continue from the saved checkpoint."}</p>{mission.budgetCeiling && <p className="mt-1 text-[10px]">Owner ceilings are active; policy changes remain bounded.</p>}</div>
+        </div>
+        <MissionControlForm mission={mission} disabled={busy === mission.id} onSave={(input) => saveControl(mission, input)} />
         <section className="min-w-0 space-y-2" aria-label="Mission steps and dependencies"><div className="flex items-center gap-2 text-foreground"><GitBranch size={13} aria-hidden="true" /><span className="font-medium">Step map</span><span className="text-[10px] text-muted-foreground">{mission.steps.length} steps · dependencies and active branches</span></div>
           {mission.steps.length ? <ol className="space-y-2">{mission.steps.map((step, index) => {
             const isActive = step.id === mission.currentStepId || mission.activeStepIds?.includes(step.id);

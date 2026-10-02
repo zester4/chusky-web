@@ -46,6 +46,12 @@ history or connection state.
   input is sent once to the backend, which encrypts it before use.
 - `components/app/backend-pages.tsx` powers Overview, Conversations, and Tasks
   from the authenticated threads, usage, and task APIs.
+- `components/app/missions-page.tsx` now exposes the durable mission control
+  plane: server diagnosis, persisted event history, evidence/verification,
+  plan-step versus execution-slice accounting, active timing, continuation
+  state, daily work windows, and owner-bounded budget controls. Policy changes
+  go through the authenticated `/v1/missions/:id/control` route; the browser
+  never advances a mission or bypasses approval and ownership checks.
 - `components/app/operations-dashboard.tsx` powers Operations and Delivery
   from live health, failure counters, enabled-channel state, and recent
   delivery records. Ambiguous channel sends show a destination-verification
@@ -120,8 +126,11 @@ history or connection state.
 
 ### Verification for this update
 
-- `npm.cmd run typecheck` and the focused SDK test passed in the backend.
-- `pnpm.cmd run build` and `pnpm.cmd exec tsc --noEmit` passed in `chusky-web`.
+- Dashboard ESLint and TypeScript checks passed against the frozen lockfile.
+- The production webpack build compiled the application and completed its
+  TypeScript phase, but the existing `/docs/[slug]` prerender failed in
+  Next.js 16.3.3 with `Expected workStore to be initialized`; this is outside
+  the mission page change and remains a release risk to resolve separately.
 
 ## What was completed
 
