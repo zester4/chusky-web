@@ -246,12 +246,12 @@ const components: Components = {
     return <code className={`rounded bg-foreground/[0.07] px-1 py-0.5 font-mono text-[0.88em] ${className || ""}`} {...props}>{children}</code>;
   },
   pre: ({ children }) => <>{children}</>,
-  table: ({ children, ...props }) => <div className="my-3 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-foreground/10 bg-background shadow-sm"><table className="w-max min-w-full border-collapse text-left text-[10px] leading-4 [font-variant-numeric:tabular-nums] sm:text-[11px]" {...props}>{children}</table></div>,
+  table: ({ children, ...props }) => <div className="my-3 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-foreground/10 bg-background shadow-sm"><table className="w-max min-w-full border-separate border-spacing-0 text-left text-[10px] leading-4 [font-variant-numeric:tabular-nums] sm:text-[11px]" {...props}>{children}</table></div>,
   thead: ({ children, ...props }) => <thead className="bg-foreground/[0.045]" {...props}>{children}</thead>,
-  tbody: ({ children, ...props }) => <tbody className="[&>tr:nth-child(even)]:bg-foreground/[0.018]" {...props}>{children}</tbody>,
+  tbody: ({ children, ...props }) => <tbody className="[&>tr:nth-child(even)]:bg-foreground/[0.018] [&>tr:last-child>td]:border-b-0" {...props}>{children}</tbody>,
   tr: ({ children, ...props }) => <tr className="transition-colors hover:bg-foreground/[0.035]" {...props}>{children}</tr>,
-  th: ({ children, ...props }) => <th className="max-w-[18rem] whitespace-normal border-b border-foreground/10 px-3 py-2 text-left font-medium leading-4 text-foreground sm:px-3.5" {...props}>{children}</th>,
-  td: ({ children, ...props }) => <td className="min-w-[7.5rem] max-w-[24rem] border-b border-foreground/10 px-3 py-2.5 align-top leading-5 [overflow-wrap:break-word] [word-break:normal] last:border-0 sm:px-3.5" {...props}>{children}</td>,
+  th: ({ children, ...props }) => <th className="max-w-[18rem] whitespace-normal border-b border-foreground/10 px-3 py-2 text-left font-medium uppercase tracking-[0.04em] leading-4 text-foreground sm:px-3.5" {...props}>{children}</th>,
+  td: ({ children, ...props }) => <td className="min-w-[7.5rem] max-w-[24rem] border-b border-foreground/10 px-3 py-2.5 align-top leading-5 [overflow-wrap:break-word] [word-break:normal] sm:px-3.5" {...props}>{children}</td>,
 };
 
 export function MarkdownMessage({ content, streaming = false }: { content: string; streaming?: boolean }) {

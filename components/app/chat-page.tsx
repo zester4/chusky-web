@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Check,
   Copy,
+  ChevronDown,
   Download,
   Pencil,
   PlugZap,
@@ -145,18 +146,18 @@ function SubagentTree({ activities, parentToolCallId, live }: { activities: RunS
   const workers = [...new Map(related.filter((activity) => activity.kind === "worker").map((activity) => [activity.handoffId, activity])).values()];
   if (!workers.length) return null;
   const statusIcon = (status: RunSubagentActivity["status"], isCurrent: boolean) => isCurrent ? <LoaderCircle size={11} className="animate-spin text-muted-foreground" /> : status === "completed" ? <CheckCircle2 size={11} className="text-emerald-700" /> : status === "approval_required" || status === "waiting" ? <ShieldCheck size={11} className="text-amber-700" /> : status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : status === "failed" ? <X size={11} className="text-rose-700" /> : <span className="block size-1.5 rounded-full bg-muted-foreground/45" />;
-  return <details className="mt-1.5 pl-3 border-l border-foreground/10" open>
-    <summary className="cursor-pointer text-[11px] leading-5 text-muted-foreground">Coordinating {workers.length} {workers.length === 1 ? "specialist" : "specialists"}</summary>
-    <ol className="mt-0.5 space-y-1.5">
+  return <details className="chat-subagent-tree mt-2 rounded-lg border border-foreground/10 bg-foreground/[0.018] p-2.5 shadow-sm" open>
+    <summary className="cursor-pointer list-none text-[11px] font-medium leading-5 text-muted-foreground [&::-webkit-details-marker]:hidden">Coordinating {workers.length} {workers.length === 1 ? "specialist" : "specialists"}</summary>
+    <ol className="chat-subagent-list mt-2 space-y-1.5 border-l border-foreground/15 pl-3">
       {workers.map((worker) => {
         const steps = related.filter((activity) => activity.handoffId === worker.handoffId && activity.kind === "tool");
-        return <li key={worker.handoffId} className="min-w-0">
+        return <li key={worker.handoffId} className="chat-subagent-item relative min-w-0">
           <div className="flex min-w-0 items-start gap-2">
             <span className="mt-1 shrink-0" aria-hidden="true">{statusIcon(worker.status, live && worker.status === "started" && steps.every((step) => step.status !== "started"))}</span>
             <div className="min-w-0 flex-1"><p className="text-[11px] font-medium leading-4">{specialistName(worker.worker)} <span className="font-normal text-muted-foreground">· {worker.objective}</span></p><p className="text-[10px] leading-4 text-muted-foreground">{activityStatusText(worker, live)}</p></div>
           </div>
-          {steps.length ? <ol className="ml-3 mt-1 space-y-1 border-l border-foreground/10 pl-3">
-            {steps.map((step) => <li key={step.activityId} className="flex min-w-0 items-start gap-2">
+          {steps.length ? <ol className="chat-subagent-steps ml-2 mt-1 space-y-1 border-l border-foreground/10 pl-3">
+            {steps.map((step) => <li key={step.activityId} className="chat-subagent-step relative flex min-w-0 items-start gap-2">
               <ActivityBrand toolSlug={step.toolSlug} toolkitSlug={step.toolkitSlug} toolkitName={step.toolkitName} toolkitLogo={step.toolkitLogo} size={14} />
               <div className="min-w-0 flex-1"><p className="text-[11px] leading-4">{step.actionLabel || step.message}</p><div className="text-[10px] leading-4 text-muted-foreground">{step.toolkitName || step.toolkitSlug || (step.toolSlug ? formatToolLabel(step.toolSlug) : "Chusky tool")} · {activityStatusText(step, live)}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
             </li>)}
@@ -456,8 +457,8 @@ export function ChatPage() {
     const approval = run.status === "requires_approval" && run.approvalId
       ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
       : undefined;
-    const activities = runActivities(run);
-    const subagentActivities = runSubagentActivities(run);
+    const snapshotActivities = runActivities(run);
+    const snapshotSubagentActivities = runSubagentActivities(run);
     const images = await hydrateRunImages(run.images);
     const active = run.status === "queued" || run.status === "running";
     if (!active && activeRunIdRef.current === run.id) syncActiveRunId(undefined);
@@ -466,7 +467,17 @@ export function ChatPage() {
       const streamedOutput = runDeltaText(run);
       const text = run.status === "running" ? reconcileStreamedText(item.text, streamedOutput) : runStatusText(run) || (run.status === "completed" ? "Done." : "");
       const artifacts = run.artifacts?.length ? run.artifacts : run.status === "completed" ? item.artifacts : undefined;
-      return { ...item, text, activities, subagentActivities, artifacts, images: images?.length ? images : item.images, pending: active, statusText: active ? runProgressText(run) : undefined, approval };
+      return {
+        ...item,
+        text,
+        activities: snapshotActivities.length ? snapshotActivities : item.activities,
+        subagentActivities: snapshotSubagentActivities.length ? snapshotSubagentActivities : item.subagentActivities,
+        artifacts,
+        images: images?.length ? images : item.images,
+        pending: active,
+        statusText: active ? runProgressText(run) : undefined,
+        approval,
+      };
     }));
   };
   const applyRunSnapshotRef = useRef(applyRunSnapshot);
@@ -801,21 +812,20 @@ export function ChatPage() {
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
-                    {headlineActivity ? <details className="group/timeline my-2 w-full min-w-0 max-w-2xl">
-                      <summary className="flex min-h-10 min-w-0 cursor-pointer list-none items-center gap-2 rounded-md px-1 text-[11px] leading-5 text-muted-foreground transition-colors hover:bg-foreground/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 sm:text-xs [&::-webkit-details-marker]:hidden">
+                    {headlineActivity ? <details className="chat-activity-timeline group/timeline my-2 w-full min-w-0 max-w-2xl overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.018] shadow-sm">
+                      <summary className="chat-activity-summary flex min-h-10 min-w-0 cursor-pointer list-none items-center gap-2 px-2.5 py-1.5 text-[11px] leading-5 text-muted-foreground transition-colors hover:bg-foreground/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 sm:text-xs [&::-webkit-details-marker]:hidden">
                         <ActivityBrand toolSlug="CHUCK_ACTIVITY" size={16} />
                         <span className="min-w-0 flex-1 truncate md:overflow-visible md:whitespace-normal md:break-words">{headlineActivity.actionLabel || headlineActivity.message}{visibleActivities.length > 1 ? <span className="text-muted-foreground"> · {visibleActivities.length - 1} other {visibleActivities.length === 2 ? "task" : "tasks"}</span> : null}</span>
                         {item.pending && visibleActivities.some((activity) => activity.status === "started") ? <LoaderCircle size={12} aria-label="Tool activity in progress" className="shrink-0 animate-spin motion-reduce:animate-none" /> : null}
                         <span aria-hidden="true" className="mr-1 size-1.5 shrink-0 -rotate-45 border-b border-l border-current transition-transform group-open/timeline:-rotate-[225deg] motion-reduce:transition-none" />
                       </summary>
-                      <ol aria-label="Tool activity" className="ml-2 border-l border-foreground/15 pb-1">
+                      <ol aria-label="Tool activity" className="chat-activity-list ml-3 border-l border-foreground/15 pb-1 pl-2">
                         {visibleActivities.map((activity, activityIndex) => {
                           const isCurrent = item.pending && activity.status === "started" && (activity.parallelBatch || activityIndex === visibleActivities.length - 1);
                           const toolkit = lookupActivityToolkit(activity, toolkitCatalogue);
                           const detail = activityDetailSummary(activity.summary);
                           const attention = activity.status === "failed" || activity.status === "approval_required" || activity.status === "cancelled" || activity.status === "unknown";
-                          return <li key={activity.id} className="relative min-w-0 py-2 pl-5 sm:pl-6">
-                            <span aria-hidden="true" className="absolute -left-px top-0 h-5 w-3 rounded-bl-lg border-b border-l border-foreground/15" />
+                          return <li key={activity.id} className={`chat-activity-item chat-activity-${activity.status} relative min-w-0 py-2 pl-4 sm:pl-5`}>
                             <p className="mb-1.5 break-words text-[11px] leading-5 text-muted-foreground sm:text-xs">{activity.actionLabel || activity.message}</p>
                             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
                               <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={14} />
@@ -852,7 +862,7 @@ export function ChatPage() {
             </div>
 
             <div className="shrink-0 pt-2 pb-[env(safe-area-inset-bottom)] sm:pt-4 sm:pb-0">
-              <div className="rounded-lg border border-foreground/10 bg-background transition-colors focus-within:border-foreground/25">
+              <div data-chat-composer className="chat-composer rounded-xl border border-foreground/10 bg-background">
                 <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.md,.zip,.docx,.pptx,.xlsx,.mp3,.ogg,.oga,.wav,.mp4,.webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} />
                 {attachments.length ? <div className="flex gap-2 overflow-x-auto px-3 pt-3 pb-2" aria-live="polite">{attachments.map((item) => <div key={item.localId} className={`w-[min(24rem,calc(100vw-3rem))] shrink-0 rounded-lg bg-foreground/[0.035] p-2.5 ${item.status === "error" ? "ring-1 ring-amber-600/25" : ""}`}>
                   <div className="flex min-w-0 items-start gap-3">
@@ -867,17 +877,20 @@ export function ChatPage() {
                   {item.error ? <p className="mt-2 break-words text-[11px] leading-4 text-amber-800" role="alert">{item.error}</p> : null}
                 </div>)}</div> : null}
                 {attachments.some((item) => item.status === "error") ? <p className="px-3 pb-1 text-[10px] text-amber-800" role="status">Retry or remove failed files before sending, so Chusky won’t miss an attachment.</p> : null}
-                <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Chusky is continuing this run…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || isWorking} className="w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
-                <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
+                <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Chusky is continuing this run…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || isWorking} className="chat-composer-input w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
+                <div className="chat-composer-controls flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
                   <div className="flex min-w-0 flex-1 items-center gap-1">
                     <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || isWorking || attachments.length >= 5 || attachments.some((item) => item.status === "uploading")} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                     <label className="sr-only" htmlFor="chat-model">Run model</label>
-                    <select id="chat-model" aria-label="Run model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="min-w-0 max-w-28 truncate rounded-md bg-background px-1.5 py-1.5 text-[10px] outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 sm:max-w-44"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select>
+                    <div className="relative min-w-0 max-w-28 sm:max-w-44">
+                      <select id="chat-model" aria-label="Run model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="chat-composer-model w-full min-w-0 max-w-full truncate text-[10px] font-medium"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select>
+                      <ChevronDown size={12} aria-hidden="true" className="pointer-events-none absolute right-0.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    </div>
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-1.5">
                     <span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span>
-                    <button type="button" onClick={toggleVoiceInput} disabled={!thread || isWorking} className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-foreground/15 ${listening ? "bg-rose-50 text-rose-700" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"} title={listening ? "Stop voice input" : "Start voice input"}><Mic size={13} /></button>
-                    {isWorking ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
+                    <button type="button" onClick={toggleVoiceInput} disabled={!thread || isWorking} className={`chat-composer-action flex h-7 w-7 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${listening ? "bg-rose-50 text-rose-700" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`} aria-label={listening ? "Stop voice input" : "Start voice input"} title={listening ? "Stop voice input" : "Start voice input"}><Mic size={13} /></button>
+                    {isWorking ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
                   </div>
                 </div>
               </div>
