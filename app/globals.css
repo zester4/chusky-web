@@ -507,46 +507,28 @@
     width: 0.75rem;
   }
 
-  .chat-activity-item::after,
-  .chat-subagent-item::after,
-  .chat-subagent-step::after {
+  .chat-activity-marker {
     position: absolute;
-    content: "";
-    width: 0.35rem;
-    height: 0.35rem;
-    border: 1px solid color-mix(in srgb, var(--foreground) 28%, transparent);
+    top: 1.08rem;
+    left: -0.86rem;
+    display: inline-flex;
+    width: 1rem;
+    height: 1rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--background);
     border-radius: 999px;
     background: var(--background);
+    line-height: 1;
   }
 
-  .chat-activity-item::after {
-    top: 1.28rem;
-    left: -0.68rem;
-  }
-
-  .chat-subagent-item::after {
-    top: 0.73rem;
+  .chat-subagent-marker {
+    top: 0.15rem;
     left: -0.93rem;
   }
 
-  .chat-subagent-step::after {
-    top: 0.53rem;
-    left: -0.93rem;
-  }
-
-  .chat-activity-completed::after {
-    border-color: color-mix(in srgb, #10b981 70%, transparent);
-    background: color-mix(in srgb, #10b981 24%, var(--background));
-  }
-
-  .chat-activity-failed::after {
-    border-color: color-mix(in srgb, #f43f5e 72%, transparent);
-    background: color-mix(in srgb, #f43f5e 20%, var(--background));
-  }
-
-  .chat-activity-started::after {
-    border-color: color-mix(in srgb, var(--chusky-amber) 72%, transparent);
-    background: color-mix(in srgb, var(--chusky-amber) 20%, var(--background));
+  .chat-activity-marker svg {
+    display: block;
   }
 
   .mission-detail-panel {

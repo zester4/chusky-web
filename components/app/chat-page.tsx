@@ -5,7 +5,9 @@ import { useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   CheckCircle2,
+  CircleCheckBig,
   Check,
+  Clock4,
   Copy,
   ChevronDown,
   Download,
@@ -123,15 +125,24 @@ function ActivityState({ activity, current }: { activity: PresentedToolActivity;
       : activity.status === "approval_required" ? "Waiting for approval"
         : activity.status === "cancelled" ? "Cancelled"
           : activity.status === "unknown" ? "Outcome unknown" : "Failed";
-  const icon = current ? <LoaderCircle size={13} className="animate-spin" />
-    : activity.status === "completed" ? <CheckCircle2 size={13} />
+  const icon = current || activity.status === "started" ? <Clock4 size={13} className={current ? "animate-pulse" : undefined} />
+    : activity.status === "completed" ? <CircleCheckBig size={13} />
       : activity.status === "approval_required" ? <ShieldCheck size={13} />
         : activity.status === "cancelled" ? <Square size={11} />
-          : activity.status === "unknown" ? <span className="size-1.5 rounded-full bg-amber-600/75" />
-            : activity.status === "started" ? <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+          : activity.status === "unknown" ? <Clock4 size={13} />
               : <X size={13} />;
   const tone = activity.status === "completed" ? "bg-emerald-500/10 text-emerald-700" : activity.status === "approval_required" || activity.status === "unknown" ? "bg-amber-500/10 text-amber-700" : activity.status === "failed" ? "bg-rose-500/10 text-rose-700" : "bg-foreground/5 text-muted-foreground";
   return <span className={`inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] leading-4 ${tone}`}><span aria-hidden="true" className="shrink-0">{icon}</span>{label}</span>;
+}
+
+function ActivityMarker({ status, current, className = "" }: { status: PresentedToolActivity["status"] | RunSubagentActivity["status"]; current: boolean; className?: string }) {
+  const icon = current || status === "started" ? <Clock4 size={14} className={current ? "animate-pulse" : undefined} />
+    : status === "completed" ? <CircleCheckBig size={15} />
+      : status === "approval_required" || status === "waiting" ? <ShieldCheck size={14} />
+        : status === "cancelled" ? <Square size={11} />
+          : <X size={14} />;
+  const tone = current || status === "started" ? "text-chusky-amber" : status === "completed" ? "text-emerald-600" : status === "approval_required" || status === "waiting" ? "text-amber-600" : status === "failed" ? "text-rose-600" : "text-muted-foreground";
+  return <span className={`chat-activity-marker ${className} ${tone}`} aria-hidden="true">{icon}</span>;
 }
 
 const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Record<string, Toolkit>) => {
@@ -148,7 +159,6 @@ function SubagentTree({ activities, parentToolCallId, live }: { activities: RunS
   const related = activities.filter((activity) => activity.parentToolCallId === parentToolCallId);
   const workers = [...new Map(related.filter((activity) => activity.kind === "worker").map((activity) => [activity.handoffId, activity])).values()];
   if (!workers.length) return null;
-  const statusIcon = (status: RunSubagentActivity["status"], isCurrent: boolean) => isCurrent ? <LoaderCircle size={11} className="animate-spin text-muted-foreground" /> : status === "completed" ? <CheckCircle2 size={11} className="text-emerald-700" /> : status === "approval_required" || status === "waiting" ? <ShieldCheck size={11} className="text-amber-700" /> : status === "cancelled" ? <Square size={10} className="text-muted-foreground" /> : status === "failed" ? <X size={11} className="text-rose-700" /> : <span className="block size-1.5 rounded-full bg-muted-foreground/45" />;
   return <details className="chat-subagent-tree mt-2 rounded-lg border border-foreground/10 bg-foreground/[0.018] p-2.5 shadow-sm" open>
     <summary className="cursor-pointer list-none text-[11px] font-medium leading-5 text-muted-foreground [&::-webkit-details-marker]:hidden">Coordinating {workers.length} {workers.length === 1 ? "specialist" : "specialists"}</summary>
     <ol className="chat-subagent-list mt-2 space-y-1.5 border-l border-foreground/15 pl-3">
@@ -156,11 +166,12 @@ function SubagentTree({ activities, parentToolCallId, live }: { activities: RunS
         const steps = related.filter((activity) => activity.handoffId === worker.handoffId && activity.kind === "tool");
         return <li key={worker.handoffId} className="chat-subagent-item relative min-w-0">
           <div className="flex min-w-0 items-start gap-2">
-            <span className="mt-1 shrink-0" aria-hidden="true">{statusIcon(worker.status, live && worker.status === "started" && steps.every((step) => step.status !== "started"))}</span>
+            <span className="mt-1 shrink-0" aria-hidden="true"><ActivityMarker status={worker.status} current={live && worker.status === "started" && steps.every((step) => step.status !== "started")} /></span>
             <div className="min-w-0 flex-1"><p className="text-[11px] font-medium leading-4">{specialistName(worker.worker)} <span className="font-normal text-muted-foreground">· {worker.objective}</span></p><p className="text-[10px] leading-4 text-muted-foreground">{activityStatusText(worker, live)}</p></div>
           </div>
           {steps.length ? <ol className="chat-subagent-steps ml-2 mt-1 space-y-1 border-l border-foreground/10 pl-3">
             {steps.map((step) => <li key={step.activityId} className="chat-subagent-step relative flex min-w-0 items-start gap-2">
+              <ActivityMarker status={step.status} current={live && step.status === "started"} className="chat-subagent-marker" />
               <ActivityBrand toolSlug={step.toolSlug} toolkitSlug={step.toolkitSlug} toolkitName={step.toolkitName} toolkitLogo={step.toolkitLogo} size={14} />
               <div className="min-w-0 flex-1"><p className="text-[11px] leading-4">{step.actionLabel || step.message}</p><div className="text-[10px] leading-4 text-muted-foreground">{step.toolkitName || step.toolkitSlug || (step.toolSlug ? formatToolLabel(step.toolSlug) : "Chusky tool")} · {activityStatusText(step, live)}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
             </li>)}
@@ -1008,6 +1019,7 @@ export function ChatPage() {
                           const detail = activityDetailSummary(activity.summary);
                           const attention = activity.status === "failed" || activity.status === "approval_required" || activity.status === "cancelled" || activity.status === "unknown";
                           return <li key={activity.id} className={`chat-activity-item chat-activity-${activity.status} relative min-w-0 py-2 pl-4 sm:pl-5`}>
+                            <ActivityMarker status={activity.status} current={Boolean(isCurrent)} />
                             <p className="mb-1.5 break-words text-[11px] leading-5 text-muted-foreground sm:text-xs">{activity.actionLabel || activity.message}</p>
                             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
                               <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={14} />
