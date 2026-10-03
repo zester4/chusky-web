@@ -10,6 +10,18 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    date: "2026-10-03",
+    dateLabel: "October 3, 2026",
+    area: "Meetings · Dashboard and TypeScript SDK 1.9.1",
+    title: "Meeting workspaces can stay in sync live",
+    summary: "The dashboard and TypeScript SDK can receive owner- and workspace-scoped meeting updates over a live event stream.",
+    details: [
+      "The SDK exposes typed meeting snapshot and keepalive events and supports caller cancellation for the stream.",
+      "Workspace membership is checked by the API before streaming; meeting details remain scoped to the authenticated owner or workspace.",
+      "The SDK 1.9.1 release adds the stream client, API contract and OpenAPI updates, tests, and rebuilt package files.",
+    ],
+  },
+  {
     date: "2026-10-01",
     dateLabel: "October 1, 2026",
     area: "Missions · Recovery and approvals",
