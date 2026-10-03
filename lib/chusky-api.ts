@@ -128,6 +128,9 @@ export type MeetingRoomPolicy = { defaultMode: "addressed" | "copilot" | "repres
 export type MeetingRoom = { id: string; organizationId: string; teamId?: string; projectId?: string; name: string; description?: string; policy: MeetingRoomPolicy; meetingCount: number; createdAt: string; updatedAt: string };
 export type MeetingContact = { id: string; meetingId: string; participantName: string; email?: string; phone?: string; contactPreference: "email" | "phone" | "unspecified"; interest: string; nextStep?: string; followUpAt?: string; followUpTaskId?: string; createdAt: string; updatedAt: string };
 export type MeetingWorkspace = { rooms: MeetingRoom[]; preparations: CalendarPreparation[]; meetings: Meeting[]; contacts: MeetingContact[] };
+export type MeetingContextSnapshot = { clientName?: string; objective?: string; businessFacts: string[]; relationshipFacts: string[]; note: string };
+export type MeetingLeaveResult = Meeting & { alreadyFinished?: boolean };
+export type MeetingStreamEvent = { type: "snapshot"; workspace: MeetingWorkspace } | { type: "keepalive" } | { type: "error"; code?: string; message: string };
 export type MeetingCapability = { slug: string; description: string; toolkit?: string; toolkitPrefix: string; connected: boolean };
 export type MeetingNativeCapability = { slug: string; description: string };
 export type MeetingCapabilities = { composioTools: MeetingCapability[]; nativeTools: MeetingNativeCapability[]; connections: ConnectedAccount[]; composioAvailable: boolean };
@@ -447,6 +450,55 @@ export const chuskyApi = {
   },
   meetings: {
     list: (organizationId?: string) => request<MeetingWorkspace>(`/meetings${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
+    async stream(organizationId: string | undefined, onWorkspace: (workspace: MeetingWorkspace) => void, signal?: AbortSignal): Promise<void> {
+      const suffix = organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
+      const response = await fetch(`${apiBaseURL}/v1/meetings/stream${suffix}`, { cache: "no-store", credentials: "include", signal, headers: { Accept: "text/event-stream" } });
+      if (!response.ok) {
+        const body = await response.json().catch(() => undefined) as { error?: { message?: string; code?: string } } | undefined;
+        throw new ChuskyApiError(response.status, body?.error?.message || `Chusky returned HTTP ${response.status}`, body?.error?.code);
+      }
+      if (!response.body) throw new ChuskyApiError(502, "Chusky returned an empty meeting stream");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let pending = "";
+      let eventName = "message";
+      let dataLines: string[] = [];
+      const dispatch = () => {
+        if (!dataLines.length) return;
+        const data = dataLines.join("\n");
+        const event = JSON.parse(data) as MeetingStreamEvent;
+        if (eventName === "snapshot" && event.type === "snapshot") onWorkspace(event.workspace);
+        if (eventName === "error" && event.type === "error") throw new Error(event.message);
+        eventName = "message";
+        dataLines = [];
+      };
+      const consumeLine = (line: string) => {
+        if (line === "") return dispatch();
+        if (line.startsWith(":")) return;
+        const separator = line.indexOf(":");
+        const field = separator >= 0 ? line.slice(0, separator) : line;
+        const value = separator >= 0 ? line.slice(separator + 1).replace(/^ /, "") : "";
+        if (field === "event") eventName = value;
+        else if (field === "data") dataLines.push(value);
+      };
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          pending += decoder.decode(value, { stream: !done });
+          let newline = -1;
+          while ((newline = pending.indexOf("\n")) >= 0) {
+            consumeLine(pending.slice(0, newline).replace(/\r$/, ""));
+            pending = pending.slice(newline + 1);
+          }
+          if (done) break;
+        }
+        if (pending) consumeLine(pending.replace(/\r$/, ""));
+        dispatch();
+      } finally { reader.releaseLock(); }
+    },
+    get: (id: string) => request<Meeting>(`/meetings/${encodeURIComponent(id)}`),
+    leave: (id: string) => request<MeetingLeaveResult>(`/meetings/${encodeURIComponent(id)}/leave`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    context: (id: string, query = "") => request<MeetingContextSnapshot>(`/meetings/${encodeURIComponent(id)}/context${query.trim() ? `?query=${encodeURIComponent(query.trim())}` : ""}`),
     rooms: {
       list: (organizationId: string) => request<{ data: MeetingRoom[] }>(`/meetings/rooms?organizationId=${encodeURIComponent(organizationId)}`),
       create: (input: { organizationId: string; teamId?: string; projectId?: string; name: string; description?: string; policy: MeetingRoomPolicy }) => request<MeetingRoom>("/meetings/rooms", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
