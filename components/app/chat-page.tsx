@@ -40,12 +40,13 @@ type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "siz
 type SpeechRecognitionEventLike = {
   results: ArrayLike<ArrayLike<{ transcript: string }>>;
 };
+type SpeechRecognitionErrorEventLike = { error?: string };
 type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   start: () => void;
   stop: () => void;
 };
@@ -299,8 +300,14 @@ export function ChatPage() {
   const [artifactCatalog, setArtifactCatalog] = useState<Artifact[]>([]);
   const [toolkitCatalogue, setToolkitCatalogue] = useState<Record<string, Toolkit>>({});
   const [listening, setListening] = useState(false);
+  const [voiceStarting, setVoiceStarting] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | undefined>(undefined);
   const voiceBaseInputRef = useRef<string | undefined>(undefined);
+  const voiceStreamRef = useRef<MediaStream | undefined>(undefined);
+  const voiceAudioContextRef = useRef<AudioContext | undefined>(undefined);
+  const voiceAnalyserRef = useRef<AnalyserNode | undefined>(undefined);
+  const voiceAnimationFrameRef = useRef<number | undefined>(undefined);
+  const voiceBarsRef = useRef<Array<HTMLSpanElement | null>>([]);
   const activeRunIdRef = useRef<string | undefined>(undefined);
   const [activeRunId, setActiveRunId] = useState<string>();
   const messagesRef = useRef<Message[]>(messages);
@@ -452,6 +459,15 @@ export function ChatPage() {
     previewUrlsRef.current.clear();
     for (const controller of uploadAbortControllersRef.current.values()) controller.abort();
     uploadAbortControllersRef.current.clear();
+    recognitionRef.current?.stop();
+    recognitionRef.current = undefined;
+    if (voiceAnimationFrameRef.current !== undefined) window.cancelAnimationFrame(voiceAnimationFrameRef.current);
+    voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    voiceStreamRef.current = undefined;
+    const audioContext = voiceAudioContextRef.current;
+    voiceAudioContextRef.current = undefined;
+    voiceAnalyserRef.current = undefined;
+    if (audioContext) void audioContext.close().catch(() => undefined);
   }, []);
 
   const showNotice = (message: string, kind: "error" | "info" = "error") => {
@@ -533,7 +549,9 @@ export function ChatPage() {
     const recognition = recognitionRef.current;
     recognitionRef.current = undefined;
     voiceBaseInputRef.current = undefined;
+    stopVoiceVisualizer();
     setListening(false);
+    setVoiceStarting(false);
     recognition?.stop();
   };
 
@@ -548,11 +566,104 @@ export function ChatPage() {
     void send();
   };
 
-  const toggleVoiceInput = () => {
+  const stopVoiceVisualizer = () => {
+    if (voiceAnimationFrameRef.current !== undefined) window.cancelAnimationFrame(voiceAnimationFrameRef.current);
+    voiceAnimationFrameRef.current = undefined;
+    voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    voiceStreamRef.current = undefined;
+    voiceAnalyserRef.current = undefined;
+    const audioContext = voiceAudioContextRef.current;
+    voiceAudioContextRef.current = undefined;
+    if (audioContext) void audioContext.close().catch(() => undefined);
+    voiceBarsRef.current.forEach((bar) => {
+      if (!bar) return;
+      bar.style.height = "4px";
+      bar.style.opacity = "0.45";
+    });
+  };
+
+  const startVoiceVisualizer = (stream: MediaStream) => {
+    voiceStreamRef.current = stream;
+    const audioWindow = window as Window & { webkitAudioContext?: typeof AudioContext };
+    const AudioContextConstructor = window.AudioContext || audioWindow.webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    try {
+      const audioContext = new AudioContextConstructor();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.65;
+      audioContext.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.fftSize);
+      voiceAudioContextRef.current = audioContext;
+      voiceAnalyserRef.current = analyser;
+      const draw = () => {
+        if (voiceAnalyserRef.current !== analyser) return;
+        analyser.getByteTimeDomainData(data);
+        const bars = voiceBarsRef.current;
+        const samplesPerBar = Math.max(1, Math.floor(data.length / Math.max(1, bars.length)));
+        bars.forEach((bar, barIndex) => {
+          if (!bar) return;
+          const start = barIndex * samplesPerBar;
+          const end = Math.min(data.length, start + samplesPerBar);
+          let total = 0;
+          let peak = 0;
+          for (let index = start; index < end; index += 1) {
+            const amplitude = Math.abs(data[index] - 128) / 128;
+            total += amplitude;
+            peak = Math.max(peak, amplitude);
+          }
+          const average = end > start ? total / (end - start) : 0;
+          const level = Math.min(1, Math.max(average * 7, peak * 1.8));
+          bar.style.height = `${Math.round(4 + level * 26)}px`;
+          bar.style.opacity = `${0.4 + level * 0.6}`;
+        });
+        voiceAnimationFrameRef.current = window.requestAnimationFrame(draw);
+      };
+      draw();
+      if (audioContext.state === "suspended") void audioContext.resume().catch(() => undefined);
+    } catch {
+      // Speech recognition can continue if the optional visualizer is unavailable.
+    }
+  };
+
+  const microphoneErrorMessage = (name?: string) => {
+    if (name === "NotAllowedError" || name === "PermissionDeniedError") return "Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.";
+    if (name === "NotFoundError" || name === "DevicesNotFoundError") return "No microphone was found. Connect a microphone and try again.";
+    if (name === "NotReadableError" || name === "TrackStartError") return "Your microphone is already in use by another app. Close that app and try again.";
+    if (name === "SecurityError") return "Microphone access requires HTTPS or localhost.";
+    if (name === "no-speech") return "No speech was detected. Speak closer to the microphone and try again.";
+    if (name === "network" || name === "service-not-allowed") return "The browser speech service is unavailable. Try Chrome or Edge, then check your network connection.";
+    return "Chusky could not access your microphone. Check the browser and system microphone permissions, then try again.";
+  };
+
+  const requestMicrophoneAccess = async () => {
+    const hostname = window.location.hostname;
+    if (!window.isSecureContext && hostname !== "localhost" && hostname !== "127.0.0.1") {
+      showNotice("Voice input requires a secure HTTPS connection (or localhost).", "info");
+      return false;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      showNotice("This browser does not provide microphone access. Try the latest Chrome or Edge on desktop.", "info");
+      return false;
+    }
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (cause) {
+      showNotice(microphoneErrorMessage(cause instanceof Error ? cause.name : undefined), "info");
+      return undefined;
+    }
+  };
+
+  const toggleVoiceInput = async () => {
     const speechWindow = window as SpeechWindow;
     const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
-    if (!Recognition) { showNotice("Voice input is not supported in this browser.", "info"); return; }
+    if (!Recognition) { showNotice("Voice input is not supported in this browser. Try the latest Chrome or Edge on desktop.", "info"); return; }
     if (listening) { stopVoiceInput(); return; }
+    if (voiceStarting) return;
+    setVoiceStarting(true);
+    const microphoneStream = await requestMicrophoneAccess();
+    if (!microphoneStream) { setVoiceStarting(false); return; }
+    startVoiceVisualizer(microphoneStream);
     const recognition = new Recognition();
     recognition.lang = navigator.language || "en-US";
     recognition.interimResults = false;
@@ -568,24 +679,31 @@ export function ChatPage() {
       if (recognitionRef.current === recognition) {
         recognitionRef.current = undefined;
         voiceBaseInputRef.current = undefined;
+        stopVoiceVisualizer();
         setListening(false);
+        setVoiceStarting(false);
       }
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       if (recognitionRef.current !== recognition) return;
       recognitionRef.current = undefined;
       voiceBaseInputRef.current = undefined;
+      stopVoiceVisualizer();
       setListening(false);
-      showNotice("Voice input could not start. Check microphone permissions.", "info");
+      setVoiceStarting(false);
+      if (event.error !== "aborted") showNotice(microphoneErrorMessage(event.error), "info");
     };
     recognitionRef.current = recognition;
+    setVoiceStarting(false);
     setListening(true);
     try { recognition.start(); }
     catch {
       recognitionRef.current = undefined;
       voiceBaseInputRef.current = undefined;
+      stopVoiceVisualizer();
       setListening(false);
-      showNotice("Voice input could not start. Check microphone permissions.", "info");
+      setVoiceStarting(false);
+      showNotice("Voice input could not start. Check the browser and system microphone permissions, then try again.", "info");
     }
   };
 
@@ -935,7 +1053,7 @@ export function ChatPage() {
                 {listening ? <div className="chat-voice-recording" role="status" aria-live="polite">
                   <button type="button" onClick={cancelVoiceInput} className="chat-voice-control chat-voice-cancel" aria-label="Cancel voice input" title="Cancel voice input"><X size={14} strokeWidth={2} /></button>
                   <span className="sr-only">Recording voice input</span>
-                  <div className="chat-voice-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <span key={index} style={{ height: `${8 + ((index * 7) % 14)}px`, animationDelay: `${index * 42}ms` }} />)}</div>
+                  <div className="chat-voice-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <span key={index} ref={(element) => { voiceBarsRef.current[index] = element; }} />)}</div>
                   <button type="button" onClick={stopVoiceInput} className="chat-voice-control chat-voice-stop" aria-label="Stop voice input" title="Stop voice input"><Square size={10} fill="currentColor" /></button>
                   <button type="button" onClick={sendVoiceInput} disabled={!input.trim() || !thread} className="chat-voice-control chat-voice-send" aria-label="Send voice message" title="Send voice message"><ArrowUp size={15} /></button>
                 </div> : <>
@@ -951,7 +1069,7 @@ export function ChatPage() {
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-1.5">
                       <span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span>
-                      <button type="button" onClick={toggleVoiceInput} disabled={!thread || isWorking} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Start voice input" title="Start voice input"><Mic size={13} /></button>
+                      <button type="button" onClick={() => void toggleVoiceInput()} disabled={!thread || isWorking || voiceStarting} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label={voiceStarting ? "Starting voice input" : "Start voice input"} title={voiceStarting ? "Starting voice input" : "Start voice input"}>{voiceStarting ? <LoaderCircle size={13} className="animate-spin" /> : <Mic size={13} />}</button>
                       {isWorking ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
                     </div>
                   </div>
