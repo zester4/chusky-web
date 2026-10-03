@@ -63,7 +63,7 @@ export function CtaSection() {
                 </p>
 
                 <div className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-start sm:gap-4">
-                  <Button asChild size="lg" className="h-11 rounded-full bg-foreground px-5 text-sm text-background group hover:bg-foreground/90 sm:h-12 sm:px-7 sm:text-base">
+                  <Button asChild size="lg" className="h-11 rounded-full bg-primary px-5 text-sm text-primary-foreground group hover:bg-primary/90 sm:h-12 sm:px-7 sm:text-base">
                     <Link href="/sign-up">Create an account <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" /></Link>
                   </Button>
                   <Button asChild size="lg" variant="outline" className="h-11 rounded-full border-foreground/20 px-5 text-sm hover:bg-foreground/5 sm:h-12 sm:px-7 sm:text-base">

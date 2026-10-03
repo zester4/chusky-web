@@ -60,7 +60,7 @@ function AuthCard({ children, title, description }: { children: ReactNode; title
 }
 
 function SubmitButton({ children }: { children: ReactNode }) {
-  return <Button type="submit" className="h-11 w-full rounded-full bg-foreground text-background hover:bg-foreground/90">{children}<ArrowRight size={15} /></Button>;
+  return <Button type="submit" className="h-11 w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90">{children}<ArrowRight size={15} /></Button>;
 }
 
 function authErrorMessage(error: unknown, fallback: string) {

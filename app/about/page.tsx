@@ -112,7 +112,7 @@ export default function AboutPage() {
             <p className="text-sm font-mono text-muted-foreground">The invitation</p>
             <h2 className="mt-4 font-display text-3xl leading-[0.95] tracking-tight sm:mt-5 sm:text-4xl md:text-6xl">Bring your work into one thoughtful loop.</h2>
           </div>
-          <Button asChild className="h-11 rounded-full bg-foreground px-5 text-sm text-background hover:bg-foreground/90">
+            <Button asChild className="h-11 rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/90">
             <Link href="/start-creating">Start creating <ArrowRight className="h-4 w-4" /></Link>
           </Button>
         </div>

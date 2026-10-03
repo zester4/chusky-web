@@ -76,7 +76,7 @@ export function InputDialog({
         </div>
         <DialogFooter className="gap-2 sm:flex-row sm:justify-end">
           <button type="button" onClick={() => onOpenChange(false)} className="h-9 rounded-full border border-foreground/15 px-3 text-xs hover:border-foreground/40">Cancel</button>
-          <button type="button" disabled={!value.trim() || busy} onClick={() => void submit()} className="h-9 rounded-full bg-foreground px-3 text-xs text-background hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Working…" : submitLabel}</button>
+          <button type="button" disabled={!value.trim() || busy} onClick={() => void submit()} className="h-9 rounded-full bg-primary px-3 text-xs text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Working…" : submitLabel}</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

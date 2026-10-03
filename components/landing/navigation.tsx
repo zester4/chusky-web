@@ -64,12 +64,12 @@ export function Navigation() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8 lg:gap-10">
+          <div className="hidden items-center gap-5 lg:flex xl:gap-8">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
-                className="text-sm text-foreground/70 hover:text-foreground transition-colors duration-300 relative group"
+                className="relative text-xs text-foreground/70 transition-colors duration-300 group hover:text-foreground xl:text-sm"
               >
                 {link.name}
                 <span className="absolute -bottom-1 left-0 w-0 h-px bg-foreground transition-all duration-300 group-hover:w-full" />
@@ -78,14 +78,14 @@ export function Navigation() {
           </div>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden items-center gap-2 lg:flex xl:gap-3">
             <ThemeSwitcher className="mr-1" />
             <Link href="/sign-in" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
               Sign in
             </Link>
             <Button asChild
               size="sm"
-              className={`bg-foreground hover:bg-foreground/90 text-background rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              className={`rounded-full bg-primary text-primary-foreground transition-all duration-500 hover:bg-primary/90 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
             >
               <Link href="/sign-up">Sign up</Link>
             </Button>
@@ -94,7 +94,7 @@ export function Navigation() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="flex min-h-11 min-w-11 items-center justify-center md:hidden"
+            className="flex min-h-11 min-w-11 items-center justify-center lg:hidden"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? (
@@ -109,7 +109,7 @@ export function Navigation() {
       
       {/* Mobile Menu - Full Screen Overlay */}
       <div
-        className={`md:hidden fixed inset-0 bg-background z-40 transition-all duration-500 ${
+        className={`fixed inset-0 z-40 bg-background transition-all duration-500 lg:hidden ${
           isMobileMenuOpen 
             ? "opacity-100 pointer-events-auto" 
             : "opacity-0 pointer-events-none"

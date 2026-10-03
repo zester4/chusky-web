@@ -41,7 +41,7 @@ export function SignInForm() {
             className="h-11 w-full border border-foreground/15 bg-transparent px-3 text-sm outline-none transition-colors focus:border-foreground focus:ring-2 focus:ring-foreground/20 sm:h-12 sm:px-4"
           />
         </div>
-        <Button type="submit" className="w-full h-11 rounded-full bg-foreground text-background hover:bg-foreground/90 text-sm">
+        <Button type="submit" className="w-full h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm">
           Sign in <ArrowRight className="w-4 h-4" />
         </Button>
         <p aria-live="polite" className="min-h-5 text-sm text-muted-foreground">{message}</p>

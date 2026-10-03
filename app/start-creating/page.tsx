@@ -54,7 +54,7 @@ export default function StartCreatingPage() {
             ))}
           </div>
           <div className="mt-10 flex flex-col items-stretch justify-center gap-2.5 sm:mt-16 sm:flex-row sm:items-center sm:gap-4">
-            <Button asChild className="rounded-full bg-foreground text-background hover:bg-foreground/90 h-11 px-5 text-sm">
+            <Button asChild className="h-11 rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/90">
               <Link href="/sign-in">I already have an account <ArrowRight className="w-4 h-4" /></Link>
             </Button>
             <Button asChild variant="outline" className="rounded-full h-11 px-5 text-sm">

@@ -5,45 +5,45 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.985 0.002 90);
-  --foreground: oklch(0.12 0.01 60);
+  --background: oklch(0.9383 0.0042 236.4993);
+  --foreground: oklch(0.3211 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.12 0.01 60);
+  --card-foreground: oklch(0.3211 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.12 0.01 60);
-  --primary: oklch(0.12 0.01 60);
-  --primary-foreground: oklch(0.985 0.002 90);
-  --secondary: oklch(0.96 0.005 90);
-  --secondary-foreground: oklch(0.12 0.01 60);
-  --muted: oklch(0.94 0.005 90);
-  --muted-foreground: oklch(0.45 0.02 60);
-  --accent: oklch(0.92 0.01 90);
-  --accent-foreground: oklch(0.12 0.01 60);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.88 0.01 90);
-  --input: oklch(0.92 0.01 90);
-  --ring: oklch(0.12 0.01 60);
-  --chart-1: oklch(0.12 0.01 60);
-  --chart-2: oklch(0.35 0.02 60);
-  --chart-3: oklch(0.55 0.02 60);
-  --chart-4: oklch(0.70 0.02 60);
-  --chart-5: oklch(0.85 0.01 60);
-  --radius: 0.25rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --chusky-amber: #f6a400;
-  --chusky-amber-rgb: 246 164 0;
+  --popover-foreground: oklch(0.3211 0 0);
+  --primary: #e05d38;
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.967 0.0029 264.5419);
+  --secondary-foreground: oklch(0.4461 0.0263 256.8018);
+  --muted: oklch(0.9846 0.0017 247.8389);
+  --muted-foreground: oklch(0.551 0.0234 264.3637);
+  --accent: oklch(0.9119 0.0222 243.8174);
+  --accent-foreground: oklch(0.3791 0.1378 265.5222);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9022 0.0052 247.8822);
+  --input: oklch(0.97 0.0029 264.542);
+  --ring: oklch(0.6397 0.172 36.4421);
+  --chart-1: oklch(0.7156 0.0605 248.6845);
+  --chart-2: #e05d38;
+  --chart-3: oklch(0.5778 0.0759 254.1573);
+  --chart-4: oklch(0.5016 0.0849 259.4902);
+  --chart-5: oklch(0.4241 0.0952 264.0306);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.903 0.0046 258.3257);
+  --sidebar-foreground: oklch(0.3211 0 0);
+  --sidebar-primary: oklch(0.6397 0.172 36.4421);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9119 0.0222 243.8174);
+  --sidebar-accent-foreground: oklch(0.3791 0.1378 265.5222);
+  --sidebar-border: oklch(0.9276 0.0058 264.5313);
+  --sidebar-ring: oklch(0.6397 0.172 36.4421);
+  --chusky-amber: #e05d38;
+  --chusky-amber-rgb: 224 93 56;
   --font-instrument: 'Instrument Sans', system-ui, sans-serif;
   --font-instrument-serif: 'Instrument Serif', Georgia, serif;
   --font-jetbrains: 'JetBrains Mono', ui-monospace, monospace;
-  --depth-shadow-rgb: 42 34 22;
+  --depth-shadow-rgb: 35 48 70;
   --depth-highlight: rgb(255 255 255 / 0.82);
   --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), 0 10px 26px rgb(var(--depth-shadow-rgb) / 0.055);
   --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.07), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.04);
@@ -51,38 +51,38 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.012 70);
-  --foreground: oklch(0.94 0.012 75);
-  --card: oklch(0.195 0.012 70);
-  --card-foreground: oklch(0.94 0.012 75);
-  --popover: oklch(0.21 0.014 70);
-  --popover-foreground: oklch(0.94 0.012 75);
-  --primary: oklch(0.94 0.012 75);
-  --primary-foreground: oklch(0.16 0.012 70);
-  --secondary: oklch(0.245 0.014 70);
-  --secondary-foreground: oklch(0.94 0.012 75);
-  --muted: oklch(0.245 0.014 70);
-  --muted-foreground: oklch(0.71 0.018 70);
-  --accent: oklch(0.285 0.018 70);
-  --accent-foreground: oklch(0.96 0.01 75);
-  --destructive: oklch(0.62 0.19 25);
-  --destructive-foreground: oklch(0.96 0.01 75);
-  --border: oklch(0.31 0.018 70);
-  --input: oklch(0.285 0.018 70);
-  --ring: oklch(0.78 0.025 75);
-  --chart-1: oklch(0.78 0.16 75);
-  --chart-2: oklch(0.7 0.12 185);
-  --chart-3: oklch(0.72 0.12 230);
-  --chart-4: oklch(0.72 0.16 310);
-  --chart-5: oklch(0.72 0.18 25);
-  --sidebar: oklch(0.145 0.012 70);
-  --sidebar-foreground: oklch(0.94 0.012 75);
-  --sidebar-primary: oklch(0.78 0.16 75);
-  --sidebar-primary-foreground: oklch(0.16 0.012 70);
-  --sidebar-accent: oklch(0.245 0.014 70);
-  --sidebar-accent-foreground: oklch(0.94 0.012 75);
-  --sidebar-border: oklch(0.31 0.018 70);
-  --sidebar-ring: oklch(0.78 0.025 75);
+  --background: oklch(0.2598 0.0306 262.6666);
+  --foreground: oklch(0.9219 0 0);
+  --card: oklch(0.3106 0.0301 268.6365);
+  --card-foreground: oklch(0.9219 0 0);
+  --popover: oklch(0.29 0.0249 268.3986);
+  --popover-foreground: oklch(0.9219 0 0);
+  --primary: #e05d38;
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.3095 0.0266 266.7132);
+  --secondary-foreground: oklch(0.9219 0 0);
+  --muted: oklch(0.3095 0.0266 266.7132);
+  --muted-foreground: oklch(0.7155 0 0);
+  --accent: oklch(0.338 0.0589 267.5867);
+  --accent-foreground: oklch(0.8823 0.0571 254.1284);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.3843 0.0301 269.7337);
+  --input: oklch(0.3843 0.0301 269.7337);
+  --ring: oklch(0.6397 0.172 36.4421);
+  --chart-1: oklch(0.7156 0.0605 248.6845);
+  --chart-2: #e05d38;
+  --chart-3: oklch(0.5778 0.0759 254.1573);
+  --chart-4: oklch(0.5016 0.0849 259.4902);
+  --chart-5: oklch(0.4241 0.0952 264.0306);
+  --sidebar: oklch(0.31 0.0283 267.7408);
+  --sidebar-foreground: oklch(0.9219 0 0);
+  --sidebar-primary: oklch(0.6397 0.172 36.4421);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.338 0.0589 267.5867);
+  --sidebar-accent-foreground: oklch(0.8823 0.0571 254.1284);
+  --sidebar-border: oklch(0.3843 0.0301 269.7337);
+  --sidebar-ring: oklch(0.6397 0.172 36.4421);
   --depth-shadow-rgb: 0 0 0;
   --depth-highlight: rgb(255 255 255 / 0.06);
   --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.32), 0 10px 28px rgb(var(--depth-shadow-rgb) / 0.24);
@@ -182,6 +182,26 @@
     color: var(--foreground);
     outline: none;
     transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  /* Native selects use the same semantic surface as Radix menus. The
+     color-scheme declarations keep the browser-owned option popup aligned
+     with the active Chusky theme instead of falling back to OS defaults. */
+  :where(select, option, optgroup) {
+    font: inherit;
+  }
+
+  html:not(.dark) :where(select, option, optgroup) {
+    color-scheme: light;
+  }
+
+  html.dark :where(select, option, optgroup) {
+    color-scheme: dark;
+  }
+
+  :where(select option, select optgroup) {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
   }
 
   .app-shell select:focus-visible {
@@ -423,13 +443,14 @@
   }
 
   .app-depth-root .app-shell .chat-composer select.chat-composer-model:hover {
-    background: color-mix(in srgb, var(--foreground) 5%, transparent);
+    background: color-mix(in srgb, var(--accent) 72%, transparent);
+    color: var(--accent-foreground);
   }
 
   .app-depth-root .app-shell .chat-composer select.chat-composer-model:focus-visible {
     border-color: transparent;
     box-shadow: none;
-    outline: 2px solid color-mix(in srgb, var(--foreground) 48%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--ring) 72%, transparent);
     outline-offset: 2px;
   }
 
@@ -584,7 +605,8 @@
     [data-slot="context-menu-content"]
   ) {
     border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--popover) 96%, white);
+    background: var(--popover);
+    color: var(--popover-foreground);
     padding: 0.3rem;
   }
 
@@ -601,8 +623,61 @@
   body:has(.app-depth-root) [data-slot="select-item"][data-highlighted],
   body:has(.app-depth-root) [data-slot="dropdown-menu-item"]:focus,
   body:has(.app-depth-root) [data-slot="context-menu-item"]:focus {
-    background: color-mix(in srgb, var(--foreground) 7%, transparent);
-    color: var(--foreground);
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  /* Portalled menus render under body, so keep their visual language in one
+     place. This also covers menus used outside the authenticated shell. */
+  :is(
+    [data-slot="popover-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="select-content"],
+    [data-slot="context-menu-content"],
+    [data-slot="context-menu-sub-content"],
+    [data-slot="menubar-content"],
+    [data-slot="menubar-sub-content"]
+  ) {
+    border-color: var(--border);
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    color-scheme: inherit;
+    box-shadow: var(--depth-floating-shadow);
+  }
+
+  :is(
+    [data-slot="select-item"],
+    [data-slot="dropdown-menu-item"],
+    [data-slot="dropdown-menu-checkbox-item"],
+    [data-slot="dropdown-menu-radio-item"],
+    [data-slot="context-menu-item"],
+    [data-slot="context-menu-checkbox-item"],
+    [data-slot="context-menu-radio-item"],
+    [data-slot="context-menu-sub-trigger"],
+    [data-slot="menubar-item"],
+    [data-slot="menubar-checkbox-item"],
+    [data-slot="menubar-radio-item"],
+    [data-slot="menubar-sub-trigger"]
+  ):not([data-disabled]):is(:hover, :focus-visible, [data-highlighted], [data-state="checked"], [data-state="on"]) {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  :is(
+    [data-slot="select-item"],
+    [data-slot="dropdown-menu-item"],
+    [data-slot="dropdown-menu-checkbox-item"],
+    [data-slot="dropdown-menu-radio-item"],
+    [data-slot="context-menu-item"],
+    [data-slot="context-menu-checkbox-item"],
+    [data-slot="context-menu-radio-item"],
+    [data-slot="context-menu-sub-trigger"],
+    [data-slot="menubar-item"],
+    [data-slot="menubar-checkbox-item"],
+    [data-slot="menubar-radio-item"],
+    [data-slot="menubar-sub-trigger"]
+  ):not([data-disabled]):is(:hover, :focus-visible, [data-highlighted], [data-state="checked"], [data-state="on"]) svg {
+    color: currentColor;
   }
 
   .app-shell [role="dialog"] > .app-card {
@@ -749,6 +824,37 @@
 
   .app-shell :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus-visible {
     background-color: var(--background);
+  }
+}
+
+@media (min-width: 40rem) and (max-width: 63.999rem) {
+  /* Tablet portrait and small landscape widths need more breathing room than
+     the default md transition gives dense cards and action rows. Keep public
+     content balanced in two columns, while authenticated work surfaces stack
+     until the sidebar and wider desktop grids are available at lg. */
+  .noise-overlay :is(.md\:grid-cols-3, .md\:grid-cols-6) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .noise-overlay .sm\:grid-cols-3,
+  .app-depth-root .sm\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-depth-root :is(.md\:grid-cols-2, .md\:grid-cols-3) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-depth-root .md\:flex-row {
+    flex-direction: column;
+  }
+
+  .app-depth-root .md\:items-center {
+    align-items: flex-start;
+  }
+
+  .app-depth-root .md\:text-right {
+    text-align: left;
   }
 }
 
@@ -986,7 +1092,7 @@
     width: 3.5rem;
     height: 3.5rem;
     animation: chusky-loading-float 2.4s ease-in-out infinite;
-    filter: drop-shadow(0 0.5rem 0.75rem rgb(42 34 22 / 0.14));
+    filter: drop-shadow(0 0.5rem 0.75rem rgb(var(--depth-shadow-rgb) / 0.14));
   }
 
   .chusky-shimmer-text {
@@ -1023,7 +1129,7 @@
   .landing-motion-root [data-motion-card]:hover {
     transform: translateY(-2px);
     border-color: color-mix(in oklch, var(--foreground) 24%, transparent);
-    box-shadow: 0 10px 24px rgb(42 34 22 / 0.055);
+    box-shadow: 0 10px 24px rgb(var(--depth-shadow-rgb) / 0.055);
   }
 
   @keyframes chusky-orbit {

@@ -37,7 +37,7 @@ export function ProductPageHero({ eyebrow, title, description, artwork }: Produc
               {description}
             </p>
             <div className="flex flex-col gap-2.5 sm:flex-row">
-              <Button asChild className="h-10 rounded-full bg-foreground px-4 text-xs text-background hover:bg-foreground/90">
+              <Button asChild className="h-10 rounded-full bg-primary px-4 text-xs text-primary-foreground hover:bg-primary/90">
                 <Link href="/sign-up">
                   Sign up <ArrowRight className="w-4 h-4" />
                 </Link>
