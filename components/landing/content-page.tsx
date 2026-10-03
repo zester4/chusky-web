@@ -19,14 +19,14 @@ export function ContentPage({ eyebrow, title, description, artwork, children }: 
 
 export function ContentSection({ id, eyebrow, title, description, children, className = "" }: { id?: string; eyebrow: string; title: React.ReactNode; description?: React.ReactNode; children?: React.ReactNode; className?: string }) {
   return (
-    <section id={id} className={`border-b border-foreground/10 py-14 sm:py-20 lg:py-28 ${className}`}>
+    <section id={id} className={`border-b border-foreground/10 py-12 sm:py-20 lg:py-28 ${className}`}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
         <div className="max-w-3xl">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</p>
           <h2 className="mt-4 font-display text-3xl leading-tight tracking-tight sm:text-5xl">{title}</h2>
           {description && <div className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">{description}</div>}
         </div>
-        {children && <div className="mt-10">{children}</div>}
+        {children && <div className="mt-8 sm:mt-10">{children}</div>}
       </div>
     </section>
   );
@@ -34,7 +34,7 @@ export function ContentSection({ id, eyebrow, title, description, children, clas
 
 export function ContentCard({ eyebrow, title, children }: { eyebrow?: string; title: string; children: React.ReactNode }) {
   return (
-    <article className="border border-foreground/10 bg-background p-5 transition-colors hover:border-foreground/25 sm:p-7">
+    <article className="rounded-xl border border-foreground/10 bg-background p-5 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.7),0_10px_28px_rgb(42_34_22_/_0.04)] transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.8),0_16px_34px_rgb(42_34_22_/_0.07)] sm:p-7">
       {eyebrow && <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-chusky-amber">{eyebrow}</p>}
       <h3 className="mt-3 font-display text-2xl leading-tight tracking-tight">{title}</h3>
       <div className="mt-3 text-sm leading-relaxed text-muted-foreground">{children}</div>

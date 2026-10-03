@@ -7,6 +7,7 @@ import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 import { ToolkitLogo } from "./toolkit-logo";
+import { MarkdownMessage } from "./markdown-message";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings";
@@ -18,8 +19,8 @@ const copy: Record<PageKind, { eyebrow: string; title: string; description: stri
   jobs: { eyebrow: "Scheduled automation", title: "Recurring jobs", description: "Recurring schedules currently stored for your account." },
   memory: { eyebrow: "Long-term context", title: "Memory", description: "Facts and preferences you explicitly asked Chusky to remember." },
   scratchpad: { eyebrow: "Private working notes", title: "Scratchpad", description: "Temporary notes saved in your private Chusky session." },
-  triggers: { eyebrow: "Real-time events", title: "Triggers", description: "Connect live events to actions your agent can take for you." },
-  workspace: { eyebrow: "Agent workspace", title: "Workspace", description: "The private computer workspace your agent can use for files, commands, and generated work." },
+  triggers: { eyebrow: "Real-time events", title: "Triggers", description: "Turn trusted app events into durable, approval-aware workflows. Choose the exact account, configure the event, and keep the saved outcome visible." },
+  workspace: { eyebrow: "Agent workspace", title: "Workspace", description: "A private execution surface for files, commands, browser work, and generated artifacts. Chusky keeps the runtime state and latest handoff visible here." },
   devices: { eyebrow: "CLI access", title: "Devices", description: "Terminals currently linked to your Chusky account." },
   settings: { eyebrow: "Account configuration", title: "Settings", description: "Live account defaults and runtime preferences." },
 };
@@ -37,7 +38,7 @@ export function AccountDataPage({ kind }: { kind: PageKind }) {
   useLiveData(load);
   const decide = async (id: string, decision: "approve" | "deny") => { setBusy(id); try { await chuskyApi.approvals.decide(id, decision); await load(); } finally { setBusy(undefined); } };
   const heading = copy[kind];
-  return <><PageHeading eyebrow={heading.eyebrow} title={heading.title} description={heading.description} action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />{offline ? <Offline retry={() => void load()} /> : !data ? <Card className="flex items-center gap-3 p-4 text-xs text-muted-foreground sm:p-5"><LoaderCircle size={15} className="animate-spin" /> Loading your saved data…</Card> : <Content kind={kind} data={data} decide={decide} busy={busy} />}</>;
+  return <div className="app-page-content min-w-0" data-page-kind={kind}><PageHeading eyebrow={heading.eyebrow} title={heading.title} description={heading.description} action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />{offline ? <Offline retry={() => void load()} /> : !data ? <Card className="flex items-center gap-3 p-4 text-xs text-muted-foreground sm:p-5"><LoaderCircle size={15} className="animate-spin" /> Loading your saved data…</Card> : <Content kind={kind} data={data} decide={decide} busy={busy} />}</div>;
 }
 
 function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOverview; decide: (id: string, decision: "approve" | "deny") => Promise<void>; busy?: string }) {
@@ -46,7 +47,7 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "reminders") return <Card>{data.reminders.length ? data.reminders.map((item) => <Row key={item.id} icon={<Clock3 size={15} />} title={item.text} detail={`Runs ${date(item.runAt)}`} meta={`Created ${date(item.createdAt)}`} status={item.status} />) : <Empty>No reminders saved yet.</Empty>}</Card>;
   if (kind === "jobs") return <Card>{data.jobs.length ? data.jobs.map((item) => <Row key={item.id} icon={<RotateCcw size={15} />} title={item.text} detail={item.cron} meta={`Created ${date(item.createdAt)}`} status={item.status} />) : <Empty>No recurring jobs saved yet.</Empty>}</Card>;
   if (kind === "memory") return <Card>{data.memory.length ? data.memory.map((item) => <Row key={item.id} icon={<Zap size={15} />} title={item.key} detail={item.value} meta={`${item.category} · ${Math.round(item.confidence * 100)}% confidence · ${date(item.updatedAt)}`} />) : <Empty>No explicit memories saved yet.</Empty>}</Card>;
-  if (kind === "scratchpad") return <Card>{data.scratchpad.length ? data.scratchpad.map((item) => <Row key={item.key} icon={<ExternalLink size={15} />} title={item.key} detail={item.content} meta={`Updated ${date(item.updatedAt)}`} />) : <Empty>Your scratchpad is empty.</Empty>}</Card>;
+  if (kind === "scratchpad") return <Card>{data.scratchpad.length ? data.scratchpad.map((item) => <div key={item.key} className="scratchpad-entry min-w-0 border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex min-w-0 items-start gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-foreground/10 text-muted-foreground"><ExternalLink size={15} /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words text-xs font-medium">{item.key}</p><span className="text-[9px] text-muted-foreground">Updated {date(item.updatedAt)}</span></div><div className="mt-2.5 rounded-lg bg-foreground/[0.025] p-3"><MarkdownMessage content={item.content} /></div></div></div></div>) : <Empty>Your scratchpad is empty.</Empty>}</Card>;
   if (kind === "triggers") return <ComprehensiveTriggersPanel />;
   if (kind === "devices") return <DevicesPanel initial={data.devices} />;
   if (kind === "workspace") return <Card className="p-4 sm:p-5">{data.workspace ? <div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-700"><Laptop size={17} /></span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{data.workspace.name}</h2><p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-2 sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No agent workspace has been created for this account.</Empty>}</Card>;

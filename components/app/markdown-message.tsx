@@ -255,7 +255,7 @@ const components: Components = {
 };
 
 export function MarkdownMessage({ content, streaming = false, className = "" }: { content: string; streaming?: boolean; className?: string }) {
-  return <div aria-live={streaming ? "polite" : undefined} className={`min-w-0 break-words tabular-nums text-foreground [&_.katex-display]:my-2 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[0.9em] ${streaming ? "[&>p:last-child]:after:ml-0.5 [&>p:last-child]:after:inline-block [&>p:last-child]:after:animate-pulse [&>p:last-child]:after:content-['▍'] [&>p:last-child]:after:text-chusky-amber motion-reduce:[&>p:last-child]:after:animate-none" : ""} ${className}`}>
+  return <div aria-live={streaming ? "polite" : undefined} className={`markdown-message min-w-0 break-words tabular-nums text-foreground [&_.katex-display]:my-2 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[0.9em] ${streaming ? "[&>p:last-child]:after:ml-0.5 [&>p:last-child]:after:inline-block [&>p:last-child]:after:animate-pulse [&>p:last-child]:after:content-['▍'] [&>p:last-child]:after:text-chusky-amber motion-reduce:[&>p:last-child]:after:animate-none" : ""} ${className}`}>
     <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>{normalizeMarkdownContent(content)}</ReactMarkdown>
   </div>;
 }

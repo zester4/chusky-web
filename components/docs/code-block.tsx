@@ -17,10 +17,10 @@ export function CodeBlock({ code }: { code: string }) {
   };
 
   return (
-    <div className="mt-8 overflow-hidden rounded-xl border border-foreground/15 bg-[#111] text-sm text-[#f7f7f4]">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 font-mono text-[10px] text-white/50">
+    <div className="docs-code-block mt-8 overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.035] text-sm text-foreground">
+      <div className="flex items-center justify-between border-b border-foreground/10 px-4 py-3 font-mono text-[10px] text-muted-foreground">
         <span className="flex items-center gap-2"><FileCode2 size={13} /> example.ts</span>
-        <button type="button" className="flex items-center gap-1.5 text-white/60 hover:text-white" onClick={() => void copy()}>
+        <button type="button" className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground" onClick={() => void copy()}>
           {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
         </button>
       </div>

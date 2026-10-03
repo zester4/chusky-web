@@ -45,6 +45,7 @@ type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onstart: (() => void) | null;
   onend: (() => void) | null;
   onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   start: () => void;
@@ -636,20 +637,20 @@ export function ChatPage() {
     return "Chusky could not access your microphone. Check the browser and system microphone permissions, then try again.";
   };
 
-  const requestMicrophoneAccess = async () => {
+  const requestMicrophoneAccess = async (notifyOnFailure = true) => {
     const hostname = window.location.hostname;
     if (!window.isSecureContext && hostname !== "localhost" && hostname !== "127.0.0.1") {
-      showNotice("Voice input requires a secure HTTPS connection (or localhost).", "info");
+      if (notifyOnFailure) showNotice("Voice input requires a secure HTTPS connection (or localhost).", "info");
       return false;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
-      showNotice("This browser does not provide microphone access. Try the latest Chrome or Edge on desktop.", "info");
+      if (notifyOnFailure) showNotice("This browser does not provide microphone access. Try the latest Chrome or Edge on desktop.", "info");
       return false;
     }
     try {
       return await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (cause) {
-      showNotice(microphoneErrorMessage(cause instanceof Error ? cause.name : undefined), "info");
+      if (notifyOnFailure) showNotice(microphoneErrorMessage(cause instanceof Error ? cause.name : undefined), "info");
       return undefined;
     }
   };
@@ -661,13 +662,22 @@ export function ChatPage() {
     if (listening) { stopVoiceInput(); return; }
     if (voiceStarting) return;
     setVoiceStarting(true);
-    const microphoneStream = await requestMicrophoneAccess();
-    if (!microphoneStream) { setVoiceStarting(false); return; }
-    startVoiceVisualizer(microphoneStream);
     const recognition = new Recognition();
     recognition.lang = navigator.language || "en-US";
     recognition.interimResults = false;
     voiceBaseInputRef.current = input;
+    recognition.onstart = () => {
+      if (recognitionRef.current !== recognition) return;
+      setVoiceStarting(false);
+      void requestMicrophoneAccess(false).then((microphoneStream) => {
+        if (!microphoneStream) return;
+        if (recognitionRef.current !== recognition) {
+          microphoneStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        startVoiceVisualizer(microphoneStream);
+      });
+    };
     recognition.onresult = (event) => {
       if (recognitionRef.current !== recognition) return;
       const transcript = event.results[0]?.[0]?.transcript?.trim();
@@ -694,7 +704,6 @@ export function ChatPage() {
       if (event.error !== "aborted") showNotice(microphoneErrorMessage(event.error), "info");
     };
     recognitionRef.current = recognition;
-    setVoiceStarting(false);
     setListening(true);
     try { recognition.start(); }
     catch {
