@@ -531,6 +531,94 @@
     display: block;
   }
 
+  .generated-image-gallery {
+    min-width: 0;
+  }
+
+  .generated-image-rail {
+    display: flex;
+    min-width: 0;
+    gap: 0.75rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    padding: 0.125rem 0.125rem 0.5rem;
+  }
+
+  .generated-image-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .generated-image-rail:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ring) 72%, transparent);
+    outline-offset: 3px;
+    border-radius: 0.5rem;
+  }
+
+  .generated-image-slide {
+    min-width: 0;
+    flex: 0 0 min(88%, 34rem);
+    scroll-snap-align: start;
+  }
+
+  .generated-image-slide .generated-image-card {
+    margin-top: 0;
+    max-width: none;
+  }
+
+  .generated-image-card > img {
+    display: block;
+    margin-inline: auto;
+  }
+
+  .generated-image-nav {
+    display: inline-flex;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+    border-radius: 999px;
+    background: var(--background);
+    color: var(--muted-foreground);
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+  }
+
+  .generated-image-nav:hover {
+    border-color: color-mix(in srgb, var(--primary) 42%, transparent);
+    background: color-mix(in srgb, var(--accent) 64%, var(--background));
+    color: var(--accent-foreground);
+    transform: translateY(-1px);
+  }
+
+  .generated-image-nav:active {
+    transform: translateY(0);
+  }
+
+  .generated-image-nav:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ring) 72%, transparent);
+    outline-offset: 2px;
+  }
+
+  @media (min-width: 40rem) {
+    .generated-image-slide {
+      flex-basis: min(76%, 36rem);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .generated-image-rail {
+      scroll-behavior: auto;
+    }
+
+    .generated-image-nav {
+      transition: none;
+    }
+  }
+
   .mission-detail-panel {
     border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
   }
