@@ -132,9 +132,11 @@ export function consumeOnboardingActivationDraft(userId: string | undefined): st
 }
 
 export function safeOnboardingError(cause: unknown, fallback: string): string {
-  const message = cause instanceof Error ? cause.message.toLowerCase() : "";
-  if (message.includes("401") || message.includes("unauthorized") || message.includes("session")) return "Your session may have expired. Refresh the page and sign in again.";
-  if (message.includes("429") || message.includes("rate limit")) return "Chusky is busy right now. Please wait a moment and try again.";
+  const error = cause && typeof cause === "object" ? cause as { status?: unknown; message?: unknown; code?: unknown } : undefined;
+  const status = typeof error?.status === "number" ? error.status : undefined;
+  const message = typeof error?.message === "string" ? error.message.toLowerCase() : "";
+  if (status === 401) return "Your session may have expired. Refresh the page and sign in again.";
+  if (status === 429 || message.includes("rate limit")) return "Chusky is busy right now. Please wait a moment and try again.";
   if (message.includes("fetch") || message.includes("network") || message.includes("timeout")) return "Chusky could not reach your account. Check your connection and try again.";
   return fallback;
 }

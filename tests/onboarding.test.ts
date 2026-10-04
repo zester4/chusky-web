@@ -53,4 +53,6 @@ test("onboarding preserves reviewed public-site context and excludes unknown fie
 test("onboarding errors are safe and actionable", () => {
   assert.equal(safeOnboardingError(new Error("fetch failed: private provider payload"), "fallback"), "Chusky could not reach your account. Check your connection and try again.");
   assert.equal(safeOnboardingError(new Error("validation failed for secret_token"), "fallback"), "fallback");
+  assert.equal(safeOnboardingError(Object.assign(new Error("Durable session domain version conflict: profile"), { status: 400 }), "fallback"), "fallback");
+  assert.equal(safeOnboardingError(Object.assign(new Error("Chusky returned HTTP 401"), { status: 401 }), "fallback"), "Your session may have expired. Refresh the page and sign in again.");
 });

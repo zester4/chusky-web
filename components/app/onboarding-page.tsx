@@ -241,7 +241,7 @@ export function OnboardingPage() {
       setSavedBefore(true);
       setActivationProfile(next);
     } catch (cause) {
-      setError(safeOnboardingError(cause, "Your profile could not be saved. Nothing was changed. Retry when your connection is ready."));
+      setError(safeOnboardingError(cause, "Chusky could not confirm that your profile save completed. Your answers are still on this page; please try again."));
     } finally { setSaving(false); }
   };
 
