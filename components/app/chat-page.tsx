@@ -77,6 +77,7 @@ type Message = {
   artifacts?: ChatArtifact[];
   images?: Array<RunImage & { downloadUrl?: string }>;
   approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean };
+  failure?: { code?: string; message?: string };
 };
 
 const formatToolLabel = (tool?: string) => tool ? tool.replace(/^(CHUCK|COMPOSIO)_/i, "").replaceAll("_", " ").toLowerCase() : "working";
@@ -102,11 +103,24 @@ const reconcileStreamedText = (current: string, snapshot: string) => {
   if (current.startsWith(snapshot)) return current;
   return current;
 };
+const runFailureCopy = (failure?: Message["failure"]) => {
+  const detail = failure?.message || "";
+  if (/429|rate limit|quota|too many requests/i.test(detail)) return {
+    message: "The selected model is busy right now. Choose another model or try again in a moment.",
+    detail: "The model request was rate limited before a final reply was saved.",
+  };
+  if (/502|503|504|openrouter|provider returned|gateway|upstream|temporar/i.test(detail)) return {
+    message: "Sorry — I hit a temporary snag while replying. Your message is still here; please try again in a moment.",
+    detail: "The model service did not return a final reply.",
+  };
+  return {
+    message: "Sorry — I couldn’t complete that reply. Your message is still here; please try again in a moment.",
+    detail: "The run ended before a final reply was saved.",
+  };
+};
 const runStatusText = (run: Run) => {
   if (run.status === "requires_approval") return "Chusky needs your approval to continue with this action.";
-  if (run.status === "failed") return run.error?.message
-    ? `I couldn’t complete this run: ${run.error.message}`
-    : "I couldn’t complete this run. The recorded steps remain above.";
+  if (run.status === "failed") return "";
   if (run.status === "cancelled") return [...(run.events ?? [])].reverse().find((event) => event.type === "run.cancelled")?.text || "Run cancelled. The completed steps are shown above.";
   return run.output ?? "";
 };
@@ -145,6 +159,23 @@ function ActivityMarker({ status, current, className = "" }: { status: Presented
           : <X size={14} />;
   const tone = current || status === "started" ? "text-chusky-amber" : status === "completed" ? "text-emerald-600" : status === "approval_required" || status === "waiting" ? "text-amber-600" : status === "failed" ? "text-rose-600" : "text-muted-foreground";
   return <span className={`chat-activity-marker ${className} ${tone}`} aria-hidden="true">{icon}</span>;
+}
+
+function RunFailureCard({ failure, onRetry }: { failure: Message["failure"]; onRetry: () => void }) {
+  const copy = runFailureCopy(failure);
+  return <div className="mt-2 max-w-xl rounded-lg border border-chusky-amber/25 bg-chusky-amber/5 p-3 text-[11px] leading-5 text-foreground">
+    <p className="font-medium">Reply couldn’t be completed</p>
+    <p className="mt-1 text-muted-foreground">{copy.message}</p>
+    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <button type="button" onClick={onRetry} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+        <RotateCcw size={12} aria-hidden="true" /> Try again
+      </button>
+      <details className="text-[10px] text-muted-foreground">
+        <summary className="min-h-11 cursor-pointer list-none py-2 underline decoration-foreground/20 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&::-webkit-details-marker]:hidden">Technical details</summary>
+        <p className="mt-1 max-w-sm leading-4">{copy.detail}{failure?.code ? ` Reference: ${failure.code}.` : ""}</p>
+      </details>
+    </div>
+  </div>;
 }
 
 const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Record<string, Toolkit>) => {
@@ -444,7 +475,7 @@ export function ChatPage() {
             const active = run.status === "queued" || run.status === "running";
             const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
             if (active) syncActiveRunId(run.id);
-            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
+            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval, failure: run.status === "failed" ? (run.error || {}) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
           }
           setMessages(threadMessages);
         }
@@ -538,6 +569,7 @@ export function ChatPage() {
         pending: active,
         statusText: active ? runProgressText(run) : undefined,
         approval,
+        failure: run.status === "failed" ? (run.error || {}) : undefined,
       };
     }));
   };
@@ -567,6 +599,19 @@ export function ChatPage() {
     if (!thread || !runId) return;
     try { await applyRunSnapshot(await chuskyApi.runs.cancel(thread.id, runId)); }
     catch { showNotice("Chusky could not confirm cancellation. The run’s saved progress is still available; refresh and check its status."); }
+  };
+
+  const retryFailedMessage = (assistantIndex: number) => {
+    const original = messagesRef.current[assistantIndex];
+    if (!original?.failure) return;
+    const userMessage = [...messagesRef.current.slice(0, assistantIndex)].reverse().find((item) => item.role === "user");
+    if (!userMessage || !userMessage.text || userMessage.text === "Attached file(s)") {
+      showNotice("This reply included an attachment. Attach the file again, then try sending it.", "info");
+      return;
+    }
+    setInput(userMessage.text);
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+    showNotice("Your message is ready to send again.", "info");
   };
 
   const copyMessage = async (index: number, text: string) => {
@@ -953,23 +998,23 @@ export function ChatPage() {
           const userHistoryContent = `${typed.run.input || "Attached file(s)"}${typed.run.attachments?.length ? `\n[Attachments: ${typed.run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
           setMessages((current) => current.map((item, index) => {
             if (index === current.length - 2 && item.role === "user") return { ...item, historyCommitted: true, historyContent: userHistoryContent };
-            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, pending: false, statusText: undefined, tool: undefined, historyCommitted: true, historyContent: output };
+            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
             return item;
           }));
         } else if (typed.type === "run.approval_required") {
           notifyChuskyDataChanged();
           syncActiveRunId(undefined);
-          updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", pending: false, statusText: undefined, tool: undefined, approval: typed.approval });
+          updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", pending: false, statusText: undefined, tool: undefined, failure: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {
           syncActiveRunId(undefined);
           const detail = typed.error?.message || "";
           showNotice(/429|rate limit|quota|too many requests/i.test(detail)
             ? "The selected model is rate limited. Choose another model or try again in a moment."
             : "Chusky could not complete that run. Please try again.");
-          updateLastAssistant({ text: "I couldn’t complete this run. The activity above shows which steps succeeded or need attention.", pending: false, statusText: undefined, tool: undefined });
+          updateLastAssistant({ text: "", failure: typed.error, pending: false, statusText: undefined, tool: undefined });
         } else if (typed.type === "run.cancelled") {
           activeRunIdRef.current = undefined;
-          updateLastAssistant({ text: "Run cancelled. The completed steps are shown above.", pending: false, statusText: undefined, tool: undefined });
+          updateLastAssistant({ text: "Run cancelled. The completed steps are shown above.", failure: undefined, pending: false, statusText: undefined, tool: undefined });
         }
       }
     } catch (error) {
@@ -982,7 +1027,7 @@ export function ChatPage() {
           ? "The selected model is rate limited. Choose another model or try again in a moment."
           : "The live connection was interrupted. Chusky’s saved run will keep updating here.");
         if (runId) updateLastAssistant({ runId, pending: true, statusText: "Connection interrupted; checking saved run progress…" });
-        else updateLastAssistant({ pending: false, text: "The connection ended before run tracking was available. Refresh the conversation to check whether Chusky saved the run." });
+        else updateLastAssistant({ pending: false, text: "", failure: { message: detail }, statusText: undefined });
       }
     } finally {
       if (shouldTitle) {
@@ -1056,7 +1101,8 @@ export function ChatPage() {
                         })}
                       </ol>
                     </details> : null}
-                    {item.text ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
+                    {item.text && !item.failure ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
+                    {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} title={file.name} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background">{file.previewUrl || file.downloadUrl ? <img src={file.previewUrl || file.downloadUrl} alt={`Attached image: ${file.name}`} className="size-8 rounded object-cover" /> : <FileText size={12} />} <span className="max-w-48 truncate">{file.name}</span></span>)}</div> : null}
