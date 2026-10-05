@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Bell, Brain, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, Code2, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, MessagesSquare, PanelLeftClose, PanelLeftOpen, PencilLine, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, Sparkles, SquareTerminal, TimerReset, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
+import { Activity, Bell, BookOpen, Brain, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, Code2, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessagesSquare, PanelLeftClose, PanelLeftOpen, PencilLine, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, SquareTerminal, TimerReset, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
 import { createContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 
 type NavItem = [label: string, href: string, icon: LucideIcon];
 const primary: NavItem[] = [
-  ["Overview", "/app", LayoutDashboard], ["Chat", "/app/chat", Sparkles], ["Conversations", "/app/conversations", MessagesSquare],
+  ["Overview", "/app", LayoutDashboard], ["Chat", "/app/chat", MessageCircle], ["Conversations", "/app/conversations", MessagesSquare],
   ["Approvals", "/app/approvals", ShieldCheck], ["Calls", "/app/calls", Phone], ["Autonomy", "/app/autonomy", Brain], ["Meetings", "/app/meetings", CalendarDays], ["Connected apps", "/app/apps", Plug], ["Channels", "/app/channels", Webhook], ["Capabilities", "/app/capabilities", Workflow], ["Workers", "/app/workers", BriefcaseBusiness], ["Tasks", "/app/tasks", ListChecks], ["Missions", "/app/missions", Repeat2], ["Operations", "/app/operations", Activity], ["Delivery", "/app/delivery", CheckCircle2],
 ];
 const work: NavItem[] = [
@@ -25,7 +25,7 @@ const work: NavItem[] = [
   ["Workflow Composer", "/app/composer", Workflow],
   ["Reminders", "/app/reminders", TimerReset],
   ["Recurring jobs", "/app/jobs", Repeat2],
-  ["Skills", "/app/skills", Sparkles],
+  ["Skills", "/app/skills", BookOpen],
   ["Memory", "/app/memory", Brain],
   ["Scratchpad", "/app/scratchpad", PencilLine],
   ["Triggers", "/app/triggers", Webhook],

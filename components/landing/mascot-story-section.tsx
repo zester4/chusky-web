@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, MessageSquare, WandSparkles, Workflow } from "lucide-react";
+import { ArrowUpRight, MessageSquare, Search, Workflow } from "lucide-react";
 
 const moments = [
   { icon: MessageSquare, label: "Talk naturally" },
-  { icon: WandSparkles, label: "Find the right tool" },
+  { icon: Search, label: "Find the right tool" },
   { icon: Workflow, label: "Keep work moving" },
 ];
 

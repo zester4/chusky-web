@@ -329,7 +329,7 @@
 
   .app-depth-root .app-shell .chat-composer textarea.chat-composer-input,
   .app-depth-root .app-shell .chat-composer textarea.chat-composer-input:focus-visible {
-    min-height: 5.25rem;
+    min-height: 6rem;
     border: 0;
     border-radius: 0;
     box-shadow: none;

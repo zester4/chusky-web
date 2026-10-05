@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Activity, ArrowRight } from "lucide-react";
 import { Navigation } from "./navigation";
 import { FooterSection } from "./footer-section";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export function ProductPageHero({ eyebrow, title, description, artwork }: Produc
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(145deg,transparent_52%,rgba(8,18,39,0.48))]" />
                 <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#0c1530]/80 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur sm:left-5 sm:top-5">
-                  <Sparkles className="h-3.5 w-3.5 text-chusky-amber" aria-hidden="true" />
+                  <Activity className="h-3.5 w-3.5 text-chusky-amber" aria-hidden="true" />
                   Chusky at work
                 </div>
                 <span className="chusky-orbit absolute -right-3 bottom-8 h-12 w-12 rounded-full border-[7px] border-chusky-amber bg-[#10204a] shadow-[0_0_24px_rgba(246,164,0,0.65)]" aria-hidden="true" />

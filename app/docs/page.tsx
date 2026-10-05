@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, ArrowRight, BookOpen, Braces, Check, Code2, FileText, ShieldCheck, Sparkles, Webhook, Workflow } from "lucide-react";
+import { Activity, ArrowRight, BookOpen, Braces, Check, Code2, FileText, Rocket, ShieldCheck, Webhook, Workflow } from "lucide-react";
 import { ProductPageHero, ProductPageShell } from "@/components/landing/product-page";
 
 export const metadata: Metadata = {
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const guides = [
-  { icon: Sparkles, title: "Quickstart", description: "Install the SDK, authenticate an end user, create a thread, and stream your first response.", href: "#quickstart" },
+  { icon: Rocket, title: "Quickstart", description: "Install the SDK, authenticate an end user, create a thread, and stream your first response.", href: "#quickstart" },
   { icon: Code2, title: "Agent runs", description: "Understand threads, runs, streaming events, approvals, cancellation, and recovery.", href: "#runs" },
   { icon: FileText, title: "Files and knowledge", description: "Upload verified files and attach them to image, document, and audio-aware runs.", href: "#files" },
   { icon: Webhook, title: "Webhooks and tasks", description: "Receive durable notifications and build workflows that survive restarts and disconnected clients.", href: "#durable" },
