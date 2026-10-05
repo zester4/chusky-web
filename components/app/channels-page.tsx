@@ -7,8 +7,8 @@ import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 
-const channelNames: Record<string, string> = { telegram: "Telegram", slack: "Slack", whatsapp: "WhatsApp", sendblue: "Sendblue", x: "X Direct Messages", xchat: "Encrypted XChat" };
-const linkable = ["slack", "whatsapp", "sendblue", "x"] as const;
+const channelNames: Record<string, string> = { telegram: "Telegram", slack: "Slack", whatsapp: "WhatsApp", sendblue: "iMessage", sms: "SMS", x: "X Direct Messages", xchat: "Encrypted XChat" };
+const linkable = ["slack", "whatsapp", "sendblue", "sms", "x"] as const;
 
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 

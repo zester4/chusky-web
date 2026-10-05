@@ -515,7 +515,7 @@ export const chuskyApi = {
   },
   channels: {
     list: () => request<Page<ChannelConnection>>("/channels"),
-    createLinkCode: (provider: "slack" | "whatsapp" | "sendblue" | "x") => request<ChannelLinkCode>("/channels/link-code", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ provider }) }),
+    createLinkCode: (provider: "slack" | "whatsapp" | "sendblue" | "sms" | "x") => request<ChannelLinkCode>("/channels/link-code", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ provider }) }),
     update: (channel: ChannelConnection, proactiveOptIn: boolean) => request<{ id: string; provider: string; proactiveOptIn: boolean }>(`/channels/${encodeURIComponent(channel.provider)}/${encodeURIComponent(channel.id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ proactiveOptIn }) }),
     unlink: (channel: ChannelConnection) => request<void>(`/channels/${encodeURIComponent(channel.provider)}/${encodeURIComponent(channel.id)}`, { method: "DELETE" }),
   },
