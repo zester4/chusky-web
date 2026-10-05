@@ -67,7 +67,9 @@ const autonomyOptions: Array<[OnboardingAutonomy, string, string]> = [
 const roleOptions = [
   ["Founder / owner", "Founder / owner"], ["Product / engineering", "Product / engineering"], ["Design", "Design"],
   ["Marketing / growth", "Marketing / growth"], ["Sales / customer success", "Sales / customer success"], ["Operations", "Operations"],
-  ["Consulting / professional services", "Consulting / professional services"], ["Student / researcher", "Student / researcher"], ["Other", "Other"],
+  ["Consulting / professional services", "Consulting / professional services"], ["Student / researcher", "Student / researcher"],
+  ["Finance / accounting", "Finance / accounting"], ["People / human resources", "People / human resources"],
+  ["Legal / compliance", "Legal / compliance"], ["Executive / leadership", "Executive / leadership"], ["Other", "Other"],
 ] as const;
 
 const starterOutcomes = {
@@ -88,14 +90,33 @@ const starterOutcomes = {
 const industryOptions = [
   ["Technology / software", "Technology / software"], ["Finance", "Finance"], ["Healthcare", "Healthcare"], ["Education", "Education"],
   ["Ecommerce / retail", "Ecommerce / retail"], ["Marketing / agency", "Marketing / agency"], ["Professional services", "Professional services"],
-  ["Nonprofit / public sector", "Nonprofit / public sector"], ["Other", "Other"],
+  ["Nonprofit / public sector", "Nonprofit / public sector"], ["Construction / real estate", "Construction / real estate"],
+  ["Manufacturing / logistics", "Manufacturing / logistics"], ["Media / entertainment", "Media / entertainment"],
+  ["Travel / hospitality", "Travel / hospitality"], ["Agriculture / food", "Agriculture / food"],
+  ["Energy / utilities", "Energy / utilities"], ["Telecommunications", "Telecommunications"], ["Legal / compliance", "Legal / compliance"],
+  ["Sports / fitness", "Sports / fitness"], ["Other", "Other"],
 ] as const;
 
 const timezoneOptions = [
-  ["UTC", "UTC"], ["Europe/London", "Europe/London"], ["Europe/Paris", "Europe/Paris"], ["Europe/Berlin", "Europe/Berlin"],
-  ["Africa/Lagos", "Africa/Lagos"], ["Africa/Nairobi", "Africa/Nairobi"], ["Asia/Dubai", "Asia/Dubai"], ["Asia/Kolkata", "Asia/Kolkata"],
-  ["Asia/Singapore", "Asia/Singapore"], ["Asia/Tokyo", "Asia/Tokyo"], ["Australia/Sydney", "Australia/Sydney"], ["America/New_York", "America/New_York"],
-  ["America/Chicago", "America/Chicago"], ["America/Denver", "America/Denver"], ["America/Los_Angeles", "America/Los_Angeles"], ["Pacific/Auckland", "Pacific/Auckland"],
+  ["UTC", "UTC"],
+  ["Europe/London", "Europe/London"], ["Europe/Dublin", "Europe/Dublin"], ["Europe/Lisbon", "Europe/Lisbon"],
+  ["Europe/Paris", "Europe/Paris"], ["Europe/Berlin", "Europe/Berlin"], ["Europe/Madrid", "Europe/Madrid"], ["Europe/Rome", "Europe/Rome"],
+  ["Europe/Amsterdam", "Europe/Amsterdam"], ["Europe/Stockholm", "Europe/Stockholm"], ["Europe/Warsaw", "Europe/Warsaw"],
+  ["Europe/Athens", "Europe/Athens"], ["Europe/Helsinki", "Europe/Helsinki"], ["Europe/Bucharest", "Europe/Bucharest"],
+  ["Europe/Istanbul", "Europe/Istanbul"], ["Europe/Moscow", "Europe/Moscow"],
+  ["Africa/Accra", "Africa/Accra"], ["Africa/Lagos", "Africa/Lagos"], ["Africa/Cairo", "Africa/Cairo"],
+  ["Africa/Johannesburg", "Africa/Johannesburg"], ["Africa/Nairobi", "Africa/Nairobi"], ["Africa/Casablanca", "Africa/Casablanca"],
+  ["Asia/Dubai", "Asia/Dubai"], ["Asia/Riyadh", "Asia/Riyadh"], ["Asia/Jerusalem", "Asia/Jerusalem"], ["Asia/Karachi", "Asia/Karachi"],
+  ["Asia/Kolkata", "Asia/Kolkata"], ["Asia/Dhaka", "Asia/Dhaka"], ["Asia/Bangkok", "Asia/Bangkok"], ["Asia/Jakarta", "Asia/Jakarta"],
+  ["Asia/Singapore", "Asia/Singapore"], ["Asia/Hong_Kong", "Asia/Hong_Kong"], ["Asia/Shanghai", "Asia/Shanghai"], ["Asia/Taipei", "Asia/Taipei"],
+  ["Asia/Seoul", "Asia/Seoul"], ["Asia/Tokyo", "Asia/Tokyo"], ["Asia/Manila", "Asia/Manila"],
+  ["Australia/Perth", "Australia/Perth"], ["Australia/Adelaide", "Australia/Adelaide"], ["Australia/Brisbane", "Australia/Brisbane"],
+  ["Australia/Sydney", "Australia/Sydney"], ["Australia/Melbourne", "Australia/Melbourne"], ["Pacific/Auckland", "Pacific/Auckland"], ["Pacific/Fiji", "Pacific/Fiji"],
+  ["America/New_York", "America/New_York"], ["America/Toronto", "America/Toronto"], ["America/Chicago", "America/Chicago"],
+  ["America/Winnipeg", "America/Winnipeg"], ["America/Denver", "America/Denver"], ["America/Phoenix", "America/Phoenix"],
+  ["America/Los_Angeles", "America/Los_Angeles"], ["America/Vancouver", "America/Vancouver"], ["America/Mexico_City", "America/Mexico_City"],
+  ["America/Bogota", "America/Bogota"], ["America/Lima", "America/Lima"], ["America/Santiago", "America/Santiago"],
+  ["America/Sao_Paulo", "America/Sao_Paulo"], ["America/Argentina/Buenos_Aires", "America/Argentina/Buenos_Aires"],
   ["Other", "Other"],
 ] as const;
 
