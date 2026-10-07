@@ -29,6 +29,13 @@ const copy: Record<PageKind, { eyebrow: string; title: string; description: stri
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 function Empty({ children }: { children: ReactNode }) { return <p className="p-4 text-xs text-muted-foreground sm:p-5">{children}</p>; }
 function Offline({ retry }: { retry: () => void }) { return <Card className="flex flex-col items-start gap-3 p-4"><Status tone="amber">Backend unavailable</Status><p className="text-xs text-muted-foreground">This page needs the authenticated Chusky API to load your private data.</p><Button secondary onClick={retry}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Retry</Button></Card>; }
+function navigateToAuthorization(value: string): void {
+  let url: URL;
+  try { url = new URL(value.trim()); }
+  catch { throw new Error("The provider returned an invalid authorization address. Please retry."); }
+  if (url.protocol !== "https:") throw new Error("The provider returned an unsafe authorization address. Please retry.");
+  window.location.replace(url.toString());
+}
 
 export function AccountDataPage({ kind }: { kind: PageKind }) {
   const [data, setData] = useState<AccountOverview>();
@@ -137,7 +144,7 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
       // Navigate the current tab after the backend has created the provider
       // authorization session. Using a blank popup here is unreliable on
       // mobile browsers and can leave the user with no visible next step.
-      window.location.assign(result.url);
+      navigateToAuthorization(result.url);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create a connection link.");
     } finally {
@@ -148,7 +155,7 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
     setBusy(account.id); setError(undefined);
     try {
       const result = await chuskyApi.apps.reconnect(account.id);
-      window.location.assign(result.url);
+      navigateToAuthorization(result.url);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not prepare the reconnect link.");
     }
