@@ -77,7 +77,6 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
   const [items, setItems] = useState<Toolkit[]>([]);
   const [connections, setConnections] = useState<ConnectedAccount[]>([]);
   const [aliases, setAliases] = useState<Record<string, string>>({});
-  const [authorizationLinks, setAuthorizationLinks] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [confirmId, setConfirmId] = useState<string>();
@@ -130,24 +129,16 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
   }, [search]);
   useLiveData(() => load(page, cursorByPage[page - 1], search));
 
-  const openAuthorizationWindow = () => {
-    // Open synchronously from the user's click so mobile browsers do not
-    // classify the later async navigation as an unwanted popup.
-    const popup = window.open("about:blank", "_blank");
-    if (popup) popup.opener = null;
-    return popup;
-  };
-
   const connect = async (slug: string) => {
     setBusy(slug);
     setError(undefined);
-    const popup = openAuthorizationWindow();
     try {
       const result = await chuskyApi.apps.connect(slug, aliases[slug]?.trim() || undefined);
-      if (popup && !popup.closed) popup.location.href = result.url;
-      else setAuthorizationLinks((current) => ({ ...current, [slug]: result.url }));
+      // Navigate the current tab after the backend has created the provider
+      // authorization session. Using a blank popup here is unreliable on
+      // mobile browsers and can leave the user with no visible next step.
+      window.location.assign(result.url);
     } catch (cause) {
-      if (popup && !popup.closed) popup.close();
       setError(cause instanceof Error ? cause.message : "Could not create a connection link.");
     } finally {
       setBusy(undefined);
@@ -155,13 +146,10 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
   };
   const reconnect = async (account: ConnectedAccount) => {
     setBusy(account.id); setError(undefined);
-    const popup = openAuthorizationWindow();
     try {
       const result = await chuskyApi.apps.reconnect(account.id);
-      if (popup && !popup.closed) popup.location.href = result.url;
-      else setAuthorizationLinks((current) => ({ ...current, [account.id]: result.url }));
+      window.location.assign(result.url);
     } catch (cause) {
-      if (popup && !popup.closed) popup.close();
       setError(cause instanceof Error ? cause.message : "Could not prepare the reconnect link.");
     }
     finally { setBusy(undefined); }
@@ -235,15 +223,10 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
               <span className="min-w-0 flex-1 truncate text-[11px]">{account.alias || account.status}</span>
               {account.status.toUpperCase() !== "ACTIVE" && <Button secondary disabled={busy === account.id} onClick={() => void reconnect(account)}>{busy === account.id ? "Preparing…" : "Reconnect"}</Button>}
               <Button secondary disabled={busy === account.id} onClick={() => setConfirmId(account.id)}><Unplug size={12} /> Disconnect</Button>
-              {authorizationLinks[account.id] && <a href={authorizationLinks[account.id]} target="_blank" rel="noreferrer" onClick={() => window.setTimeout(() => void load(page, cursorByPage[page - 1], search), 5000)} className="basis-full pl-0 text-[10px] underline underline-offset-2">Open reconnect link</a>}
             </div>)}
             {canConnect && <div className="flex flex-wrap items-center gap-2">
               <input aria-label={item.name + " account label"} value={aliases[item.slug] ?? ""} onChange={(event) => setAliases((current) => ({ ...current, [item.slug]: event.target.value }))} maxLength={80} placeholder={accounts.length ? "Label another account (optional)" : "Account label (optional)"} className="min-h-8 min-w-0 flex-1 border border-foreground/15 bg-background px-2 text-[11px]" />
               <Button secondary disabled={busy === item.slug} onClick={() => void connect(item.slug)}>{busy === item.slug ? "Preparing…" : accounts.length ? "Add account" : "Connect"}</Button>
-            </div>}
-            {authorizationLinks[item.slug] && <div className="border-l border-emerald-600/30 pl-3 text-[11px]">
-              <p className="text-muted-foreground">Connection link ready. Open it to authorize this account:</p>
-              <a href={authorizationLinks[item.slug]} target="_blank" rel="noreferrer" onClick={() => window.setTimeout(() => void load(page, cursorByPage[page - 1], search), 5000)} className="mt-1 inline-flex items-center gap-1 break-all underline underline-offset-2">Continue {item.name} authorization <ExternalLink size={11} /></a>
             </div>}
           </article>;
         })}
