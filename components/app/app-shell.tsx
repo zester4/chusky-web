@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Bell, BookOpen, Brain, Building2, CalendarDays, CheckCircle2, Code2, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessagesSquare, PanelLeftClose, PanelLeftOpen, PencilLine, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, SquareTerminal, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
+import { Activity, Bell, Brain, Building2, CalendarDays, Code2, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessagesSquare, PanelLeftClose, PanelLeftOpen, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, SquareTerminal, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
 import { createContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -16,17 +16,14 @@ import type { ReactNode } from "react";
 type NavItem = [label: string, href: string, icon: LucideIcon];
 const primary: NavItem[] = [
   ["Overview", "/app", LayoutDashboard], ["Chat", "/app/chat", MessageCircle], ["Conversations", "/app/conversations", MessagesSquare],
-  ["Approvals", "/app/approvals", ShieldCheck], ["Calls", "/app/calls", Phone], ["Autonomy", "/app/autonomy", Brain], ["Meetings", "/app/meetings", CalendarDays], ["Connected apps", "/app/apps", Plug], ["Channels", "/app/channels", Webhook], ["Capabilities", "/app/capabilities", Workflow], ["Tasks", "/app/tasks", ListChecks], ["Missions", "/app/missions", Repeat2], ["Operations", "/app/operations", Activity], ["Delivery", "/app/delivery", CheckCircle2],
+  ["Approvals", "/app/approvals", ShieldCheck], ["Calls", "/app/calls", Phone], ["Autonomy", "/app/autonomy", Brain], ["Meetings", "/app/meetings", CalendarDays], ["Apps", "/app/apps", Plug], ["Channels", "/app/channels", Webhook], ["Capabilities", "/app/capabilities", Workflow], ["Tasks", "/app/tasks", ListChecks], ["Missions", "/app/missions", Repeat2], ["Operations", "/app/operations", Activity],
 ];
 const work: NavItem[] = [
   ["Organizations", "/app/organizations", Building2],
   // Temporarily hidden from the sidebar; the MCP page and route remain available.
   // ["MCP connections", "/app/mcp", "⌁"],
   ["Workflow Composer", "/app/composer", Workflow],
-  ["Skills", "/app/skills", BookOpen],
-  ["Memory", "/app/memory", Brain],
-  ["Scratchpad", "/app/scratchpad", PencilLine],
-  ["Triggers", "/app/triggers", Webhook],
+  ["Context", "/app/memory", Brain],
   ["Workspace", "/app/workspace", FolderKanban],
 ];
 
