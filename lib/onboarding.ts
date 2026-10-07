@@ -7,6 +7,7 @@ export const ONBOARDING_ACTIVATION_STORAGE_PREFIX = "chusky_onboarding_activatio
 export type OnboardingAccountType = "personal" | "business";
 export type OnboardingTone = "concise" | "detailed" | "professional" | "warm";
 export type OnboardingAutonomy = "ask" | "suggest" | "bounded";
+export type OnboardingContextScope = "private" | "organization";
 
 export type OnboardingProfile = {
   version: number;
@@ -28,6 +29,7 @@ export type OnboardingProfile = {
   tone: OnboardingTone;
   autonomy: OnboardingAutonomy;
   workstreams: string[];
+  contextScope: OnboardingContextScope;
   completedAt?: string;
 };
 
@@ -48,6 +50,7 @@ export const defaultOnboardingProfile = (name = ""): OnboardingProfile => ({
   tone: "professional",
   autonomy: "ask",
   workstreams: ["research", "planning", "documents"],
+  contextScope: "private",
 });
 
 const tones = new Set<OnboardingTone>(["concise", "detailed", "professional", "warm"]);
@@ -166,6 +169,7 @@ export function parseOnboardingProfile(value: string): OnboardingProfile | undef
       tone: typeof parsed.tone === "string" && tones.has(parsed.tone as OnboardingTone) ? parsed.tone as OnboardingTone : fallback.tone,
       autonomy: typeof parsed.autonomy === "string" && autonomyModes.has(parsed.autonomy as OnboardingAutonomy) ? parsed.autonomy as OnboardingAutonomy : fallback.autonomy,
       workstreams: Array.isArray(parsed.workstreams) ? parsed.workstreams.filter((item): item is string => typeof item === "string" && workstreams.has(item)).slice(0, 8) : fallback.workstreams,
+      contextScope: parsed.contextScope === "organization" ? "organization" : "private",
       ...(typeof parsed.completedAt === "string" ? { completedAt: cleanText(parsed.completedAt, 40) } : {}),
     };
   } catch {
@@ -194,6 +198,7 @@ export function serializeOnboardingProfile(profile: OnboardingProfile): string {
     tone: tones.has(profile.tone) ? profile.tone : "professional",
     autonomy: autonomyModes.has(profile.autonomy) ? profile.autonomy : "ask",
     workstreams: profile.workstreams.filter((workstream) => workstreams.has(workstream)).slice(0, 8),
+    contextScope: profile.contextScope === "organization" ? "organization" : "private",
     ...(profile.completedAt ? { completedAt: cleanText(profile.completedAt, 40) } : {}),
   });
 }

@@ -114,6 +114,15 @@ export type Artifact = { id: string; name: string; type: "website" | "report" | 
 export type VideoJob = { id: string; prompt: string; destination: "telegram" | "daytona" | "both"; workspacePath?: string; workflowRunId?: string; status: "queued" | "running" | "completed" | "failed" | "cancelled"; pollCount: number; error?: string; resultPath?: string; createdAt: string; updatedAt: string; completedAt?: string };
 export type Worker = { id: string; worker: string; from: string; objective: string; expectedOutput: string; status: string; taskId?: string; workflowRunId?: string; timestamp: string; delegation?: Record<string, unknown>; context?: Record<string, unknown> };
 export type ChannelConnection = { id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean };
+export type AttentionPulsePreferences = {
+  enabled: boolean;
+  cadence: "every_30_minutes" | "hourly" | "daily";
+  authority: "observe" | "prepare" | "execute_reversible";
+  deliveryTargets: Array<{ id: string; provider: string; conversationId?: string; enabled: boolean; mode: "immediate" | "digest" | "silent"; maxPerDay?: number; quietHoursUtc?: { startMinute: number; endMinute: number } }>;
+  maxPerDay: number;
+  quietHoursUtc?: { startMinute: number; endMinute: number };
+  monitoredDomains: string[];
+};
 export type ChannelLinkCode = { provider: string; code: string; expiresInSeconds: number; instructions: string; installUrl?: string };
 export type MeetingRepresentativeRole = "sales" | "client_onboarding" | "employee_onboarding" | "customer_success" | "custom";
 export type MeetingRepresentativeProfile = { enabled: boolean; representativeName: string; organizationName: string; role: MeetingRepresentativeRole; objective: string; communicationStyle: string; approvedKnowledge: string; authorityBoundaries: string; allowedComposioTools: string[]; composioAccountAliases: Record<string, string>; allowedNativeTools: string[]; allowMeetingScheduling: boolean; autoJoinCalendar: boolean; updatedAt: number; autoJoinReconciliation?: { cancelled: number; stillInCall: number; failures: number } };
@@ -143,7 +152,7 @@ export type AutonomyContextSnapshot = { capturedAt: number; objective: string; s
 export type Reminder = { id: string; text: string; runAt: string; status: "scheduled" | "waiting" | "paused" | "sent" | "cancelled" | "failed"; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; pollEverySeconds?: number; deliveryError?: string };
 export type Job = { id: string; text: string; cron: string; status: "active" | "paused" | "cancelled"; scheduleId?: string; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; deliveryError?: string };
 export type JobOccurrence = { id: string; jobId: string; occurrenceId: string; status: string; mode: AutonomyMode; result?: string; nextAction?: string; waitReason?: string; error?: string; cost?: number; toolCalls?: number; startedAt?: string; completedAt?: string; createdAt: string; updatedAt: string; version: number };
-export type MemoryFact = { id: string; category: string; key: string; value: string; confidence: number; source?: string; sensitivity: "normal" | "sensitive"; createdAt: string; updatedAt: string; expiresAt?: string; reviewAt?: string };
+export type MemoryFact = { id: string; category: string; key: string; value: string; confidence: number; source?: string; sensitivity: "normal" | "sensitive"; projectId?: string; organizationId?: string; createdAt: string; updatedAt: string; expiresAt?: string; reviewAt?: string };
 export type ScratchpadNote = { key: string; content: string; updatedAt: string };
 
 // Browser requests stay on the frontend origin and are proxied by Next.js to
@@ -521,6 +530,10 @@ export const chuskyApi = {
     update: (channel: ChannelConnection, proactiveOptIn: boolean) => request<{ id: string; provider: string; proactiveOptIn: boolean }>(`/channels/${encodeURIComponent(channel.provider)}/${encodeURIComponent(channel.id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ proactiveOptIn }) }),
     unlink: (channel: ChannelConnection) => request<void>(`/channels/${encodeURIComponent(channel.provider)}/${encodeURIComponent(channel.id)}`, { method: "DELETE" }),
   },
+  attentionPulse: {
+    get: () => request<AttentionPulsePreferences>("/account/attention-pulse"),
+    update: (input: { enabled: boolean; cadence?: AttentionPulsePreferences["cadence"]; authority?: AttentionPulsePreferences["authority"]; deliveryTargets?: Array<{ provider: string; conversationId?: string }>; maxPerDay?: number; quietHoursUtc?: { startMinute: number; endMinute: number } | null; monitoredDomains?: string[] }) => request<{ data: AttentionPulsePreferences }>("/account/attention-pulse", { method: "PUT", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+  },
   devices: {
     list: () => request<Page<AccountOverview["devices"][number]>>("/devices"),
     revoke: (id: string) => request<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" }),
@@ -596,8 +609,9 @@ export const chuskyApi = {
   },
   memory: {
     list: (query = "") => request<{ data: MemoryFact[] }>(`/memory${query ? `?query=${encodeURIComponent(query)}` : ""}`),
-    getByKey: (key: string) => request<{ data: MemoryFact[] }>(`/memory?key=${encodeURIComponent(key)}`),
-    save: (input: { category: string; key: string; value: string; confidence?: number; sensitivity: "normal" | "sensitive"; projectId?: string; personKey?: string; reviewAt?: number; expiresAt?: number }) => request<MemoryFact>("/memory", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    getByKey: (key: string, organizationId?: string) => request<{ data: MemoryFact[] }>(`/memory?key=${encodeURIComponent(key)}${organizationId ? `&organizationId=${encodeURIComponent(organizationId)}` : ""}`),
+    enableOrganization: (organizationId: string) => request<{ scopeId: string; organizationId: string; role: string }>(`/memory/scopes/${encodeURIComponent(organizationId)}/enable`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    save: (input: { category: string; key: string; value: string; confidence?: number; sensitivity: "normal" | "sensitive"; projectId?: string; organizationId?: string; personKey?: string; reviewAt?: number; expiresAt?: number }) => request<MemoryFact>("/memory", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     remove: (id: string) => request<void>(`/memory/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   onboarding: {

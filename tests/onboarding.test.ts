@@ -50,6 +50,14 @@ test("onboarding preserves reviewed public-site context and excludes unknown fie
   assert.equal(parsed?.websiteSummary, profile.websiteSummary);
 });
 
+test("onboarding preserves the explicit organization sharing scope", () => {
+  const serialized = serializeOnboardingProfile({ ...defaultOnboardingProfile(), accountType: "business", contextScope: "organization" });
+  const parsed = parseOnboardingProfile(serialized);
+
+  assert.equal(parsed?.contextScope, "organization");
+  assert.equal(parseOnboardingProfile(JSON.stringify({ accountType: "business" }))?.contextScope, "private");
+});
+
 test("onboarding errors are safe and actionable", () => {
   assert.equal(safeOnboardingError(new Error("fetch failed: private provider payload"), "fallback"), "Chusky could not reach your account. Check your connection and try again.");
   assert.equal(safeOnboardingError(new Error("validation failed for secret_token"), "fallback"), "fallback");

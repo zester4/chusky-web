@@ -1,9 +1,11 @@
 "use client";
 
 import { Activity, Building2, Check, CircleDollarSign, Copy, FolderKanban, KeyRound, LoaderCircle, Pencil, Plus, RefreshCw, ScrollText, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type CompanyAgent, type CompanyAgentTemplate, type CompanyAuditEvent, type CompanyBranding, type CompanyPolicy, type CompanyRun, type CompanyUsage, type CreatedDeveloperProject, type DeveloperProject } from "@/lib/chusky-api";
+import { ONBOARDING_MEMORY_KEY, parseOnboardingProfile, type OnboardingProfile } from "@/lib/onboarding";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -26,6 +28,7 @@ export function OrganizationsPage() {
   const [companyAudit, setCompanyAudit] = useState<CompanyAuditEvent[]>();
   const [companyUsage, setCompanyUsage] = useState<CompanyUsage>();
   const [branding, setBranding] = useState<CompanyBranding>();
+  const [companyProfile, setCompanyProfile] = useState<OnboardingProfile>();
   const [brandingDraft, setBrandingDraft] = useState<Pick<CompanyBranding, "displayName" | "logoUrl" | "accentColor" | "backgroundColor" | "customDomain">>();
   const [telemetryLoading, setTelemetryLoading] = useState(false);
   const [telemetryRefresh, setTelemetryRefresh] = useState(0);
@@ -106,6 +109,17 @@ export function OrganizationsPage() {
     }).catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Could not load workspace branding."); });
     return () => { current = false; };
   }, [organizationId, organization?.name]);
+  useEffect(() => {
+    let current = true;
+    if (!organizationId) { setCompanyProfile(undefined); return () => { current = false; }; }
+    void chuskyApi.memory.getByKey(ONBOARDING_MEMORY_KEY, organizationId).then((result) => {
+      if (!current) return;
+      const saved = result.data.find((item) => item.key === ONBOARDING_MEMORY_KEY);
+      const parsed = saved ? parseOnboardingProfile(saved.value) : undefined;
+      setCompanyProfile(parsed?.contextScope === "organization" ? parsed : undefined);
+    }).catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Could not load shared agent context."); });
+    return () => { current = false; };
+  }, [organizationId]);
   useEffect(() => { void loadAgents(selectedProjectId); }, [selectedProjectId]);
   useEffect(() => { void loadPolicy(selectedProjectId); }, [selectedProjectId]);
   useEffect(() => {
@@ -294,6 +308,7 @@ export function OrganizationsPage() {
             {organization && <div className="mt-4 grid grid-cols-3 gap-2" aria-label="Workspace summary"><div className="border border-foreground/10 p-2.5"><Users size={13} className="text-muted-foreground" /><p className="mt-2 text-base tabular-nums">{members.length}</p><p className="text-[9px] text-muted-foreground">Members</p></div><div className="border border-foreground/10 p-2.5"><FolderKanban size={13} className="text-muted-foreground" /><p className="mt-2 text-base tabular-nums">{projects?.length ?? "—"}</p><p className="text-[9px] text-muted-foreground">Projects</p></div><div className="border border-foreground/10 p-2.5"><KeyRound size={13} className="text-muted-foreground" /><p className="mt-2 text-base tabular-nums">{pendingInvitations.length}</p><p className="text-[9px] text-muted-foreground">Pending invites</p></div></div>}
           </div></div>
         </Card>}
+        {organizationId && activePanel === "overview" && <Card className="p-4 sm:p-5"><div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center border border-foreground/10"><Users size={17} /></span><div className="min-w-0 flex-1"><h2 className="text-sm font-medium">Shared agent context</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">The reviewed business profile used by this workspace’s authorized agents.</p>{companyProfile ? <><p className="mt-3 text-xs font-medium">{companyProfile.companyName || "Business profile"}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{companyProfile.businessGoal || companyProfile.firstOutcome || "Profile saved to this workspace."}</p><p className="mt-2 text-[10px] text-muted-foreground">Updated {companyProfile.completedAt ? new Date(companyProfile.completedAt).toLocaleDateString() : "recently"} · {companyProfile.goals.length} focus areas</p></> : <p className="mt-3 text-[11px] leading-5 text-muted-foreground">No shared onboarding profile has been saved yet.</p>}<Link href="/app/onboarding?returnTo=/app/organizations" className="mt-3 inline-flex text-[10px] font-medium underline underline-offset-4">{companyProfile ? "Edit shared context" : "Set up shared context"}</Link></div></div></Card>}
 
         {organizationId && activePanel === "members" && <Card>
           <div className="border-b border-foreground/10 p-4 sm:p-5"><h2 className="text-sm font-medium">Team members</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Invite teammates as members. Only workspace owners and admins can create project keys or change agent rules.</p>
