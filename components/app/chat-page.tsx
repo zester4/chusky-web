@@ -28,7 +28,7 @@ import {
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type Model, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type Artifact, type Model, type PrivateRunLink, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
@@ -76,6 +76,7 @@ type Message = {
   attachments?: Array<{ id: string; name: string; contentType: string; size: number; downloadUrl?: string; previewUrl?: string }>;
   artifacts?: ChatArtifact[];
   images?: Array<RunImage & { downloadUrl?: string }>;
+  privateLinks?: PrivateRunLink[];
   approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean };
   failure?: { code?: string; message?: string };
 };
@@ -998,7 +999,7 @@ export function ChatPage() {
           const userHistoryContent = `${typed.run.input || "Attached file(s)"}${typed.run.attachments?.length ? `\n[Attachments: ${typed.run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
           setMessages((current) => current.map((item, index) => {
             if (index === current.length - 2 && item.role === "user") return { ...item, historyCommitted: true, historyContent: userHistoryContent };
-            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
+            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, privateLinks: (typed.run as Run & { privateLinks?: PrivateRunLink[] }).privateLinks, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
             return item;
           }));
         } else if (typed.type === "run.approval_required") {
@@ -1105,6 +1106,7 @@ export function ChatPage() {
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
+                    {item.role === "assistant" && item.privateLinks?.length ? <div className="mt-3 space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3"><p className="text-xs font-medium">Action needed in the private browser</p>{item.privateLinks.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-foreground px-3 py-2 text-[11px] text-background">{link.label}</a>)}<p className="text-[10px] leading-4 text-muted-foreground">Complete the website step, then return here and say “continue”. This link expires soon.</p></div> : null}
                     {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} title={file.name} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background">{file.previewUrl || file.downloadUrl ? <img src={file.previewUrl || file.downloadUrl} alt={`Attached image: ${file.name}`} className="size-8 rounded object-cover" /> : <FileText size={12} />} <span className="max-w-48 truncate">{file.name}</span></span>)}</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>

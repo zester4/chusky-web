@@ -9,6 +9,7 @@ export type RunBudget = { duration?: DurationBudget; maxToolCalls?: number; maxC
 export type RunToolPolicy = { allow?: string[]; deny?: string[]; requireApproval?: string[] };
 export type RunArtifact = { id: string; name: string; type: Artifact["type"]; contentType: string; size: number };
 export type RunImage = { id: string; name: string; contentType: "image/jpeg" | "image/png" | "image/webp"; size: number };
+export type PrivateRunLink = { url: string; expiresAt?: number; label: string };
 export type ImageDownload = RunImage & { downloadUrl: string; expiresAt: string };
 export type AccountHistoryMessage = { role: "user" | "assistant"; content: string; createdAt?: number };
 export type RunBatchAction = { id: string; toolSlug: string; actionLabel?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; status: "started" | "completed" | "failed" | "unknown" | "approval_required" | "cancelled"; summary?: string };
