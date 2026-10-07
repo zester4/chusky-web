@@ -447,6 +447,7 @@ export const chuskyApi = {
     list: (options: { search?: string; cursor?: string; limit?: number } = {}) => { const params = new URLSearchParams(); if (options.search) params.set("search", options.search); if (options.cursor) params.set("cursor", options.cursor); params.set("limit", String(options.limit ?? 30)); return request<{ data: Toolkit[]; nextCursor?: string; currentPage: number; totalPages: number; total: number; pageSize: number }>(`/apps?${params.toString()}`); },
     connections: () => request<Page<ConnectedAccount>>("/apps/connections"),
     disconnect: (connectionId: string) => request<void>(`/apps/connections/${encodeURIComponent(connectionId)}`, { method: "DELETE" }),
+    reconnect: (connectionId: string) => request<{ connectionId: string; url: string }>(`/apps/connections/${encodeURIComponent(connectionId)}/reconnect`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     connect: (toolkit: string, alias?: string) => request<{ toolkit: string; alias?: string; url: string }>(`/apps/${encodeURIComponent(toolkit)}/connect`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(alias ? { alias } : {}) }),
   },
   meetings: {
