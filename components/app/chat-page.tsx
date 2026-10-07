@@ -148,11 +148,11 @@ function RunFailureCard({ failure, onRetry }: { failure: Message["failure"]; onR
     <p className="font-medium">Reply couldn’t be completed</p>
     <p className="mt-1 text-muted-foreground">{copy.message}</p>
     <div className="mt-2.5 flex flex-wrap items-center gap-2">
-      <button type="button" onClick={onRetry} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+      <button type="button" onClick={onRetry} className="inline-flex min-h-8 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[10px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
         <RotateCcw size={12} aria-hidden="true" /> Try again
       </button>
       <details className="text-[10px] text-muted-foreground">
-        <summary className="min-h-11 cursor-pointer list-none py-2 underline decoration-foreground/20 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&::-webkit-details-marker]:hidden">Technical details</summary>
+        <summary className="min-h-8 cursor-pointer list-none py-1 underline decoration-foreground/20 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 [&::-webkit-details-marker]:hidden">Technical details</summary>
         <p className="mt-1 max-w-sm leading-4">{copy.detail}{failure?.code ? ` Reference: ${failure.code}.` : ""}</p>
       </details>
     </div>
