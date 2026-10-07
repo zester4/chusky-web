@@ -10,6 +10,20 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    date: "2026-10-07",
+    dateLabel: "October 7, 2026",
+    area: "Attention Pulse · Elena · TypeScript SDK 1.10.0",
+    title: "Elena can turn connected-app signals into next actions",
+    summary: "Attention Pulse now gives Chusky a durable proactive loop that checks owner-scoped signals, prepares useful work, and reports exactly what needs the owner’s attention.",
+    details: [
+      "Elena’s hourly pulse can inspect bounded signals from connected apps, calendars, billing, work, artifacts, tasks, approvals, and failed automations instead of waking up without an actionable operating context.",
+      "Pulse observations are deduplicated, account-scoped, and delivered through the owner’s explicitly selected channels. Every update distinguishes a verified observation, a prepared draft or plan, an approval request, and work that is blocked or awaiting a connection.",
+      "Owners can configure the pulse during onboarding or later through the dashboard and API: enablement, cadence, authority, quiet hours, daily delivery limits, monitored domains, and Telegram, dashboard, or linked-channel delivery preferences.",
+      "Elena can prepare replies, follow-ups, summaries, reminders, and other reversible next steps for review. Financial, destructive, permission-changing, and otherwise high-impact actions remain behind the existing approval boundary.",
+      "TypeScript SDK 1.10.0 adds typed Attention Pulse settings and the authenticated GET/PUT API contract, with idempotent updates, validation, OpenAPI documentation, and regression coverage.",
+    ],
+  },
+  {
     date: "2026-10-03",
     dateLabel: "October 3, 2026",
     area: "Meetings · Dashboard and TypeScript SDK 1.9.1",
