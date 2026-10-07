@@ -30,6 +30,7 @@ const footerLinks: Record<string, Array<{ name: string; href: string; badge?: st
     { name: "Privacy", href: "/privacy" },
     { name: "Terms", href: "/terms" },
     { name: "Security", href: "/security" },
+    { name: "Accessibility", href: "/accessibility" },
   ],
 };
 

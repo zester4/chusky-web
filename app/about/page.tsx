@@ -106,6 +106,23 @@ export default function AboutPage() {
         </div>
       </section>
 
+      <section className="border-b border-foreground/10 bg-foreground/[0.02] py-14 sm:py-20 lg:py-28">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
+          <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
+            <div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">What we mean by agent</p><h2 className="mt-4 font-display text-3xl leading-tight tracking-tight sm:text-5xl">Not a chatbot with a longer answer.</h2></div>
+            <div className="grid gap-8 sm:grid-cols-2"><div><h3 className="font-display text-2xl">It can do work</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Chusky can use connected applications, research tools, files, and native operations to move toward an outcome. The point is not to make the conversation sound autonomous; it is to make the next step useful and inspectable.</p></div><div><h3 className="font-display text-2xl">It can stop honestly</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">A missing connection, failed provider, required approval, or uncertain result is part of the product state. Chusky should preserve the work and explain the next safe action instead of filling the gap with a confident claim.</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-foreground/10 py-14 sm:py-20 lg:py-28">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12"><div className="max-w-3xl"><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">The system behind the conversation</p><h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Context, capability, and control have to travel together.</h2><p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">A request is only useful when the agent knows whose work it belongs to, what it is allowed to see, which action is actually available, and how the result can be checked. That is why Chusky treats identity, memory, tools, approvals, files, and durable state as one connected design problem.</p></div><div className="mt-10 grid gap-px bg-foreground/10 md:grid-cols-4">{[{title:"Owned context",text:"Private conversations, memories, files, connected accounts, and approvals stay scoped to the right identity."},{title:"Live capability",text:"The agent discovers current tool schemas and provider availability instead of assuming every integration is enabled."},{title:"Visible control",text:"Important actions can pause for an exact approval with a clear target, scope, and expiry."},{title:"Recoverable progress",text:"Runs, tasks, missions, artifacts, and delivery records give longer work an address after the first response."}].map((item,index)=><article key={item.title} className="bg-background p-5 sm:p-6"><span className="font-mono text-[10px] text-muted-foreground">0{index+1}</span><h3 className="mt-8 font-display text-2xl">{item.title}</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.text}</p></article>)}</div></div>
+      </section>
+
+      <section className="border-b border-foreground/10 bg-foreground py-14 text-background sm:py-20 lg:py-28">
+        <div className="mx-auto grid max-w-[1400px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-12"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-background/55">A clear promise</p><h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Useful does not mean unaccountable.</h2></div><div className="grid gap-6 sm:grid-cols-2"><p className="text-sm leading-relaxed text-background/70 sm:text-base">Chusky is designed for people who want leverage without losing the ability to understand what happened. It should show the action, preserve the state, and make recovery possible when the outside world is unreliable.</p><p className="text-sm leading-relaxed text-background/70 sm:text-base">That also means being precise about the limits: availability depends on configuration, providers can fail, and no model response substitutes for evidence from the system that was changed.</p></div></div>
+      </section>
+
       <section className="py-14 sm:py-20 lg:py-28">
         <div className="mx-auto flex max-w-[1400px] flex-col justify-between gap-7 px-4 sm:gap-10 sm:px-6 lg:flex-row lg:items-end lg:px-12">
           <div className="max-w-3xl">

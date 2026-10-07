@@ -25,6 +25,21 @@ export default function IntegrationsPage() {
       <ContentSection eyebrow="Bring your stack" title="Start with one workflow, then expand naturally." description="You do not need to reorganize your tools around Chusky. Start with a task that crosses two or three apps, prove the handoff, and add more capability as the agent earns its place in the workflow.">
         <Link href="/sign-up" className="inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4">Connect your first workspace <ArrowRight className="h-4 w-4" /></Link>
       </ContentSection>
+      <ContentSection eyebrow="Beyond connected apps" title="One integration layer, several ways to work." description="Connected business apps are only one part of the system. Chusky can combine them with its native tools, research capabilities, files, MCP servers, and the channels where people already communicate.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ContentCard eyebrow="Native tools" title="Built-in operations">Tool discovery, memory, files, artifacts, tasks, approvals, and run inspection are exposed through Chusky’s own controlled tool surface.</ContentCard>
+          <ContentCard eyebrow="Research" title="Current information">Web and provider research can inform a task, while the agent keeps research evidence distinct from a confirmed external action.</ContentCard>
+          <ContentCard eyebrow="MCP" title="Bring another host">MCP lets a compatible client discover Chusky capabilities through a remote endpoint with a project scope and stable caller identity.</ContentCard>
+          <ContentCard eyebrow="Channels" title="Meet people where they are">Web, Telegram, Slack, WhatsApp, iMessage, and CLI entry points can share the right private context without collapsing every conversation into one audience.</ContentCard>
+        </div>
+      </ContentSection>
+      <ContentSection eyebrow="When something changes" title="Connections are inspectable and recoverable." description="Tokens expire, providers change schemas, and accounts are sometimes disconnected. A good integration experience should explain what is missing, preserve the original work, and let you reconnect the same account instead of silently creating a duplicate.">
+        <div className="grid gap-3 md:grid-cols-3">
+          <ContentCard title="Before execution">Chusky checks that the app, account, action, and required arguments are available before claiming it can proceed.</ContentCard>
+          <ContentCard title="During execution">Provider errors, approvals, missing connections, and uncertain transport states remain visible as distinct run states.</ContentCard>
+          <ContentCard title="After recovery">Resume the existing run or mission after reconnecting. Use the provider receipt and a fresh readback to verify a write.</ContentCard>
+        </div>
+      </ContentSection>
     </ContentPage>
   );
 }

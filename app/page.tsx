@@ -6,6 +6,7 @@ import { WorkExamplesSection } from "@/components/landing/work-examples-section"
 import { ChannelsSection, MeetingsAndCallsSection } from "@/components/landing/channels-and-business-section";
 import { FooterSection } from "@/components/landing/footer-section";
 import { LandingMotion } from "@/components/landing/landing-motion";
+import { AiExplainedSection } from "@/components/landing/ai-explained-section";
 
 export default function Home() {
   return (
@@ -14,6 +15,7 @@ export default function Home() {
       <Navigation />
       <HeroSection />
       <AgentLoopSection />
+      <AiExplainedSection />
       <BrowserSection />
       <WorkExamplesSection />
       <ChannelsSection />

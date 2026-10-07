@@ -86,6 +86,10 @@ export function HowItWorksDetails() {
         </div>
       </section>
 
+      <section className="border-b border-foreground/10 bg-foreground/[0.02] py-16 sm:py-20 lg:py-28">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12"><div className="max-w-3xl"><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">A request becomes a run</p><h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">The model chooses a capability; the runtime decides whether it can run.</h2><p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">Tool selection is not a permission grant. Chusky checks the live capability surface, account scope, input schema, approval policy, and provider state at the execution boundary. This is why the same sentence can take a different path in a private workspace, a shared channel, or a host with fewer connections.</p></div><div className="mt-10 grid gap-3 md:grid-cols-3"><article className="border border-foreground/10 bg-background p-5"><h3 className="font-display text-2xl">Available</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">The capability is connected, the caller is in scope, and the arguments pass validation.</p></article><article className="border border-foreground/10 bg-background p-5"><h3 className="font-display text-2xl">Waiting</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">The run needs an approval, connection, owner answer, or scheduled wake-up before it can continue.</p></article><article className="border border-foreground/10 bg-background p-5"><h3 className="font-display text-2xl">Unconfirmed</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">The provider response is incomplete or transport is uncertain, so Chusky preserves the state instead of claiming a side effect.</p></article></div></div>
+      </section>
+
     </>
   );
 }

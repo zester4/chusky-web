@@ -70,8 +70,8 @@ export default function McpLandingPage() {
             <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">For custom backends and hosts that support headers, use the configuration below. The environment variables are placeholders: keep their real values in the host’s server-side secret store.</p>
             <Link href="/app/developer-api" className="mt-6 inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4">Create an API key in Chusky <ArrowRight className="h-4 w-4" /></Link>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-foreground/15 bg-[#111] text-sm text-[#f7f7f4] shadow-[0_20px_60px_-30px_rgba(8,18,39,0.7)]">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 font-mono text-[10px] text-white/55"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="h-2 w-2 rounded-full bg-amber-400" /><span className="h-2 w-2 rounded-full bg-emerald-400" /><span className="ml-2">mcp.json</span></div><span>server-side config</span></div>
+          <div className="overflow-hidden rounded-2xl border border-foreground/15 bg-[#f6f2ea] text-sm text-foreground shadow-[0_20px_60px_-30px_rgba(8,18,39,0.24)]">
+            <div className="flex items-center justify-between border-b border-foreground/10 px-4 py-3 font-mono text-[10px] text-muted-foreground"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="h-2 w-2 rounded-full bg-amber-400" /><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="ml-2">mcp.json</span></div><span>server-side config</span></div>
             <pre className="overflow-x-auto p-4 text-[11px] leading-6 sm:p-5 sm:text-xs"><code>{config}</code></pre>
           </div>
         </div>
@@ -82,6 +82,13 @@ export default function McpLandingPage() {
           <div className="grid gap-px overflow-hidden rounded-2xl border border-foreground/10 bg-foreground/10 md:grid-cols-3">
             {guarantees.map(([Icon, title, description]) => <div key={title} className="bg-background p-5 sm:p-7"><Icon className="h-5 w-5 text-chusky-amber" strokeWidth={1.6} /><h3 className="mt-8 font-display text-2xl tracking-tight">{title}</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p></div>)}
           </div>
+        </div>
+      </section>
+
+      <section className="border-b border-foreground/10 bg-foreground/[0.02] py-14 sm:py-20 lg:py-28">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
+          <div className="max-w-3xl"><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">What the server exposes</p><h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">MCP is a doorway into the Chusky runtime, not a second workflow engine.</h2><p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">The adapter is stateless. Chusky remains responsible for identity, policy, budgets, idempotency, durable runs, missions, connected-app authentication, approvals, and provider evidence. Keep the returned identifiers so a host can inspect or resume the same work after a disconnected conversation.</p></div>
+          <div className="mt-10 grid gap-3 md:grid-cols-3"><div className="border border-foreground/10 bg-background p-5"><h3 className="font-display text-2xl">Discover live tools</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Use MCP discovery and Chusky’s live tool schemas as the source of truth. Tool names and inputs can evolve; clients should not rely on a copied static catalogue.</p></div><div className="border border-foreground/10 bg-background p-5"><h3 className="font-display text-2xl">Run bounded work</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">A bounded run can research, call connected apps, create an artifact, request approval, or pause for a missing dependency. Missions are for longer work with checkpoints.</p></div><div className="border border-foreground/10 bg-background p-5"><h3 className="font-display text-2xl">Verify the outcome</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">A successful response is not automatically proof of an email, CRM update, or publication. Inspect receipts and read the provider state again when the result matters.</p></div></div>
         </div>
       </section>
 
