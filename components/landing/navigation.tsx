@@ -137,7 +137,7 @@ export function Navigation() {
           </div>
           
           {/* Bottom CTAs */}
-          <div className={`flex gap-4 pt-8 border-t border-foreground/10 transition-all duration-500 ${
+          <div className={`flex gap-2.5 pt-8 border-t border-foreground/10 transition-all duration-500 ${
             isMobileMenuOpen 
               ? "opacity-100 translate-y-0" 
               : "opacity-0 translate-y-4"
@@ -147,13 +147,13 @@ export function Navigation() {
             <ThemeSwitcher className="absolute bottom-[7.25rem] left-5 sm:left-8" />
             <Button 
               variant="outline" 
-              className="h-12 flex-1 rounded-full text-sm"
+              className="h-10 flex-1 rounded-full text-sm"
               asChild
             >
               <Link href="/sign-in" onClick={() => setIsMobileMenuOpen(false)}>Sign in</Link>
             </Button>
             <Button asChild
-              className="h-12 flex-1 rounded-full bg-foreground text-sm text-background"
+              className="h-10 flex-1 rounded-full bg-foreground text-sm text-background"
             >
               <Link href="/sign-up" onClick={() => setIsMobileMenuOpen(false)}>Sign up</Link>
             </Button>

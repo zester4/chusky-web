@@ -36,13 +36,13 @@ export function ProductPageHero({ eyebrow, title, description, artwork }: Produc
             <p className="mb-6 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mb-7 sm:text-lg lg:mb-8 lg:text-xl">
               {description}
             </p>
-            <div className="flex flex-col gap-2.5 sm:flex-row">
-              <Button asChild className="h-10 rounded-full bg-primary px-4 text-xs text-primary-foreground hover:bg-primary/90">
+            <div className="flex flex-row flex-wrap items-center gap-2">
+              <Button asChild className="h-9 rounded-full px-3.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
                 <Link href="/sign-up">
                   Sign up <ArrowRight className="w-4 h-4" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-10 rounded-full px-4 text-xs">
+              <Button asChild variant="outline" className="h-9 rounded-full px-3.5 text-xs">
                 <Link href="/sign-in">Sign in</Link>
               </Button>
             </div>

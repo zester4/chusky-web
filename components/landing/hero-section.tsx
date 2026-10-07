@@ -83,14 +83,14 @@ export function HeroSection() {
           
           {/* CTAs */}
           <div 
-            className={`flex flex-row items-center gap-2 transition-all duration-700 delay-300 ${
+            className={`flex flex-row flex-wrap items-center gap-2 transition-all duration-700 delay-300 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            <Button asChild size="lg" className="h-10 shrink-0 rounded-full bg-primary px-4 text-xs text-primary-foreground group hover:bg-primary/90 sm:h-11 sm:px-5 sm:text-sm">
+            <Button asChild size="lg" className="h-9 shrink-0 rounded-full bg-primary px-3.5 text-xs text-primary-foreground group hover:bg-primary/90 sm:h-10 sm:px-4 sm:text-sm">
               <Link href="/sign-up">Create an account <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-1 sm:ml-2 sm:h-4 sm:w-4" /></Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="h-10 shrink-0 rounded-full border-foreground/20 px-4 text-xs hover:bg-foreground/5 sm:h-11 sm:px-5 sm:text-sm">
+            <Button asChild size="lg" variant="outline" className="h-9 shrink-0 rounded-full border-foreground/20 px-3.5 text-xs hover:bg-foreground/5 sm:h-10 sm:px-4 sm:text-sm">
               <Link href="/how-it-works">How it works</Link>
             </Button>
           </div>
