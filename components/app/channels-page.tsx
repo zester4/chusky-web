@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
-import { chuskyApi, type ChannelConnection, type ChannelLinkCode } from "@/lib/chusky-api";
+import { chuskyApi, type ChannelConnection, type ChannelLinkCode, type Delivery } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -14,17 +14,22 @@ function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle:
 
 export function ChannelsPage() {
   const [channels, setChannels] = useState<ChannelConnection[]>();
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [provider, setProvider] = useState<(typeof linkable)[number]>("slack");
   const [linkCode, setLinkCode] = useState<ChannelLinkCode>();
   const [confirm, setConfirm] = useState<ChannelConnection>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [deliveryError, setDeliveryError] = useState<string>();
 
   const load = async () => {
-    setError(undefined);
-    try { setChannels((await chuskyApi.channels.list()).data); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load linked channels."); }
+    setError(undefined); setDeliveryError(undefined);
+    const [channelResult, deliveryResult] = await Promise.allSettled([chuskyApi.channels.list(), chuskyApi.deliveries.list()]);
+    if (channelResult.status === "fulfilled") setChannels(channelResult.value.data);
+    else setError(channelResult.reason instanceof Error ? channelResult.reason.message : "Could not load linked channels.");
+    if (deliveryResult.status === "fulfilled") setDeliveries(deliveryResult.value.data);
+    else setDeliveryError(deliveryResult.reason instanceof Error ? deliveryResult.reason.message : "Could not load recent delivery activity.");
   };
   useEffect(() => { void load(); }, []);
   useLiveData(load);
@@ -72,6 +77,11 @@ export function ChannelsPage() {
         {linkCode && <div className="mt-4 border border-foreground/10 bg-foreground/[0.02] p-3"><p className="text-[11px] leading-5">{linkCode.instructions}</p>{linkCode.installUrl && <a className="mt-2 block break-all text-[11px] underline" href={linkCode.installUrl} target="_blank" rel="noreferrer">Open Slack installation</a>}<div className="mt-3 flex flex-wrap items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">{linkCode.provider === "slack" ? linkCode.code : linkCode.instructions.match(/\/link\s+\S+/)?.[0] ?? linkCode.code}</code><Button secondary onClick={() => void copyCode()}><Copy size={13}/> Copy</Button></div><p className="mt-2 text-[10px] text-muted-foreground">This code is private to your account. Complete linking within ten minutes.</p></div>}
       </Card>
     </div>
+    <Card className="mt-4 overflow-hidden">
+      <div className="border-b border-foreground/10 p-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Recent delivery activity</p><p className="mt-1 text-xs text-muted-foreground">See the latest outbound channel results alongside your linked identities.</p></div>
+      {deliveryError && <p role="alert" className="border-b border-amber-300/70 bg-amber-50 p-3 text-xs text-amber-950">{deliveryError}</p>}
+      {deliveries.length ? <div className="divide-y divide-foreground/10">{deliveries.slice(0, 8).map((item) => <div key={item.id} className="flex flex-col gap-2 p-4 text-[11px] sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{channelNames[item.provider] ?? item.provider} · {item.kind}</p><Status tone={item.status === "delivered" ? "green" : item.status === "failed" || item.status === "ambiguous" ? "amber" : "gray"}>{item.status === "delivered" && item.providerStatus === "owner_confirmed_delivered" ? "confirmed by you" : item.status}</Status></div><p className="mt-1 text-muted-foreground">{date(item.deliveredAt || item.updatedAt)} · {item.attempts} attempt{item.attempts === 1 ? "" : "s"}{item.lastError ? ` · ${item.lastError}` : ""}</p></div>{item.status === "ambiguous" && <span className="shrink-0 text-muted-foreground">Outcome uncertain</span>}</div>)}</div> : !deliveryError && <p className="p-4 text-xs text-muted-foreground">No outbound deliveries have been recorded for this account yet.</p>}
+    </Card>
     {confirm && <ConfirmDialog open onOpenChange={(open) => !open && setConfirm(undefined)} title={`Unlink ${channelNames[confirm.provider] ?? confirm.provider}?`} description="Chusky will stop accepting messages for this linked identity. The provider-side app or workspace installation will remain in place." confirmLabel="Unlink channel" destructive onConfirm={unlink}/>}
   </>;
 }
