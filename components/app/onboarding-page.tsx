@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ArrowUpRight, BellRing, BriefcaseBusiness, Building2, Check, CircleHelp, Globe2, LoaderCircle, MessagesSquare, PlugZap, RefreshCw, Search, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, BellRing, Blocks, BriefcaseBusiness, Building2, Check, CircleHelp, Globe2, LoaderCircle, MessagesSquare, RadioTower, RefreshCw, Search, ShieldCheck, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { ChuskyApiError, chuskyApi } from "@/lib/chusky-api";
 import {
@@ -27,6 +27,20 @@ import { Button, Card } from "@/components/app/app-shell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { MarkdownMessage } from "./markdown-message";
+import { LogoStack } from "./toolkit-logo";
+
+const onboardingAppLogos = [
+  { name: "Slack", logo: "/logos/slack.svg" },
+  { name: "Gmail", logo: "/logos/gmail.svg" },
+  { name: "HubSpot", logo: "/logos/hubspot.svg" },
+  { name: "Google Drive", logo: "/logos/google-drive.svg" },
+];
+
+const onboardingChannelLogos = [
+  { name: "Telegram", logo: "/logos/telegram.svg" },
+  { name: "Slack", logo: "/logos/slack.svg" },
+  { name: "WhatsApp", logo: "/logos/whatsapp.svg" },
+];
 
 const steps = [
   { label: "Context", title: "Start with the right context.", description: "Tell Chusky whether to frame your work personally or around a business. This is private agent context, not a billing or organization setting." },
@@ -209,8 +223,8 @@ function ProfileSummary({ profile, pulse, userId, returnTo, onReturn, onEdit, on
         </div>
         <div className="grid gap-2 border-t border-foreground/10 p-4 sm:grid-cols-2 sm:p-6">
           <button type="button" onClick={startOutcome} className="flex min-h-24 items-start gap-3 rounded-lg border border-primary bg-primary p-3 text-left text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"><MessagesSquare size={17} className="mt-0.5 shrink-0" aria-hidden="true" /><span><span className="block text-xs font-medium">Start with this outcome</span><span className="mt-1 block text-[11px] leading-relaxed text-primary-foreground/70">Open a new conversation with your outcome ready to send.</span><span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium">Open chat <ArrowRight size={12} aria-hidden="true" /></span></span></button>
-          <Link href="/app/apps" className="flex min-h-24 items-start gap-3 rounded-lg border border-foreground/12 p-3 transition-colors hover:border-foreground/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"><PlugZap size={17} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" /><span><span className="block text-xs font-medium">Connect apps</span><span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">Review the apps Chusky can use on your behalf.</span><span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium">Open connected apps <ArrowUpRight size={12} aria-hidden="true" /></span></span></Link>
-          <Link href="/app/channels" className="flex min-h-24 items-start gap-3 rounded-lg border border-foreground/12 p-3 transition-colors hover:border-foreground/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"><MessagesSquare size={17} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" /><span><span className="block text-xs font-medium">Link your channels</span><span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">Use this same private profile from Telegram and other linked channels.</span><span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium">Open channels <ArrowUpRight size={12} aria-hidden="true" /></span></span></Link>
+          <Link href="/app/apps" className="flex min-h-24 items-start gap-3 rounded-lg border border-foreground/12 p-3 transition-colors hover:border-foreground/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"><Blocks size={17} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" /><div className="flex min-w-0 flex-1 items-start justify-between gap-3"><span className="min-w-0"><span className="block text-xs font-medium">Connect apps</span><span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">Review the apps Chusky can use on your behalf.</span><span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium">Open connected apps <ArrowUpRight size={12} aria-hidden="true" /></span></span><LogoStack items={onboardingAppLogos} label="Popular connected apps" /></div></Link>
+          <Link href="/app/channels" className="flex min-h-24 items-start gap-3 rounded-lg border border-foreground/12 p-3 transition-colors hover:border-foreground/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"><RadioTower size={17} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" /><div className="flex min-w-0 flex-1 items-start justify-between gap-3"><span className="min-w-0"><span className="block text-xs font-medium">Link your channels</span><span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">Use this same private profile from Telegram and other linked channels.</span><span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium">Open channels <ArrowUpRight size={12} aria-hidden="true" /></span></span><LogoStack items={onboardingChannelLogos} label="Available channels" /></div></Link>
           {profile.accountType === "business" && <Link href="/app/organizations" className="flex min-h-24 items-start gap-3 rounded-lg border border-foreground/12 p-3 transition-colors hover:border-foreground/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"><Building2 size={17} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" /><span><span className="block text-xs font-medium">Set up a shared workspace</span><span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">Create an organization, invite teammates, and configure shared agents separately.</span><span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium">Open organizations <ArrowUpRight size={12} aria-hidden="true" /></span></span></Link>}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-foreground/10 px-4 py-3 sm:px-6"><p className="text-[10px] text-muted-foreground">You can revisit this summary from Account → Agent profile.</p><Button secondary onClick={() => { if (returnTo !== "/app/onboarding") onReturn(); else router.replace("/app"); }}>Open dashboard</Button></div>

@@ -17,3 +17,21 @@ export function ToolkitLogo({ name, logo, size = 40 }: { name: string; logo?: st
       : <span>{name.slice(0, 1).toUpperCase()}</span>}
   </span>;
 }
+
+export type LogoStackItem = { name: string; logo: string };
+
+export function LogoStack({ items, label }: { items: LogoStackItem[]; label: string }) {
+  return <span
+    role="img"
+    aria-label={`${label}: ${items.map((item) => item.name).join(", ")}`}
+    className="flex shrink-0 items-center pl-1"
+  >
+    {items.map((item, index) => <span
+      key={item.name}
+      title={item.name}
+      className={`relative flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-background shadow-[0_1px_3px_rgb(0_0_0/0.12)] ${index ? "-ml-2" : ""}`}
+    >
+      <ToolkitLogo name={item.name} logo={item.logo} size={19} />
+    </span>)}
+  </span>;
+}
