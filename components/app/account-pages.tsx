@@ -8,6 +8,7 @@ import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 import { ToolkitLogo } from "./toolkit-logo";
 import { MarkdownMessage } from "./markdown-message";
+import { AttentionActionCard } from "./attention-action-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings";
@@ -42,7 +43,16 @@ export function AccountDataPage({ kind }: { kind: PageKind }) {
 }
 
 function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOverview; decide: (id: string, decision: "approve" | "deny") => Promise<void>; busy?: string }) {
-  if (kind === "approvals") return <Card>{data.approvals.length ? data.approvals.map((item) => <div key={item.id} className="border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex flex-col gap-3 md:flex-row md:items-start"><ShieldCheck className="mt-1 shrink-0 text-amber-600" size={17} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xs font-medium">{item.toolSlug}</h2><Status tone="amber">Expires {date(item.expiresAt)}</Status></div><p className="mt-2 break-words text-xs text-muted-foreground">{item.request}</p><p className="mt-2 break-all font-mono text-[9px] text-muted-foreground">{item.id}{item.channelProvider ? ` · ${item.channelProvider}` : ""}</p></div><div className="flex flex-wrap gap-2"><Button secondary onClick={() => void decide(item.id, "deny")}><Trash2 size={12} /> Deny</Button><Button onClick={() => void decide(item.id, "approve")}><Check size={12} /> {busy === item.id ? "Working" : "Approve"}</Button></div></div></div>) : <Empty>No pending approvals. Chusky will show risky actions here before execution.</Empty>}</Card>;
+  if (kind === "approvals") {
+    const attentionEvents = data.triggerEvents.filter((event) => event.needsAttention || ["pending", "failed"].includes(event.notificationStatus));
+    return <div className="space-y-4">
+      {attentionEvents.length > 0 && <Card>
+        <div className="border-b border-foreground/10 px-3.5 py-3.5 sm:px-4"><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Connected-app attention</p><p className="mt-1 text-xs text-muted-foreground">Elena turns verified events into clear next steps. Choose an action to open a prepared request in Chat; consequential actions still use the normal approval gate.</p></div>
+        <div className="space-y-2.5 p-3.5 sm:p-4">{attentionEvents.slice(0, 10).map((event) => <AttentionActionCard key={event.id} event={event} />)}</div>
+      </Card>}
+      <Card>{data.approvals.length ? data.approvals.map((item) => <div key={item.id} className="border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex flex-col gap-3 md:flex-row md:items-start"><ShieldCheck className="mt-1 shrink-0 text-amber-600" size={17} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xs font-medium">{item.toolSlug}</h2><Status tone="amber">Expires {date(item.expiresAt)}</Status></div><p className="mt-2 break-words text-xs text-muted-foreground">{item.request}</p><p className="mt-2 break-all font-mono text-[9px] text-muted-foreground">{item.id}{item.channelProvider ? ` · ${item.channelProvider}` : ""}</p></div><div className="flex flex-wrap gap-2"><Button secondary onClick={() => void decide(item.id, "deny")}><Trash2 size={12} /> Deny</Button><Button onClick={() => void decide(item.id, "approve")}><Check size={12} /> {busy === item.id ? "Working" : "Approve"}</Button></div></div></div>) : <Empty>No pending approvals. Chusky will show risky actions here before execution.</Empty>}</Card>
+    </div>;
+  }
   if (kind === "apps") return <AppsPanel channels={data.channels} />;
   if (kind === "reminders") return <Card>{data.reminders.length ? data.reminders.map((item) => <Row key={item.id} icon={<Clock3 size={15} />} title={item.text} detail={`Runs ${date(item.runAt)}`} meta={`Created ${date(item.createdAt)}`} status={item.status} />) : <Empty>No reminders saved yet.</Empty>}</Card>;
   if (kind === "jobs") return <Card>{data.jobs.length ? data.jobs.map((item) => <Row key={item.id} icon={<RotateCcw size={15} />} title={item.text} detail={item.cron} meta={`Created ${date(item.createdAt)}`} status={item.status} />) : <Empty>No recurring jobs saved yet.</Empty>}</Card>;
