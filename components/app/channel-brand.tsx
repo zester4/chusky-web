@@ -2,7 +2,7 @@
 
 import { ToolkitLogo } from "./toolkit-logo";
 
-export type ChannelProvider = "telegram" | "slack" | "whatsapp" | "sendblue" | "sms" | "x" | "xchat";
+export type ChannelProvider = "telegram" | "slack" | "whatsapp" | "sendblue" | "sms" | "x" | "xchat" | "cli";
 
 type ChannelBrand = { name: string; logo: string; description: string };
 
@@ -14,6 +14,7 @@ const CHANNEL_BRANDS: Record<ChannelProvider, ChannelBrand> = {
   sms: { name: "SMS", logo: "/logos/twilio.svg", description: "SMS through Twilio" },
   x: { name: "X Direct Messages", logo: "/logos/x-twitter.svg", description: "Private X messages" },
   xchat: { name: "Encrypted XChat", logo: "/logos/x-twitter.svg", description: "Encrypted X messaging" },
+  cli: { name: "Chusky CLI", logo: "/logos/code.svg", description: "Your private terminal workspace" },
 };
 
 export function channelBrand(provider: string): ChannelBrand {

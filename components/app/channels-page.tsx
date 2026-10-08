@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Check, Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
 import { chuskyApi, type ChannelConnection, type ChannelLinkCode, type Delivery, type TelegramLinkCode } from "@/lib/chusky-api";
@@ -9,6 +10,8 @@ import { ConfirmDialog } from "./confirm-dialog";
 import { ChannelLogo, channelBrand } from "./channel-brand";
 
 const linkable = ["slack", "whatsapp", "sendblue", "sms", "x"] as const;
+const cliServerUrl = process.env.NEXT_PUBLIC_CHUSKY_CLI_SERVER_URL?.trim();
+const cliCommand = cliServerUrl ? `chusky auth link --server ${cliServerUrl}` : "chusky auth link";
 
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 
@@ -23,6 +26,7 @@ export function ChannelsPage() {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [telegramCopied, setTelegramCopied] = useState(false);
+  const [cliCopied, setCliCopied] = useState(false);
   const [deliveryError, setDeliveryError] = useState<string>();
 
   const load = async () => {
@@ -58,6 +62,10 @@ export function ChannelsPage() {
     try { await navigator.clipboard.writeText(linkCode.provider === "slack" ? linkCode.installUrl ?? linkCode.code : linkCode.instructions.match(/\/link\s+\S+/)?.[0] ?? linkCode.code); setNotice("Link instructions copied."); }
     catch { setError("Clipboard access is unavailable. Copy the link instructions manually."); }
   };
+  const copyCliCommand = async () => {
+    try { await navigator.clipboard.writeText(cliCommand); setCliCopied(true); setNotice("CLI link command copied."); window.setTimeout(() => setCliCopied(false), 1800); }
+    catch { setError("Clipboard access is unavailable. Copy the CLI command manually."); }
+  };
   const setProactive = async (channel: ChannelConnection, value: boolean) => {
     setBusy(channel.id); setError(undefined);
     try { const updated = await chuskyApi.channels.update(channel, value); setChannels((current) => current?.map((item) => item.id === channel.id ? { ...item, proactiveOptIn: updated.proactiveOptIn } : item)); }
@@ -91,6 +99,24 @@ export function ChannelsPage() {
         <div className="mt-5 border-t border-foreground/10 pt-4"><div className="flex items-start gap-3"><ChannelLogo provider="telegram" size={34}/><div className="min-w-0 flex-1"><p className="text-xs font-medium">{channels?.some((item) => item.provider === "telegram") ? "Telegram is connected" : "Connect Telegram"}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Link the Telegram account that already uses Chusky to share this private workspace.</p>{!channels?.some((item) => item.provider === "telegram") && <div className="mt-3">{telegramLink ? <div className="border border-foreground/10 bg-foreground/[0.02] p-2.5"><div className="flex items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">/link {telegramLink.code}</code><Button secondary aria-label="Copy Telegram link command" onClick={() => void copyTelegramLink()}>{telegramCopied ? <Check size={13}/> : <Copy size={13}/>}</Button></div><p className="mt-2 text-[10px] text-muted-foreground">Send this command in Telegram before {date(telegramLink.expiresAt)}.</p></div> : <Button secondary disabled={busy === "telegram-link"} onClick={() => void createTelegramLink()}>{busy === "telegram-link" ? <LoaderCircle size={13} className="animate-spin"/> : <Link2 size={13}/>} Create Telegram link code</Button>}</div>}</div></div></div>
       </Card>
     </div>
+    <Card className="mt-4 p-4 sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <ChannelLogo provider="cli" size={34}/>
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">CLI access</p>
+            <h2 className="mt-1.5 font-display text-2xl">Use Chusky from your terminal</h2>
+            <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Telegram authorizes the terminal, so your CLI joins this same private Chusky workspace instead of creating a separate account or session.</p>
+          </div>
+        </div>
+        <Link href="/app/devices" className="inline-flex min-h-9 shrink-0 items-center justify-center border border-foreground/15 px-3 text-[11px] font-medium hover:border-foreground/40">Manage CLI devices</Link>
+      </div>
+      <div className="mt-4 grid gap-3 border-t border-foreground/10 pt-4 md:grid-cols-3">
+        <div className="flex gap-2.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">1</span><div><p className="text-xs font-medium">Ask Telegram for a code</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Open your Chusky Telegram chat and send <code className="rounded bg-foreground/[0.06] px-1 py-0.5">/cli link</code>.</p></div></div>
+        <div className="flex gap-2.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">2</span><div><p className="text-xs font-medium">Run the CLI link command</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Run this on the computer you want to connect:</p><div className="mt-2 flex items-center gap-2 border border-foreground/10 bg-foreground/[0.03] p-2"><code className="min-w-0 flex-1 break-all text-[10px]">{cliCommand}</code><Button secondary aria-label="Copy CLI link command" onClick={() => void copyCliCommand()}>{cliCopied ? <Check size={12}/> : <Copy size={12}/>}</Button></div></div></div>
+        <div className="flex gap-2.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">3</span><div><p className="text-xs font-medium">Finish the pairing</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{cliServerUrl ? "Paste the six-digit Telegram code when prompted." : "If prompted, enter your Chusky server URL, then paste the six-digit Telegram code."} The code expires in ten minutes and works once. The terminal stores the token locally; the server stores only its hash.</p></div></div>
+      </div>
+    </Card>
     <Card className="mt-4 overflow-hidden">
       <div className="border-b border-foreground/10 p-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Recent delivery activity</p><p className="mt-1 text-xs text-muted-foreground">See the latest outbound channel results alongside your linked identities.</p></div>
       {deliveryError && <p role="alert" className="border-b border-amber-300/70 bg-amber-50 p-3 text-xs text-amber-950">{deliveryError}</p>}

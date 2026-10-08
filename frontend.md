@@ -96,6 +96,10 @@ history or connection state.
   `NEXT_PUBLIC_CHUSKY_MCP_URL` to the deployed MCP `/mcp` endpoint. The
   Organizations page shows a copyable MCP config for each selected project;
   it contains environment-variable placeholders, never a project key.
+- Optionally set `NEXT_PUBLIC_CHUSKY_CLI_SERVER_URL` to the public Chusky
+  backend origin. The Channels page then includes that origin in the copied
+  `chusky auth link` command; when it is blank, the CLI asks for the server
+  URL interactively.
 - Standard, unencrypted X Direct Messages use separate OAuth user credentials:
   `X_USER_ACCESS_TOKEN`, or managed `X_CLIENT_ID` plus `X_REFRESH_TOKEN` and
   `X_ENCRYPTION_KEY`. Keep these in the backend deployment secret store. The
