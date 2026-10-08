@@ -552,11 +552,11 @@ export const chuskyApi = {
     remove: (id: string) => request<void>(`/triggers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tools: {
-    list: (query = "", source?: "native" | "composio", toolkit?: string) => { const params = new URLSearchParams(); if (query) params.set("query", query); if (source) params.set("source", source); if (toolkit) params.set("toolkit", toolkit); return request<{ data: Tool[] }>(`/tools${params.size ? `?${params.toString()}` : ""}`); },
+    list: (query = "", source?: "native" | "composio", toolkit?: string, limit = 250) => { const params = new URLSearchParams(); if (query) params.set("query", query); if (source) params.set("source", source); if (toolkit) params.set("toolkit", toolkit); params.set("limit", String(limit)); return request<{ data: Tool[]; total?: number; nativeTotal?: number; composioTotal?: number }>(`/tools?${params.toString()}`); },
     get: (slug: string) => request<Tool>(`/tools/${encodeURIComponent(slug)}`),
   },
   skills: {
-    list: (query = "", limit = 50) => request<{ data: Skill[] }>(`/skills?limit=${limit}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
+    list: (query = "", limit = 250) => request<{ data: Skill[]; total?: number }>(`/skills?limit=${limit}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
     files: (name: string) => request<{ data: SkillFile[] }>(`/skills/${encodeURIComponent(name)}/files`),
     read: (name: string, path = "SKILL.md", maxChars = 12000) => request<SkillFile>(`/skills/${encodeURIComponent(name)}/files/read?path=${encodeURIComponent(path)}&maxChars=${maxChars}`),
   },
