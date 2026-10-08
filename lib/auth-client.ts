@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/react";
-import { organizationClient } from "better-auth/client/plugins";
+import { organizationClient, twoFactorClient } from "better-auth/client/plugins";
 
 // Use the frontend origin in the browser. Next.js proxies auth requests to
 // Chusky, keeping sessions first-party for both Vercel preview domains and
@@ -10,6 +10,12 @@ const authBaseURL = typeof window === "undefined"
 
 export const authClient = createAuthClient({
   baseURL: authBaseURL,
-  plugins: [organizationClient({ teams: { enabled: true } })],
+  plugins: [organizationClient({ teams: { enabled: true } }), twoFactorClient({
+    onTwoFactorRedirect() {
+      const callback = new URLSearchParams(window.location.search).get("callbackURL") || "/app";
+      const safe = callback.startsWith("/") && !callback.startsWith("//") && !callback.includes("\\") ? callback : "/app";
+      window.location.assign(`/two-factor?callbackURL=${encodeURIComponent(safe)}`);
+    },
+  })],
   fetchOptions: { credentials: "include" },
 });

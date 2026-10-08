@@ -29,6 +29,10 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: "/builder/:path*",
+        destination: `${chuskyApiOrigin}/builder/:path*`,
+      },
+      {
         source: "/api/auth/:path*",
         destination: `${chuskyApiOrigin}/api/auth/:path*`,
       },

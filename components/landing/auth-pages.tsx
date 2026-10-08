@@ -80,6 +80,7 @@ function SignInCard() {
       const callbackPath = requestedCallback.startsWith("/") && !requestedCallback.startsWith("//") && !requestedCallback.includes("\\") ? requestedCallback : "/app";
       const result = await authClient.signIn.email({ email: String(values.get("email") ?? ""), password: String(values.get("password") ?? ""), callbackURL: new URL(callbackPath, window.location.origin).toString() });
       if (result.error) setMessage(result.error.message || "We couldn’t sign you in. Check your email and password and try again.");
+      else if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) return;
       else {
         let targetPath = callbackPath;
         if (callbackPath.startsWith("/app") && !callbackPath.startsWith("/app/onboarding")) {
