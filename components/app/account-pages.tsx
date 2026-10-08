@@ -103,6 +103,7 @@ function AppsPanel() {
   const [nextCursor, setNextCursor] = useState<string>();
   const [cursorByPage, setCursorByPage] = useState<Array<string | undefined>>([undefined]);
   const [loading, setLoading] = useState(false);
+  const [connectionNotice, setConnectionNotice] = useState<"returned" | "failed">();
   const requestId = useRef(0);
 
   const load = async (requestedPage = page, cursor = cursorByPage[requestedPage - 1], query = search) => {
@@ -137,6 +138,13 @@ function AppsPanel() {
   };
 
   useEffect(() => { void load(1, undefined, ""); }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("connection") !== "complete") return;
+    setConnectionNotice(url.searchParams.has("error") ? "failed" : "returned");
+    for (const key of ["connection", "error", "error_description", "status"]) url.searchParams.delete(key);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setPage(1);
@@ -200,6 +208,8 @@ function AppsPanel() {
   const connectedChannels = channels.map((item) => item.provider.toLowerCase());
 
   return <div className="space-y-4">
+    {connectionNotice === "returned" && <Card className="border-emerald-600/25 bg-emerald-50/60 p-3.5 text-xs text-emerald-950"><p role="status">Returned from app authorization. Connected Apps has been refreshed; verify that the account appears below as active.</p></Card>}
+    {connectionNotice === "failed" && <Card className="border-amber-600/25 bg-amber-50/60 p-3.5 text-xs text-amber-950"><p role="alert">The app authorization did not complete. No connection is claimed; you can try again below.</p></Card>}
     <Card className="p-3.5 sm:p-4">
       <div className="flex justify-end">
         <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()} apps · page {page} of {totalPages}</span>
