@@ -309,6 +309,7 @@ async function hydrateRunImages(images?: RunImage[]): Promise<Array<RunImage & {
 
 type PendingAttachment = { localId: string; file?: File; id?: string; name: string; contentType: string; size: number; progress: number; phase?: "queued" | "uploading" | "verifying"; status: "uploading" | "ready" | "error"; error?: string; previewUrl?: string; downloadUrl?: string };
 type SendAttachment = { id: string; name: string; contentType: string; size: number; previewUrl?: string; downloadUrl?: string };
+type QueuedMessage = { text: string; attachments: SendAttachment[] };
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/markdown", "application/zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "audio/mpeg", "audio/ogg", "audio/wav", "audio/mp4", "video/mp4", "video/webm"]);
 const TYPE_BY_EXTENSION: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif", pdf: "application/pdf", txt: "text/plain", md: "text/markdown", zip: "application/zip", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", mp3: "audio/mpeg", ogg: "audio/ogg", oga: "audio/ogg", wav: "audio/wav", m4a: "audio/mp4", mp4: "video/mp4", webm: "video/webm" };
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -334,6 +335,8 @@ export function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [queuedMessage, setQueuedMessage] = useState<QueuedMessage>();
+  const [queuedMenuOpen, setQueuedMenuOpen] = useState(false);
   const [account, setAccount] = useState<AccountOverview>();
   const [models, setModels] = useState<Model[]>([]);
   const [runModel, setRunModel] = useState("");
@@ -362,6 +365,9 @@ export function ChatPage() {
   const activeRunIdRef = useRef<string | undefined>(undefined);
   const [activeRunId, setActiveRunId] = useState<string>();
   const messagesRef = useRef<Message[]>(messages);
+  const queuedMessageRef = useRef<QueuedMessage | undefined>(undefined);
+  const queuedFlushRef = useRef(false);
+  const sendRef = useRef<((inputOverride?: string, attachmentOverride?: SendAttachment[]) => Promise<void>) | undefined>(undefined);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef(new Set<string>());
@@ -379,6 +385,10 @@ export function ChatPage() {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    queuedMessageRef.current = queuedMessage;
+  }, [queuedMessage]);
 
   // Runs created before toolkit metadata was made durable still deserve the
   // same verified app branding as Connected Apps. Resolve only distinct,
@@ -422,6 +432,8 @@ export function ChatPage() {
     setStatus("loading");
     setThread(undefined);
     setMessages([]);
+    setQueuedMessage(undefined);
+    setQueuedMenuOpen(false);
     syncActiveRunId(undefined);
     (async () => {
       try {
@@ -1031,6 +1043,75 @@ export function ChatPage() {
 
   const isWorking = Boolean(controller) || messages.some((item) => item.role === "assistant" && item.pending && Boolean(item.runId));
 
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
+
+  const queueCurrentMessage = () => {
+    const text = input.trim();
+    const readyAttachments = attachments.filter((item) => item.status === "ready" && item.id).map((item) => ({
+      id: item.id!, name: item.name, contentType: item.contentType, size: item.size, downloadUrl: item.downloadUrl,
+    }));
+    if ((!text && !readyAttachments.length) || !thread) return;
+    if (attachments.some((item) => item.status === "uploading" || item.status === "error")) {
+      showNotice("Wait for attachments to finish uploading, or remove the failed files before queuing this message.", "info");
+      return;
+    }
+    const next: QueuedMessage = { text, attachments: readyAttachments };
+    queuedMessageRef.current = next;
+    setQueuedMessage(next);
+    setQueuedMenuOpen(false);
+    setInput("");
+    setAttachments([]);
+    setEditingMessageIndex(undefined);
+    showNotice("Queued for after this reply.", "info");
+  };
+
+  const editQueuedMessage = () => {
+    const queued = queuedMessageRef.current;
+    if (!queued) return;
+    setInput(queued.text);
+    setAttachments(queued.attachments.map((item, index) => ({
+      localId: `queued-${item.id}-${index}`,
+      id: item.id,
+      name: item.name,
+      contentType: item.contentType,
+      size: item.size,
+      progress: 100,
+      status: "ready" as const,
+      downloadUrl: item.downloadUrl,
+    })));
+    queuedMessageRef.current = undefined;
+    setQueuedMessage(undefined);
+    setQueuedMenuOpen(false);
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const clearQueuedMessage = () => {
+    queuedMessageRef.current = undefined;
+    setQueuedMessage(undefined);
+    setQueuedMenuOpen(false);
+  };
+
+  useEffect(() => {
+    const awaitingApproval = messages.some((item) => item.role === "assistant" && item.approval && !item.approval.deciding);
+    if (!thread || !queuedMessage || isWorking || awaitingApproval || queuedFlushRef.current) return;
+    const next = queuedMessageRef.current;
+    if (!next) return;
+    queuedFlushRef.current = true;
+    queuedMessageRef.current = undefined;
+    setQueuedMessage(undefined);
+    setQueuedMenuOpen(false);
+    void sendRef.current?.(next.text, next.attachments).finally(() => {
+      queuedFlushRef.current = false;
+    });
+  }, [thread?.id, queuedMessage, isWorking, messages]);
+
+  const handleComposerSend = () => {
+    if (isWorking) queueCurrentMessage();
+    else void send();
+  };
+
   return (
     <div className="-mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-background sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
       {notice && <div className={`fixed left-1/2 top-16 z-50 flex w-[min(calc(100%-1rem),32rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border px-3 py-2 text-[11px] shadow-lg ${notice.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`} role="alert"><span>{notice.message}</span><button type="button" onClick={() => setNotice(undefined)} className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss notification"><X size={13} /></button></div>}
@@ -1128,16 +1209,30 @@ export function ChatPage() {
                   {item.error ? <p className="mt-2 break-words text-[11px] leading-4 text-amber-800" role="alert">{item.error}</p> : null}
                 </div>)}</div> : null}
                 {attachments.some((item) => item.status === "error") ? <p className="px-3 pb-1 text-[10px] text-amber-800" role="status">Retry or remove failed files before sending, so Chusky won’t miss an attachment.</p> : null}
+                {queuedMessage ? <div className="relative mx-2 mb-1 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.055] px-2.5 py-2" role="status" aria-live="polite">
+                  <Clock4 size={13} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-primary"><span>Queued follow-up</span><span className="font-normal text-muted-foreground">· sent after this reply</span></div>
+                    <p className="mt-0.5 truncate text-[11px] leading-4 text-foreground/80" title={queuedMessage.text || "Attached file(s)"}>{queuedMessage.text || `${queuedMessage.attachments.length} attachment${queuedMessage.attachments.length === 1 ? "" : "s"}`}</p>
+                  </div>
+                  <div className="relative shrink-0">
+                    <button type="button" onClick={() => setQueuedMenuOpen((open) => !open)} className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground" aria-label="Queued message options" aria-expanded={queuedMenuOpen} title="Queued message options"><MoreHorizontal size={14} /></button>
+                    {queuedMenuOpen ? <div className="absolute right-0 top-7 z-20 min-w-40 rounded-lg border border-foreground/10 bg-background p-1 shadow-lg">
+                      <button type="button" onClick={editQueuedMessage} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[10px] text-foreground transition-colors hover:bg-foreground/5"><Pencil size={12} /> Edit queued message</button>
+                      <button type="button" onClick={clearQueuedMessage} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[10px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"><X size={12} /> Clear queued message</button>
+                    </div> : null}
+                  </div>
+                </div> : null}
                 {voiceProcessing ? <div className="flex min-h-16 items-center gap-2 px-3 py-3 text-[11px] text-muted-foreground" role="status" aria-live="polite"><LoaderCircle size={14} className="animate-spin" /> Transcribing and sending your voice message…</div> : listening ? <div className="chat-voice-recording" role="status" aria-live="polite">
                   <button type="button" onClick={cancelVoiceInput} className="chat-voice-control chat-voice-cancel" aria-label="Cancel voice input" title="Cancel voice input"><X size={14} strokeWidth={2} /></button>
                   <span className="sr-only">Recording voice input. Press stop to transcribe and send.</span>
                   <div className="chat-voice-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <span key={index} ref={(element) => { voiceBarsRef.current[index] = element; }} />)}</div>
                   <button type="button" onClick={stopVoiceInput} className="chat-voice-control chat-voice-stop" aria-label="Stop, transcribe, and send voice input" title="Stop, transcribe, and send voice input"><Square size={10} fill="currentColor" /></button>
                 </div> : <>
-                  <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); void send(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Chusky is continuing this run…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || isWorking || voiceStarting || voiceProcessing} className="chat-composer-input w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
+                  <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); handleComposerSend(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Queue a follow-up…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || voiceStarting || voiceProcessing} className="chat-composer-input w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
                   <div className="chat-composer-controls flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
                     <div className="flex min-w-0 flex-1 items-center gap-1">
-                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || isWorking || attachments.length >= 5 || attachments.some((item) => item.status === "uploading")} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || attachments.length >= 5 || attachments.some((item) => item.status === "uploading")} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button>
                       <label className="sr-only" htmlFor="chat-model">Run model</label>
                       <div className="relative min-w-0 max-w-28 sm:max-w-44">
                         <select id="chat-model" aria-label="Run model" value={runModel || account?.model || ""} onChange={(event) => setRunModel(event.target.value)} className="chat-composer-model w-full min-w-0 max-w-full truncate text-[10px] font-medium"><option value="">Agent model</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select>
@@ -1147,7 +1242,7 @@ export function ChatPage() {
                     <div className="ml-auto flex shrink-0 items-center gap-1.5">
                       <span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span>
                       <button type="button" onClick={() => void toggleVoiceInput()} disabled={!thread || isWorking || voiceStarting || voiceProcessing} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label={voiceStarting ? "Starting voice input" : "Record voice message"} title={voiceStarting ? "Starting voice input" : "Record voice message"}>{voiceStarting ? <LoaderCircle size={13} className="animate-spin" /> : <Mic size={13} />}</button>
-                      {isWorking ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={() => void send()} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
+                      {isWorking && !input.trim() && !attachments.some((item) => item.status === "ready") ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={handleComposerSend} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={isWorking ? "Queue message" : editingMessageIndex !== undefined ? "Resend edited message" : "Send message"} title={isWorking ? "Queue message for after this reply" : editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
                     </div>
                   </div>
                 </>}
