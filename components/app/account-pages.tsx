@@ -38,6 +38,10 @@ function navigateToAuthorization(value: string): void {
 }
 
 export function AccountDataPage({ kind }: { kind: PageKind }) {
+  return kind === "apps" ? <AppsDataPage /> : <AccountOverviewDataPage kind={kind} />;
+}
+
+function AccountOverviewDataPage({ kind }: { kind: PageKind }) {
   const [data, setData] = useState<AccountOverview>();
   const [offline, setOffline] = useState(false);
   const [busy, setBusy] = useState<string>();
@@ -47,6 +51,11 @@ export function AccountDataPage({ kind }: { kind: PageKind }) {
   const decide = async (id: string, decision: "approve" | "deny") => { setBusy(id); try { await chuskyApi.approvals.decide(id, decision); await load(); } finally { setBusy(undefined); } };
   const heading = copy[kind];
   return <div className="app-page-content min-w-0" data-page-kind={kind}><PageHeading eyebrow={heading.eyebrow} title={heading.title} description={heading.description} action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />{offline ? <Offline retry={() => void load()} /> : !data ? <Card className="flex items-center gap-3 p-4 text-xs text-muted-foreground sm:p-5"><LoaderCircle size={15} className="animate-spin" /> Loading your saved data…</Card> : <Content kind={kind} data={data} decide={decide} busy={busy} />}</div>;
+}
+
+function AppsDataPage() {
+  const heading = copy.apps;
+  return <div className="app-page-content min-w-0" data-page-kind="apps"><PageHeading eyebrow={heading.eyebrow} title={heading.title} description={heading.description} /><AppsPanel /></div>;
 }
 
 function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOverview; decide: (id: string, decision: "approve" | "deny") => Promise<void>; busy?: string }) {
@@ -60,7 +69,6 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
       <Card>{data.approvals.length ? data.approvals.map((item) => <div key={item.id} className="border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex flex-col gap-3 md:flex-row md:items-start"><ShieldCheck className="mt-1 shrink-0 text-amber-600" size={17} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xs font-medium">{item.toolSlug}</h2><Status tone="amber">Expires {date(item.expiresAt)}</Status></div><p className="mt-2 break-words text-xs text-muted-foreground">{item.request}</p><p className="mt-2 break-all font-mono text-[9px] text-muted-foreground">{item.id}{item.channelProvider ? ` · ${item.channelProvider}` : ""}</p></div><div className="flex flex-wrap gap-2"><Button secondary onClick={() => void decide(item.id, "deny")}><Trash2 size={12} /> Deny</Button><Button onClick={() => void decide(item.id, "approve")}><Check size={12} /> {busy === item.id ? "Working" : "Approve"}</Button></div></div></div>) : <Empty>No pending approvals. Chusky will show risky actions here before execution.</Empty>}</Card>
     </div>;
   }
-  if (kind === "apps") return <AppsPanel channels={data.channels} />;
   if (kind === "reminders") return <Card>{data.reminders.length ? data.reminders.map((item) => <Row key={item.id} icon={<Clock3 size={15} />} title={item.text} detail={`Runs ${date(item.runAt)}`} meta={`Created ${date(item.createdAt)}`} status={item.status} />) : <Empty>No reminders saved yet.</Empty>}</Card>;
   if (kind === "jobs") return <Card>{data.jobs.length ? data.jobs.map((item) => <Row key={item.id} icon={<RotateCcw size={15} />} title={item.text} detail={item.cron} meta={`Created ${date(item.createdAt)}`} status={item.status} />) : <Empty>No recurring jobs saved yet.</Empty>}</Card>;
   if (kind === "memory") return <Card>{data.memory.length ? data.memory.map((item) => <Row key={item.id} icon={<Zap size={15} />} title={item.key} detail={item.value} meta={`${item.category} · ${Math.round(item.confidence * 100)}% confidence · ${date(item.updatedAt)}`} />) : <Empty>No explicit memories saved yet.</Empty>}</Card>;
@@ -80,9 +88,10 @@ function SettingsPanel({ initialModel, initialVoice, initialPreferences }: { ini
   return <Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Runtime preferences</p><div className="mt-4 space-y-4"><div><label className="text-xs text-muted-foreground">Selected model</label><div className="relative mt-1.5"><Popover open={open} onOpenChange={setOpen}><PopoverTrigger asChild><button type="button" disabled={busy} aria-expanded={open} className="flex min-h-9 w-full items-center justify-between border border-foreground/15 px-2.5 py-2 text-left text-xs hover:border-foreground/40"><span className="truncate">{model}</span><ChevronDown size={14} /></button></PopoverTrigger><PopoverContent align="start" sideOffset={5} className="max-h-64 w-[min(24rem,calc(100vw-1rem))] overflow-auto p-1">{models.map((item) => <button key={item.id} type="button" onClick={() => void update({ model: item.id })} className="block min-h-8 w-full px-2.5 py-2 text-left text-xs hover:bg-foreground/5"><span className="block truncate">{item.name}</span><span className="mt-0.5 block truncate font-mono text-[9px] text-muted-foreground">{item.id}</span></button>)}{!models.length && <p className="p-3 text-xs text-muted-foreground">Loading models…</p>}</PopoverContent></Popover></div></div><div className="flex items-center justify-between gap-3 border-t border-foreground/10 pt-3"><div className="min-w-0"><p className="text-xs">Voice replies</p><p className="mt-1 text-[10px] text-muted-foreground">Read Chusky responses aloud where supported.</p></div><button type="button" role="switch" aria-checked={voice} disabled={busy} onClick={() => void update({ voiceReplies: !voice })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${voice ? "bg-foreground" : "bg-foreground/15"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-background transition-transform ${voice ? "translate-x-6" : "translate-x-1"}`} /></button></div><div className="space-y-3 border-t border-foreground/10 pt-3"><p className="text-xs font-medium">Voice selection by provider</p>{fluxSelector("twilio", "Twilio / phone calls")}{fluxSelector("meetings", "Recall meetings")}{voiceOptions?.blandAvailable ? <label className="block text-xs text-muted-foreground">Bland<select disabled={busy} value={preferences.bland?.id ?? ""} onChange={(event) => { const selected = voiceOptions.blandVoices.find((item) => item.id === event.target.value); if (!event.target.value || selected) void update({ liveVoice: { provider: "bland", voice: selected ? { id: selected.id, name: selected.name } : null } }); }} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Provider default{preferences.bland ? ` · current ${preferences.bland.name}` : ""}</option>{preferences.bland && !voiceOptions.blandVoices.some((item) => item.id === preferences.bland?.id) && <option value={preferences.bland.id}>{preferences.bland.name} · saved selection</option>}{voiceOptions.blandVoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="mt-1 block text-[10px]">{voiceOptions.blandCatalogueAvailable ? "Applies to Bland calls." : "Bland voice catalogue is temporarily unavailable; existing selection can still be reset."}</span></label> : <p className="text-[10px] text-muted-foreground">Bland voice is not configured on this deployment.</p>}</div>{message && <p role="status" className="text-[11px] text-muted-foreground">{message}</p>}</div></Card>;
 }
 
-function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
+function AppsPanel() {
   const [items, setItems] = useState<Toolkit[]>([]);
   const [connections, setConnections] = useState<ConnectedAccount[]>([]);
+  const [channels, setChannels] = useState<AccountOverview["channels"]>([]);
   const [aliases, setAliases] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
@@ -101,9 +110,10 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
     setError(undefined);
     setLoading(true);
     try {
-      const [apps, accounts] = await Promise.all([
+      const [apps, accounts, channelPage] = await Promise.all([
         chuskyApi.apps.list({ search: query.trim(), cursor, limit: 30 }),
         chuskyApi.apps.connections(),
+        chuskyApi.channels.list().catch(() => ({ data: [] })),
       ]);
       // Live refreshes and page changes can overlap. Ignore an older response so
       // it cannot put the user back on a previous page or search result.
@@ -113,6 +123,7 @@ function AppsPanel({ channels }: { channels: AccountOverview["channels"] }) {
       const effectivePage = requestedPage;
       setItems(apps.data);
       setConnections(accounts.data);
+      setChannels(channelPage.data as AccountOverview["channels"]);
       setPage(effectivePage);
       setTotalPages(Math.max(1, apps.totalPages || 1));
       setTotal(apps.total);
