@@ -171,6 +171,103 @@ const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Recor
   };
 };
 
+type ActivityNarrativeStage = {
+  title: string;
+  activities: PresentedToolActivity[];
+  status: PresentedToolActivity["status"];
+};
+
+function narrativeTitle(activity: PresentedToolActivity): string {
+  const text = `${activity.actionLabel || ""} ${activity.message || ""}`.toLowerCase();
+  if (/browser|browse|search|research|discover|look up|find/.test(text)) return "Researching public sources";
+  if (/prompt|gallery|community|example|page/.test(text)) return "Reviewing useful examples";
+  if (/compar|analys|pattern|trade-?off|synthesi/.test(text)) return "Comparing the findings";
+  if (/skill|folder|file|write|create|build|prepare|generate|save/.test(text)) return "Preparing the output";
+  if (/review|read|inspect|check|verify/.test(text)) return "Reviewing the work";
+  if (/^(running|calling|using|executing)\b|tool action|browser action/.test(text)) return "Working through the task";
+  const label = (activity.actionLabel || activity.message || "Working through the task").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+  return label ? `${label.slice(0, 1).toUpperCase()}${label.slice(1)}` : "Working through the task";
+}
+
+function narrativeStatus(activities: PresentedToolActivity[]): PresentedToolActivity["status"] {
+  if (activities.some((activity) => activity.status === "failed")) return "failed";
+  if (activities.some((activity) => activity.status === "approval_required")) return "approval_required";
+  if (activities.some((activity) => activity.status === "started")) return "started";
+  if (activities.every((activity) => activity.status === "cancelled")) return "cancelled";
+  return "completed";
+}
+
+function buildActivityNarrative(activities: PresentedToolActivity[]): ActivityNarrativeStage[] {
+  const stages: ActivityNarrativeStage[] = [];
+  for (const activity of activities) {
+    const title = narrativeTitle(activity);
+    const previous = stages.at(-1);
+    if (previous?.title === title) previous.activities.push(activity);
+    else stages.push({ title, activities: [activity], status: activity.status });
+  }
+  return stages.map((stage) => ({ ...stage, status: narrativeStatus(stage.activities) }));
+}
+
+function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
+  return <ol aria-label="Detailed tool activity" className="chat-activity-detail-list mt-2 space-y-1.5 border-l border-foreground/10 pl-3">
+    {activities.map((activity, activityIndex) => {
+      const isCurrent = pending && activity.status === "started" && (activity.parallelBatch || activityIndex === activities.length - 1);
+      const toolkit = lookupActivityToolkit(activity, toolkitCatalogue);
+      const detail = activityDetailSummary(activity.summary);
+      const attention = activity.status === "failed" || activity.status === "approval_required" || activity.status === "cancelled" || activity.status === "unknown";
+      return <li key={activity.id} className={`relative min-w-0 py-1.5 pl-3 ${activity.status === "failed" ? "text-rose-700" : ""}`}>
+        <ActivityMarker status={activity.status} current={Boolean(isCurrent)} />
+        <p className="break-words text-[10px] leading-4 text-muted-foreground">{activity.actionLabel || activity.message}</p>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={13} />
+          <span className="text-[9px] text-muted-foreground">{toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app")}</span>
+          <code className="min-w-0 break-all text-[9px] leading-4 text-foreground/70">{actionTokenForActivity(activity)}</code>
+          <ActivityState activity={activity} current={Boolean(isCurrent)} />
+        </div>
+        {attention ? <p className={`mt-1 text-[10px] leading-4 ${activity.status === "failed" ? "text-rose-700" : "text-amber-800"}`}>{activity.status === "approval_required" ? "Waiting for your approval to continue." : activity.status === "cancelled" ? "This action was cancelled before its outcome was confirmed." : activity.status === "unknown" ? "The batch response did not include a status for this action. Check the connected app before retrying." : activity.summary || "This step could not be completed."}</p> : detail ? <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{detail}</p> : null}
+        {activity.callId && subagentActivities?.length ? <SubagentTree activities={subagentActivities} parentToolCallId={activity.callId} live={pending} /> : null}
+      </li>;
+    })}
+  </ol>;
+}
+
+function ActivityNarrative({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
+  const stages = buildActivityNarrative(activities);
+  const currentStage = stages.find((stage) => stage.status === "started") || stages.at(-1);
+  const uniqueTools = [...new Set(activities.map((activity) => lookupActivityToolkit(activity, toolkitCatalogue).name).filter(Boolean))];
+  return <div className="chat-activity-narrative my-2 w-full min-w-0 max-w-2xl overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.018] shadow-sm">
+    <div className="flex items-start gap-3 border-b border-foreground/10 px-3 py-2.5">
+      <ActivityBrand toolSlug="CHUCK_ACTIVITY" size={18} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium leading-4 text-foreground">{pending && currentStage?.status === "started" ? currentStage.title : "Work completed"}</p>
+        <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{pending ? "Following the work as it happens" : `${stages.length} meaningful ${stages.length === 1 ? "stage" : "stages"} · ${activities.length} actions completed`}</p>
+      </div>
+      {pending ? <LoaderCircle size={13} className="mt-0.5 shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" aria-label="Work in progress" /> : <CircleCheckBig size={14} className="mt-0.5 shrink-0 text-emerald-600" aria-label="Work completed" />}
+    </div>
+    <ol aria-label="Work progress" className="relative ml-5 border-l border-foreground/15 py-3 pl-5 pr-3">
+      {stages.map((stage, index) => {
+        const detail = stage.activities.find((activity) => activity.summary || activity.message)?.summary || stage.activities[0]?.message;
+        const stageTools = [...new Set(stage.activities.map((activity) => lookupActivityToolkit(activity, toolkitCatalogue).name).filter(Boolean))];
+        const isCurrent = pending && stage.status === "started";
+        return <li key={`${stage.title}-${index}`} className="relative min-w-0 pb-4 last:pb-0">
+          <ActivityMarker status={stage.status} current={isCurrent} className="absolute -left-[31px] top-0 rounded-full bg-background" />
+          <p className={`text-[11px] font-medium leading-4 ${isCurrent ? "text-foreground" : "text-foreground/90"}`}>{stage.title}</p>
+          {detail && detail !== stage.title ? <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-muted-foreground">{detail}</p> : null}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[9px] text-muted-foreground">
+            {stageTools.map((tool) => <span key={tool} className="rounded-full border border-foreground/10 px-1.5 py-0.5">{tool}</span>)}
+            {stage.activities.length > 1 ? <span>{stage.activities.length} actions</span> : null}
+            {stage.status === "started" ? <span className="text-chusky-amber">In progress</span> : stage.status === "failed" ? <span className="text-rose-700">Needs attention</span> : null}
+          </div>
+        </li>;
+      })}
+    </ol>
+    <details className="border-t border-foreground/10 px-3 py-2">
+      <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 [&::-webkit-details-marker]:hidden">View detailed activity <span className="ml-1 font-normal text-muted-foreground/70">· {activities.length} actions{uniqueTools.length ? ` · ${uniqueTools.join(", ")}` : ""}</span></summary>
+      <ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} />
+    </details>
+  </div>;
+}
+
 function SubagentTree({ activities, parentToolCallId, live }: { activities: RunSubagentActivity[]; parentToolCallId: string; live: boolean }) {
   const related = activities.filter((activity) => activity.parentToolCallId === parentToolCallId);
   const workers = [...new Map(related.filter((activity) => activity.kind === "worker").map((activity) => [activity.handoffId, activity])).values()];
@@ -1144,34 +1241,7 @@ export function ChatPage() {
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
-                    {headlineActivity ? <details className="chat-activity-timeline group/timeline my-2 w-full min-w-0 max-w-2xl overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.018] shadow-sm">
-                      <summary className="chat-activity-summary flex min-h-10 min-w-0 cursor-pointer list-none items-center gap-2 px-2.5 py-1.5 text-[11px] leading-5 text-muted-foreground transition-colors hover:bg-foreground/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 sm:text-xs [&::-webkit-details-marker]:hidden">
-                        <ActivityBrand toolSlug="CHUCK_ACTIVITY" size={16} />
-                        <span className="min-w-0 flex-1 truncate md:overflow-visible md:whitespace-normal md:break-words">{headlineActivity.actionLabel || headlineActivity.message}{visibleActivities.length > 1 ? <span className="text-muted-foreground"> · {visibleActivities.length - 1} other {visibleActivities.length === 2 ? "task" : "tasks"}</span> : null}</span>
-                        {item.pending && visibleActivities.some((activity) => activity.status === "started") ? <LoaderCircle size={12} aria-label="Tool activity in progress" className="shrink-0 animate-spin motion-reduce:animate-none" /> : null}
-                        <span aria-hidden="true" className="mr-1 size-1.5 shrink-0 -rotate-45 border-b border-l border-current transition-transform group-open/timeline:-rotate-[225deg] motion-reduce:transition-none" />
-                      </summary>
-                      <ol aria-label="Tool activity" className="chat-activity-list ml-3 border-l border-foreground/15 pb-1 pl-2">
-                        {visibleActivities.map((activity, activityIndex) => {
-                          const isCurrent = item.pending && activity.status === "started" && (activity.parallelBatch || activityIndex === visibleActivities.length - 1);
-                          const toolkit = lookupActivityToolkit(activity, toolkitCatalogue);
-                          const detail = activityDetailSummary(activity.summary);
-                          const attention = activity.status === "failed" || activity.status === "approval_required" || activity.status === "cancelled" || activity.status === "unknown";
-                          return <li key={activity.id} className={`chat-activity-item chat-activity-${activity.status} relative min-w-0 py-2 pl-4 sm:pl-5`}>
-                            <ActivityMarker status={activity.status} current={Boolean(isCurrent)} />
-                            <p className="mb-1.5 break-words text-[11px] leading-5 text-muted-foreground sm:text-xs">{activity.actionLabel || activity.message}</p>
-                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
-                              <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={14} />
-                              <span className="text-[10px] text-muted-foreground">{toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app")}</span>
-                              <code className="min-w-0 break-all text-[10px] leading-4 text-foreground/80">{actionTokenForActivity(activity)}</code>
-                              <ActivityState activity={activity} current={Boolean(isCurrent)} />
-                            </div>
-                            {attention ? <p className={`mt-1.5 text-[10px] leading-4 ${activity.status === "failed" ? "text-rose-700" : "text-amber-800"}`}>{activity.status === "approval_required" ? "Waiting for your approval to continue." : activity.status === "cancelled" ? "This action was cancelled before its outcome was confirmed." : activity.status === "unknown" ? "The batch response did not include a status for this action. Check the connected app before retrying." : activity.summary || "This step could not be completed."}</p> : detail ? <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{detail}</p> : null}
-                            {activity.callId && item.subagentActivities?.length ? <SubagentTree activities={item.subagentActivities} parentToolCallId={activity.callId} live={Boolean(item.pending)} /> : null}
-                          </li>;
-                        })}
-                      </ol>
-                    </details> : null}
+                    {headlineActivity ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} /> : null}
                     {item.text && !item.failure ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
