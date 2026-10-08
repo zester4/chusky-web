@@ -5,6 +5,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Activity, ArrowUpRight, Boxes, CheckCircle2, CircleAlert, FileOutput, Link2, MessageSquare, Radar, RefreshCw, ShieldCheck, TriangleAlert, Wrench, Workflow, Zap } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Activity as ActivitySnapshot, type Artifact, type AutonomySnapshot, type ChannelConnection, type ConnectedAccount, type Delivery, type HealthSnapshot, type McpConnection, type Mission, type Page, type Thread, type Tool, type Usage, type Worker } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
+import { DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
 type OptionalResult<T> = { value: T; failed?: string };
@@ -117,7 +118,7 @@ export function OverviewPage() {
   };
 
   useEffect(() => { void load(); }, []);
-  useLiveData(load, 10_000);
+  useLiveData(load, DASHBOARD_REFRESH_INTERVAL_MS);
 
   if (offline) return <><PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="A live view of what Chusky can do, what it is doing, and what needs you." action={<Button secondary onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button>} /><OfflineState onRetry={() => void load()} /></>;
   if (!data) return <><PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="A live view of what Chusky can do, what it is doing, and what needs you." /><LoadingState /></>;

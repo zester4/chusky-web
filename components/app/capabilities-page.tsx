@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Download, FileArchive, FileText, LoaderCircle, Play, RefreshCw, Search, Square, Users, Video, Wrench, X } from "lucide-react";
-import { chuskyApi, type Artifact, type Skill, type SkillFile, type Tool, type VideoJob, type Webhook, type Worker } from "@/lib/chusky-api";
+import { Download, FileArchive, FileText, LoaderCircle, Play, RefreshCw, Search, Video, Wrench, X } from "lucide-react";
+import { chuskyApi, type Artifact, type Skill, type SkillFile, type Tool, type VideoJob, type Webhook } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 
-const durations = ["5m", "30m", "1h", "3h", "6h", "3d", "1w"] as const;
 const capabilityTabs = [
-  ["tools", "Tools"], ["skills", "Skills"], ["workers", "Workers"], ["artifacts", "Artifacts"],
+  ["tools", "Tools"], ["skills", "Skills"], ["artifacts", "Artifacts"],
   ["media", "Media"], ["webhooks", "Webhooks"],
 ] as const;
 type CapabilityTab = (typeof capabilityTabs)[number][0];
@@ -59,16 +58,12 @@ export function CapabilitiesPage() {
   const [tools, setTools] = useState<Tool[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-  const [workers, setWorkers] = useState<Worker[]>([]);
   const [videos, setVideos] = useState<VideoJob[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [query, setQuery] = useState("");
   const [skill, setSkill] = useState<{ item: Skill; files: SkillFile[]; selected?: SkillFile }>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
-  const [worker, setWorker] = useState("maya");
-  const [objective, setObjective] = useState("");
-  const [duration, setDuration] = useState<(typeof durations)[number]>("30m");
   const [videoPrompt, setVideoPrompt] = useState("");
   const [videoDestination, setVideoDestination] = useState<VideoJob["destination"]>("telegram");
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -77,14 +72,13 @@ export function CapabilitiesPage() {
   const load = async (search = query) => {
     setError(undefined);
     const results = await Promise.allSettled([
-      chuskyApi.tools.list(search, undefined, undefined, 500), chuskyApi.skills.list(search, 250), chuskyApi.artifacts.list(), chuskyApi.workers.list(),
+      chuskyApi.tools.list(search, undefined, undefined, 500), chuskyApi.skills.list(search, 250), chuskyApi.artifacts.list(),
       chuskyApi.videos.list(), chuskyApi.webhooks.list(),
     ]);
-    const [toolsResult, skillsResult, artifactsResult, workersResult, videosResult, webhooksResult] = results;
+    const [toolsResult, skillsResult, artifactsResult, videosResult, webhooksResult] = results;
     if (toolsResult.status === "fulfilled") setTools(toolsResult.value.data);
     if (skillsResult.status === "fulfilled") setSkills(skillsResult.value.data);
     if (artifactsResult.status === "fulfilled") setArtifacts(artifactsResult.value.data);
-    if (workersResult.status === "fulfilled") setWorkers(workersResult.value.data);
     if (videosResult.status === "fulfilled") setVideos(videosResult.value.data);
     if (webhooksResult.status === "fulfilled") setWebhooks(webhooksResult.value.data);
     if (results.every((result) => result.status === "rejected")) setError("The capabilities API is unavailable. Start the backend and retry.");
@@ -105,14 +99,6 @@ export function CapabilitiesPage() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not read this skill file."); }
     finally { setBusy(undefined); }
   };
-  const createWorker = async () => {
-    if (!objective.trim()) return;
-    setBusy("worker:create"); setError(undefined);
-    try { const created = await chuskyApi.workers.create({ worker, objective: objective.trim(), duration, approvalPolicy: "require_chusky_approval", maxToolCalls: 100 }); setWorkers((items) => [created, ...items]); setObjective(""); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not start the worker."); }
-    finally { setBusy(undefined); }
-  };
-  const cancelWorker = async (item: Worker) => { setBusy(`worker:${item.id}`); try { const updated = await chuskyApi.workers.cancel(item.id); setWorkers((items) => items.map((candidate) => candidate.id === updated.id ? updated : candidate)); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not cancel the worker."); } finally { setBusy(undefined); } };
   const createVideo = async () => {
     if (!videoPrompt.trim()) return;
     setBusy("video:create"); setError(undefined);
@@ -131,7 +117,6 @@ export function CapabilitiesPage() {
     <div data-capabilities data-active-tab={activeTab} id={`capability-panel-${activeTab}`} role="tabpanel" aria-labelledby={`capability-tab-${activeTab}`} className="grid gap-4">
       <Section visible={activeTab === "tools"} icon={<Wrench size={15} />} title="Tools" detail={`${tools.length} listed · ${tools.filter((item) => item.source === "native").length} native${tools.some((item) => item.source === "composio") ? ` · ${tools.filter((item) => item.source === "composio").length} connected-app matches` : " · search connected apps by capability"}`}><div className="max-h-none overflow-visible sm:max-h-80 sm:overflow-y-auto">{tools.length ? tools.map((item) => <div key={`${item.source}-${item.slug}`} className="flex min-w-0 items-start gap-2.5 border-b border-foreground/10 p-3 last:border-0"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{humanizeTool(item.slug)}</p><p className="mt-1 break-words text-[11px] text-muted-foreground">{item.description}</p><p className="mt-1 truncate font-mono text-[9px] text-muted-foreground" title={item.slug}>Tool ID · {item.slug}</p></div><span className="shrink-0 text-[9px] text-muted-foreground">{humanizeSource(item.source, item.toolkit)}</span></div>) : <Empty>Start the backend or search for a connected-app capability.</Empty>}</div></Section>
       <Section visible={activeTab === "skills"} icon={<FileText size={15} />} title="Skills" detail={`${skills.length} installed · full catalogue loaded · nested files are readable`}><div className="max-h-none overflow-visible sm:max-h-80 sm:overflow-y-auto">{skills.length ? skills.map((item) => <button key={item.name} type="button" onClick={() => void openSkill(item)} className="flex w-full min-w-0 items-start gap-2.5 border-b border-foreground/10 p-3 text-left last:border-0 hover:bg-foreground/[0.03]"><FileText size={14} className="mt-0.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className="block text-xs font-medium">{item.name}</span><span className="mt-1 block break-words text-[11px] text-muted-foreground">{item.description}</span></span><span className="shrink-0 text-[9px] text-muted-foreground">Read</span></button>) : <Empty>No installed skills matched.</Empty>}</div></Section>
-      <Section visible={activeTab === "workers"} icon={<Users size={15} />} title="Durable workers" detail="Supervisor-managed sub-agent runs with explicit budgets"><div className="border-b border-foreground/10 p-3"><div className="grid gap-2 sm:grid-cols-[auto_1fr_auto]"><select value={worker} onChange={(event) => setWorker(event.target.value)} className="min-h-9 border border-foreground/15 bg-background px-2 text-xs"><option value="maya">Maya · research</option><option value="leo">Leo · creative</option><option value="lucas">Lucas · engineering</option><option value="sasha">Sasha · operations</option></select><input value={objective} onChange={(event) => setObjective(event.target.value)} placeholder="What should the worker complete?" className="min-h-9 min-w-0 border border-foreground/15 bg-transparent px-2.5 text-xs outline-none" /><div className="flex gap-2"><select value={duration} onChange={(event) => setDuration(event.target.value as (typeof durations)[number])} className="min-h-9 border border-foreground/15 bg-background px-2 text-xs">{durations.map((item) => <option key={item}>{item}</option>)}</select><Button disabled={!objective.trim() || busy === "worker:create"} onClick={() => void createWorker()}>{busy === "worker:create" ? <LoaderCircle size={13} className="animate-spin" /> : <Play size={13} />} Start</Button></div></div></div><div className="max-h-none overflow-visible sm:max-h-72 sm:overflow-y-auto">{workers.length ? workers.map((item) => <div key={item.id} className="border-b border-foreground/10 p-3 last:border-0"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{item.worker}</p><Status tone={tone(item.status)}>{item.status}</Status></div><p className="mt-1 break-words text-[11px] text-muted-foreground">{item.objective}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.id} · {date(item.timestamp)}</p></div>{!["success", "completed", "cancelled", "failed"].includes(item.status) && <Button secondary disabled={busy === `worker:${item.id}`} onClick={() => void cancelWorker(item)}>{busy === `worker:${item.id}` ? "…" : <Square size={12} />} Cancel</Button>}</div></div>) : <Empty>No durable workers yet.</Empty>}</div></Section>
       <Section visible={activeTab === "artifacts"} icon={<FileArchive size={15} />} title="Artifacts" detail="Download generated PDF, DOCX, PPTX, sheets, images, video, and ZIP files"><div className="max-h-none overflow-visible sm:max-h-72 sm:overflow-y-auto">{artifacts.length ? artifacts.map((item) => <div key={item.id} className="flex min-w-0 items-center gap-2.5 border-b border-foreground/10 p-3 last:border-0"><FileText size={14} className="shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{item.name}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.type} · {Math.ceil(item.size / 1024)} KB · {date(item.updatedAt)}</p></div><a href={chuskyApi.artifacts.downloadHref(item.id)} download={item.name} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-foreground/15 px-2.5 py-1.5 text-[10px] font-medium hover:bg-foreground/5"><Download size={12} /> Download</a></div>) : <Empty>No generated artifacts are linked to this account.</Empty>}</div></Section>
       <Section visible={activeTab === "media"} icon={<Video size={15} />} title="Video generation" detail="Queue media for Telegram, Daytona, or both"><div className="border-b border-foreground/10 p-3"><div className="flex flex-col gap-2 sm:flex-row"><input value={videoPrompt} onChange={(event) => setVideoPrompt(event.target.value)} placeholder="Describe the video to generate" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-transparent px-2.5 text-xs outline-none" /><select value={videoDestination} onChange={(event) => setVideoDestination(event.target.value as VideoJob["destination"])} className="min-h-9 border border-foreground/15 bg-background px-2 text-xs"><option value="telegram">Telegram</option><option value="daytona">Daytona</option><option value="both">Both</option></select><Button disabled={!videoPrompt.trim() || busy === "video:create"} onClick={() => void createVideo()}>{busy === "video:create" ? <LoaderCircle size={13} className="animate-spin" /> : <Play size={13} />} Queue</Button></div></div><div className="max-h-none overflow-visible sm:max-h-72 sm:overflow-y-auto">{videos.length ? videos.map((item) => <div key={item.id} className="border-b border-foreground/10 p-3 last:border-0"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{item.prompt}</p><Status tone={tone(item.status)}>{item.status}</Status></div><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.destination} · {date(item.createdAt)}</p>{item.error && <p className="mt-1 text-[11px] text-amber-700">{item.error}</p>}</div>{["queued", "running"].includes(item.status) && <Button secondary disabled={busy === `video:${item.id}`} onClick={() => void cancelVideo(item)}><X size={12} /> Cancel</Button>}</div></div>) : <Empty>No video jobs yet.</Empty>}</div></Section>
       <Section visible={activeTab === "webhooks"} icon={<RefreshCw size={15} />} title="Webhooks" detail="Manage server callbacks for run and delivery events"><div className="flex flex-col gap-2 border-b border-foreground/10 p-3 sm:flex-row"><input value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder="https://example.com/chusky-events" className="min-h-9 min-w-0 flex-1 border border-foreground/15 bg-transparent px-2.5 text-xs outline-none" /><Button disabled={!webhookUrl.trim() || busy === "webhook:create"} onClick={() => void createWebhook()}>{busy === "webhook:create" ? <LoaderCircle size={13} className="animate-spin" /> : <Play size={13} />} Add webhook</Button></div><div className="max-h-none overflow-visible sm:max-h-56 sm:overflow-y-auto">{webhooks.length ? webhooks.map((item) => <div key={item.id} className="flex min-w-0 items-center gap-2.5 border-b border-foreground/10 p-3 last:border-0"><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{item.url}</p><p className="mt-1 font-mono text-[9px] text-muted-foreground">{item.id} · {date(item.createdAt)}</p></div><Button secondary disabled={busy === `webhook:${item.id}`} onClick={() => void removeWebhook(item)}><X size={12} /> Remove</Button></div>) : <Empty>No webhooks configured.</Empty>}</div></Section>

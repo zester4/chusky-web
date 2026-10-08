@@ -10,6 +10,7 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type AccountOverview, type CompanyBranding, type HealthSnapshot } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
+import { DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
 import type { ReactNode } from "react";
 
@@ -22,7 +23,8 @@ const work: NavItem[] = [
   ["Organizations", "/app/organizations", Building2],
   // Temporarily hidden from the sidebar; the MCP page and route remain available.
   // ["MCP connections", "/app/mcp", "⌁"],
-  ["Workflow Composer", "/app/composer", Workflow],
+  // Workflow composition is agent-led; the route remains available for internal use.
+  // ["Workflow Composer", "/app/composer", Workflow],
   ["Context", "/app/memory", Brain],
   ["Workspace", "/app/workspace", FolderKanban],
 ];
@@ -53,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       const [nextAccount, nextHealth] = await Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]);
       setAccount(nextAccount); setHealth(nextHealth);
     } catch { /* Keep the shell usable while the API recovers. */ }
-  }, 10_000);
+  }, DASHBOARD_REFRESH_INTERVAL_MS);
   useEffect(() => {
     let active = true;
     void chuskyApi.branding.public(window.location.hostname).then((result) => { if (active && result.data) setBranding(result.data); }).catch(() => undefined);

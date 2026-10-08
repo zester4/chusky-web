@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle, RefreshCw, Square, Users } from "lucide-react";
 import { chuskyApi, type Worker } from "@/lib/chusky-api";
+import { useLiveData } from "@/lib/live-sync";
+import { DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 
@@ -19,7 +21,7 @@ export function WorkersPage() {
   const [error, setError] = useState<string>();
   const load = async () => { setLoading(true); setError(undefined); try { setItems((await chuskyApi.workers.list(filter === "all" ? undefined : filter)).data); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load workers."); } finally { setLoading(false); } };
   useEffect(() => { void load(); }, [filter]);
-  useEffect(() => { const timer = window.setInterval(() => void load(), 5000); return () => window.clearInterval(timer); }, [filter]);
+  useLiveData(load, DASHBOARD_REFRESH_INTERVAL_MS);
   const cancel = async (item: Worker) => { setBusy(item.id); try { const updated = await chuskyApi.workers.cancel(item.id); setItems((current) => current.map((candidate) => candidate.id === updated.id ? updated : candidate)); setSelected(updated); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not cancel worker."); } finally { setBusy(undefined); } };
   return <>
     <PageHeading eyebrow="Delegation" title="Workers" description="See every specialist Chusky has delegated to, the objective it received, its budget, and its current state." action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />

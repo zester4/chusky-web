@@ -22,7 +22,7 @@ import {
   type OnboardingProfile,
   type OnboardingTone,
 } from "@/lib/onboarding";
-import type { AttentionPulsePreferences } from "@/lib/chusky-api";
+import type { AttentionPulsePreferences, AttentionPulseProvider } from "@/lib/chusky-api";
 import { Button, Card } from "@/components/app/app-shell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -52,7 +52,7 @@ const steps = [
   { label: "Review", title: "Ready to give Chusky a starting point?", description: "Review the profile and Elena’s operating settings before they are saved. You can change them later." },
 ] as const;
 
-type PulseSetup = Pick<AttentionPulsePreferences, "enabled" | "cadence" | "authority" | "maxPerDay" | "monitoredDomains"> & { deliveryTargets: Array<{ provider: string; conversationId?: string }>; quietHoursUtc?: { startMinute: number; endMinute: number } };
+type PulseSetup = Pick<AttentionPulsePreferences, "enabled" | "cadence" | "authority" | "maxPerDay" | "monitoredDomains"> & { deliveryTargets: Array<{ provider: AttentionPulseProvider; conversationId?: string }>; quietHoursUtc?: { startMinute: number; endMinute: number } };
 const defaultPulseSetup: PulseSetup = { enabled: false, cadence: "hourly", authority: "prepare", maxPerDay: 4, deliveryTargets: [{ provider: "telegram" }], monitoredDomains: ["gmail", "calendar"] };
 const pulseCadences: Array<[PulseSetup["cadence"], string, string]> = [["hourly", "Every hour", "A steady operating pulse for inbox, calendar, deadlines, and follow-through."], ["every_30_minutes", "Every 30 minutes", "Faster attention for an active workday; uses more checks."], ["daily", "Once each morning", "A calmer daily brief with fewer interruptions."]];
 const pulseAuthorities: Array<[PulseSetup["authority"], string, string]> = [["observe", "Find and tell me", "Read connected signals and explain what needs attention."], ["prepare", "Prepare the next step", "Draft replies, plans, reminders, and approval-ready actions. Recommended."], ["execute_reversible", "Handle routine reversible work", "Complete low-risk, reversible actions only where a matching watch or standing order grants that exact scope."]];
@@ -309,7 +309,7 @@ export function OnboardingPage() {
   const [pulseSettingsLoaded, setPulseSettingsLoaded] = useState(false);
   const [pulseSettingsDirty, setPulseSettingsDirty] = useState(false);
   const [pulseConnections, setPulseConnections] = useState<Array<{ toolkit: string; alias?: string }>>([]);
-  const [pulseChannels, setPulseChannels] = useState<Array<{ id: string; provider: string; externalUserId: string; displayName?: string; proactiveOptIn: boolean }>>([]);
+  const [pulseChannels, setPulseChannels] = useState<Array<{ id: string; provider: AttentionPulseProvider; externalUserId: string; displayName?: string; proactiveOptIn: boolean }>>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -377,7 +377,7 @@ export function OnboardingPage() {
         setPulse({ enabled: value.enabled, cadence: value.cadence, authority: value.authority, maxPerDay: value.maxPerDay, monitoredDomains: value.monitoredDomains, deliveryTargets: value.deliveryTargets.filter((target) => target.enabled).map((target) => ({ provider: target.provider, ...(target.conversationId ? { conversationId: target.conversationId } : {}) })), ...(value.quietHoursUtc ? { quietHoursUtc: value.quietHoursUtc } : {}) });
       }
       if (appsResult.status === "fulfilled") setPulseConnections(appsResult.value.data.map((account) => ({ toolkit: canonicalPulseDomain(account.toolkit), ...(account.alias ? { alias: account.alias } : {}) })));
-      if (channelsResult.status === "fulfilled") setPulseChannels(channelsResult.value.data.filter((channel) => channel.proactiveOptIn).map((channel) => ({ id: channel.id, provider: channel.provider, externalUserId: channel.externalUserId, ...(channel.displayName ? { displayName: channel.displayName } : {}), proactiveOptIn: channel.proactiveOptIn })));
+      if (channelsResult.status === "fulfilled") setPulseChannels(channelsResult.value.data.filter((channel): channel is typeof channel & { provider: AttentionPulseProvider } => channel.proactiveOptIn && ["telegram", "slack", "sendblue"].includes(channel.provider)).map((channel) => ({ id: channel.id, provider: channel.provider, externalUserId: channel.externalUserId, ...(channel.displayName ? { displayName: channel.displayName } : {}), proactiveOptIn: channel.proactiveOptIn })));
     });
     return () => { active = false; };
   }, [userId]);
@@ -395,7 +395,7 @@ export function OnboardingPage() {
   const toggleList = (key: "goals" | "workstreams", value: string) => setProfile((current) => ({ ...current, [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value] }));
   const updatePulse = <K extends keyof PulseSetup>(key: K, value: PulseSetup[K]) => { setPulseSettingsDirty(true); setPulse((current) => ({ ...current, [key]: value })); };
   const togglePulseDomain = (domain: string) => { setPulseSettingsDirty(true); setPulse((current) => ({ ...current, monitoredDomains: current.monitoredDomains.includes(domain) ? current.monitoredDomains.filter((item) => item !== domain) : [...current.monitoredDomains, domain] })); };
-  const togglePulseTarget = (target: { provider: string; conversationId?: string }) => { setPulseSettingsDirty(true); setPulse((current) => {
+  const togglePulseTarget = (target: { provider: AttentionPulseProvider; conversationId?: string }) => { setPulseSettingsDirty(true); setPulse((current) => {
     const key = `${target.provider}:${target.conversationId ?? ""}`;
     const exists = current.deliveryTargets.some((item) => `${item.provider}:${item.conversationId ?? ""}` === key);
     return { ...current, deliveryTargets: exists ? current.deliveryTargets.filter((item) => `${item.provider}:${item.conversationId ?? ""}` !== key) : [...current.deliveryTargets, target] };

@@ -29,6 +29,7 @@ import {
     X,
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Artifact, type Model, type PrivateRunLink, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
+import { ACTIVE_RUN_RECOVERY_INTERVAL_MS, DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
@@ -421,7 +422,7 @@ export function ChatPage() {
   useLiveData(() => chuskyApi.account.get().then((next) => {
     setAccount(next);
     if (!runModel) setRunModel(next.model);
-  }).catch(() => undefined), 10_000);
+  }).catch(() => undefined), DASHBOARD_REFRESH_INTERVAL_MS);
 
   useEffect(() => {
     setChatHeader({ title: thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky", status });
@@ -587,9 +588,9 @@ export function ChatPage() {
         try { await applyRunSnapshotRef.current(await chuskyApi.runs.get(thread.id, runId)); }
         catch { /* A transient network error must not erase the saved timeline; retry shortly. */ }
       }));
-      if (active) timer = window.setTimeout(() => void poll(), 1200);
+      if (active) timer = window.setTimeout(() => void poll(), runIds.length ? ACTIVE_RUN_RECOVERY_INTERVAL_MS : DASHBOARD_REFRESH_INTERVAL_MS);
     };
-    timer = window.setTimeout(() => void poll(), 1200);
+    timer = window.setTimeout(() => void poll(), ACTIVE_RUN_RECOVERY_INTERVAL_MS);
     return () => { active = false; if (timer !== undefined) window.clearTimeout(timer); };
   }, [thread?.id]);
 

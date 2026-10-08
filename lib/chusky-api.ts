@@ -116,11 +116,12 @@ export type Artifact = { id: string; name: string; type: "website" | "report" | 
 export type VideoJob = { id: string; prompt: string; destination: "telegram" | "daytona" | "both"; workspacePath?: string; workflowRunId?: string; status: "queued" | "running" | "completed" | "failed" | "cancelled"; pollCount: number; error?: string; resultPath?: string; createdAt: string; updatedAt: string; completedAt?: string };
 export type Worker = { id: string; worker: string; from: string; objective: string; expectedOutput: string; status: string; taskId?: string; workflowRunId?: string; timestamp: string; delegation?: Record<string, unknown>; context?: Record<string, unknown> };
 export type ChannelConnection = { id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean };
+export type AttentionPulseProvider = "telegram" | "slack" | "sendblue";
 export type AttentionPulsePreferences = {
   enabled: boolean;
   cadence: "every_30_minutes" | "hourly" | "daily";
   authority: "observe" | "prepare" | "execute_reversible";
-  deliveryTargets: Array<{ id: string; provider: string; conversationId?: string; enabled: boolean; mode: "immediate" | "digest" | "silent"; maxPerDay?: number; quietHoursUtc?: { startMinute: number; endMinute: number } }>;
+  deliveryTargets: Array<{ id: string; provider: AttentionPulseProvider; conversationId?: string; enabled: boolean; mode: "immediate" | "digest" | "silent"; maxPerDay?: number; quietHoursUtc?: { startMinute: number; endMinute: number } }>;
   maxPerDay: number;
   quietHoursUtc?: { startMinute: number; endMinute: number };
   monitoredDomains: string[];
@@ -538,7 +539,7 @@ export const chuskyApi = {
   },
   attentionPulse: {
     get: () => request<AttentionPulsePreferences>("/account/attention-pulse"),
-    update: (input: { enabled: boolean; cadence?: AttentionPulsePreferences["cadence"]; authority?: AttentionPulsePreferences["authority"]; deliveryTargets?: Array<{ provider: string; conversationId?: string }>; maxPerDay?: number; quietHoursUtc?: { startMinute: number; endMinute: number } | null; monitoredDomains?: string[] }) => request<{ data: AttentionPulsePreferences }>("/account/attention-pulse", { method: "PUT", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+    update: (input: { enabled: boolean; cadence?: AttentionPulsePreferences["cadence"]; authority?: AttentionPulsePreferences["authority"]; deliveryTargets?: Array<{ provider: AttentionPulseProvider; conversationId?: string }>; maxPerDay?: number; quietHoursUtc?: { startMinute: number; endMinute: number } | null; monitoredDomains?: string[] }) => request<{ data: AttentionPulsePreferences }>("/account/attention-pulse", { method: "PUT", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
   },
   devices: {
     list: () => request<Page<AccountOverview["devices"][number]>>("/devices"),
