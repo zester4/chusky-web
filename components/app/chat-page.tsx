@@ -5,7 +5,6 @@ import { useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   CheckCircle2,
-  CircleCheckBig,
   Check,
   Clock4,
   Copy,
@@ -124,19 +123,19 @@ function ActivityState({ activity, current }: { activity: PresentedToolActivity;
       : activity.status === "approval_required" ? "Waiting for approval"
         : activity.status === "cancelled" ? "Cancelled"
           : activity.status === "unknown" ? "Outcome unknown" : "Failed";
-  const icon = current || activity.status === "started" ? <Clock4 size={13} className={current ? "animate-pulse" : undefined} />
-    : activity.status === "completed" ? <CircleCheckBig size={13} />
+  const icon = current ? <LoaderCircle size={13} className="animate-spin motion-reduce:animate-none" /> : activity.status === "started" ? <Clock4 size={13} />
+    : activity.status === "completed" ? <Check size={13} />
       : activity.status === "approval_required" ? <ShieldCheck size={13} />
         : activity.status === "cancelled" ? <Square size={11} />
           : activity.status === "unknown" ? <Clock4 size={13} />
               : <X size={13} />;
-  const tone = activity.status === "completed" ? "bg-emerald-500/10 text-emerald-700" : activity.status === "approval_required" || activity.status === "unknown" ? "bg-amber-500/10 text-amber-700" : activity.status === "failed" ? "bg-rose-500/10 text-rose-700" : "bg-foreground/5 text-muted-foreground";
+  const tone = activity.status === "completed" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : activity.status === "approval_required" || activity.status === "unknown" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : activity.status === "failed" ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-foreground/5 text-muted-foreground";
   return <span className={`inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] leading-4 ${tone}`}><span aria-hidden="true" className="shrink-0">{icon}</span>{label}</span>;
 }
 
 function ActivityMarker({ status, current, className = "" }: { status: PresentedToolActivity["status"] | RunSubagentActivity["status"]; current: boolean; className?: string }) {
   const icon = current || status === "started" ? <Clock4 size={14} className={current ? "animate-pulse" : undefined} />
-    : status === "completed" ? <CircleCheckBig size={15} />
+    : status === "completed" ? <Check size={15} />
       : status === "approval_required" || status === "waiting" ? <ShieldCheck size={14} />
         : status === "cancelled" ? <Square size={11} />
           : <X size={14} />;
@@ -171,60 +170,35 @@ const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Recor
   };
 };
 
-type ActivityNarrativeStage = {
-  title: string;
-  activities: PresentedToolActivity[];
-  status: PresentedToolActivity["status"];
-};
-
-function narrativeTitle(activity: PresentedToolActivity): string {
-  const text = `${activity.actionLabel || ""} ${activity.message || ""}`.toLowerCase();
-  if (/browser|browse|search|research|discover|look up|find/.test(text)) return "Researching public sources";
-  if (/prompt|gallery|community|example|page/.test(text)) return "Reviewing useful examples";
-  if (/compar|analys|pattern|trade-?off|synthesi/.test(text)) return "Comparing the findings";
-  if (/skill|folder|file|write|create|build|prepare|generate|save/.test(text)) return "Preparing the output";
-  if (/review|read|inspect|check|verify/.test(text)) return "Reviewing the work";
-  if (/^(running|calling|using|executing)\b|tool action|browser action/.test(text)) return "Working through the task";
-  const label = (activity.actionLabel || activity.message || "Working through the task").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
-  return label ? `${label.slice(0, 1).toUpperCase()}${label.slice(1)}` : "Working through the task";
-}
-
-function narrativeStatus(activities: PresentedToolActivity[]): PresentedToolActivity["status"] {
-  if (activities.some((activity) => activity.status === "failed")) return "failed";
-  if (activities.some((activity) => activity.status === "approval_required")) return "approval_required";
-  if (activities.some((activity) => activity.status === "started")) return "started";
-  if (activities.every((activity) => activity.status === "cancelled")) return "cancelled";
-  return "completed";
-}
-
-function buildActivityNarrative(activities: PresentedToolActivity[]): ActivityNarrativeStage[] {
-  const stages: ActivityNarrativeStage[] = [];
-  for (const activity of activities) {
-    const title = narrativeTitle(activity);
-    const previous = stages.at(-1);
-    if (previous?.title === title) previous.activities.push(activity);
-    else stages.push({ title, activities: [activity], status: activity.status });
-  }
-  return stages.map((stage) => ({ ...stage, status: narrativeStatus(stage.activities) }));
-}
+// Strip decorative prefixes from progress copy while retaining the server's action text.
+const cleanActivityLabel = (value: string) => value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
 
 function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
-  return <ol aria-label="Detailed tool activity" className="chat-activity-detail-list mt-2 space-y-1.5 border-l border-foreground/10 pl-3">
-    {activities.map((activity, activityIndex) => {
-      const isCurrent = pending && activity.status === "started" && (activity.parallelBatch || activityIndex === activities.length - 1);
+  return <ol aria-label="Tool activity" className="divide-y divide-foreground/[0.06]">
+    {activities.map((activity) => {
+      const isCurrent = pending && activity.status === "started";
       const toolkit = lookupActivityToolkit(activity, toolkitCatalogue);
       const detail = activityDetailSummary(activity.summary);
-      const attention = activity.status === "failed" || activity.status === "approval_required" || activity.status === "cancelled" || activity.status === "unknown";
-      return <li key={activity.id} className={`relative min-w-0 py-1.5 pl-3 ${activity.status === "failed" ? "text-rose-700" : ""}`}>
-        <ActivityMarker status={activity.status} current={Boolean(isCurrent)} />
-        <p className="break-words text-[10px] leading-4 text-muted-foreground">{activity.actionLabel || activity.message}</p>
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={13} />
-          <span className="text-[9px] text-muted-foreground">{toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app")}</span>
-          <code className="min-w-0 break-all text-[9px] leading-4 text-foreground/70">{actionTokenForActivity(activity)}</code>
-          <ActivityState activity={activity} current={Boolean(isCurrent)} />
+      const attention = ["failed", "approval_required", "cancelled", "unknown"].includes(activity.status);
+      return <li key={activity.id} className="min-w-0 px-3 py-3 sm:px-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-foreground/[0.08] bg-background">
+            <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={17} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-[11px] font-medium leading-5">{cleanActivityLabel(activity.actionLabel || activity.message)}</p>
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+              <span>{toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app")}</span>
+              {formatToolDuration(activity.durationMs) ? <span>{formatToolDuration(activity.durationMs)}</span> : null}
+              <ActivityState activity={activity} current={isCurrent} />
+            </div>
+            {attention ? <p className={`mt-1.5 text-[11px] leading-4 ${activity.status === "failed" ? "text-rose-700 dark:text-rose-300" : "text-amber-800 dark:text-amber-300"}`}>{activity.status === "approval_required" ? "Waiting for your approval to continue." : activity.status === "cancelled" ? "This action was cancelled before its outcome was confirmed." : activity.status === "unknown" ? "No confirmed outcome. Check the connected app before retrying." : activity.summary || "This step could not be completed."}</p> : detail ? <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{detail}</p> : null}
+            <details className="mt-1 text-[9px] text-muted-foreground">
+              <summary className="w-fit cursor-pointer rounded py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">Tool details</summary>
+              <code className="block break-all pb-1">{actionTokenForActivity(activity)}</code>
+            </details>
+          </div>
         </div>
-        {attention ? <p className={`mt-1 text-[10px] leading-4 ${activity.status === "failed" ? "text-rose-700" : "text-amber-800"}`}>{activity.status === "approval_required" ? "Waiting for your approval to continue." : activity.status === "cancelled" ? "This action was cancelled before its outcome was confirmed." : activity.status === "unknown" ? "The batch response did not include a status for this action. Check the connected app before retrying." : activity.summary || "This step could not be completed."}</p> : detail ? <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{detail}</p> : null}
         {activity.callId && subagentActivities?.length ? <SubagentTree activities={subagentActivities} parentToolCallId={activity.callId} live={pending} /> : null}
       </li>;
     })}
@@ -232,40 +206,34 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
 }
 
 function ActivityNarrative({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
-  const stages = buildActivityNarrative(activities);
-  const currentStage = stages.find((stage) => stage.status === "started") || stages.at(-1);
-  const uniqueTools = [...new Set(activities.map((activity) => lookupActivityToolkit(activity, toolkitCatalogue).name).filter(Boolean))];
-  return <div className="chat-activity-narrative my-2 w-full min-w-0 max-w-2xl overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.018] shadow-sm">
-    <div className="flex items-start gap-3 border-b border-foreground/10 px-3 py-2.5">
-      <ActivityBrand toolSlug="CHUCK_ACTIVITY" size={18} />
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium leading-4 text-foreground">{pending && currentStage?.status === "started" ? currentStage.title : "Work completed"}</p>
-        <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{pending ? "Following the work as it happens" : `${stages.length} meaningful ${stages.length === 1 ? "stage" : "stages"} · ${activities.length} actions completed`}</p>
-      </div>
-      {pending ? <LoaderCircle size={13} className="mt-0.5 shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" aria-label="Work in progress" /> : <CircleCheckBig size={14} className="mt-0.5 shrink-0 text-emerald-600" aria-label="Work completed" />}
-    </div>
-    <ol aria-label="Work progress" className="relative ml-5 border-l border-foreground/15 py-3 pl-5 pr-3">
-      {stages.map((stage, index) => {
-        const detail = stage.activities.find((activity) => activity.summary || activity.message)?.summary || stage.activities[0]?.message;
-        const stageTools = [...new Set(stage.activities.map((activity) => lookupActivityToolkit(activity, toolkitCatalogue).name).filter(Boolean))];
-        const isCurrent = pending && stage.status === "started";
-        return <li key={`${stage.title}-${index}`} className="relative min-w-0 pb-4 last:pb-0">
-          <ActivityMarker status={stage.status} current={isCurrent} className="absolute -left-[31px] top-0 rounded-full bg-background" />
-          <p className={`text-[11px] font-medium leading-4 ${isCurrent ? "text-foreground" : "text-foreground/90"}`}>{stage.title}</p>
-          {detail && detail !== stage.title ? <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-muted-foreground">{detail}</p> : null}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[9px] text-muted-foreground">
-            {stageTools.map((tool) => <span key={tool} className="rounded-full border border-foreground/10 px-1.5 py-0.5">{tool}</span>)}
-            {stage.activities.length > 1 ? <span>{stage.activities.length} actions</span> : null}
-            {stage.status === "started" ? <span className="text-chusky-amber">In progress</span> : stage.status === "failed" ? <span className="text-rose-700">Needs attention</span> : null}
-          </div>
-        </li>;
-      })}
-    </ol>
-    <details className="border-t border-foreground/10 px-3 py-2">
-      <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 [&::-webkit-details-marker]:hidden">View detailed activity <span className="ml-1 font-normal text-muted-foreground/70">· {activities.length} actions{uniqueTools.length ? ` · ${uniqueTools.join(", ")}` : ""}</span></summary>
+  const completed = activities.filter((activity) => activity.status === "completed").length;
+  const needsApproval = activities.some((activity) => activity.status === "approval_required");
+  const needsAttention = activities.some((activity) => activity.status === "failed" || activity.status === "unknown");
+  const unfinished = activities.some((activity) => activity.status === "started" || activity.status === "cancelled");
+  const current = activities.findLast((activity) => activity.status === "started");
+  const title = needsApproval ? "Approval needed" : pending ? "Working on your request" : needsAttention ? "Some actions need attention" : unfinished ? "Activity recorded" : "Actions completed";
+  const toolkits = [...new Map(activities.map((activity) => {
+    const toolkit = lookupActivityToolkit(activity, toolkitCatalogue);
+    return [toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app"), { activity, toolkit }] as const;
+  })).entries()];
+  return <details className="group/activity my-2 w-full min-w-0 max-w-2xl overflow-hidden rounded-xl border border-foreground/[0.08] bg-foreground/[0.015]" open={pending || needsApproval || needsAttention}>
+    <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 sm:px-4 [&::-webkit-details-marker]:hidden">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.045]" aria-hidden="true">
+        {pending ? <LoaderCircle size={16} className="animate-spin motion-reduce:animate-none" /> : needsApproval ? <ShieldCheck size={17} className="text-amber-700 dark:text-amber-300" /> : needsAttention ? <X size={16} className="text-rose-700 dark:text-rose-300" /> : unfinished ? <Clock4 size={16} /> : <Check size={17} className="text-emerald-700 dark:text-emerald-300" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-medium leading-5">{title}</span>
+        <span className="block truncate text-[10px] leading-4 text-muted-foreground">{pending && current ? cleanActivityLabel(current.actionLabel || current.message) : `${completed} of ${activities.length} actions completed`}</span>
+      </span>
+      <span className="hidden items-center -space-x-1.5 sm:flex" aria-hidden="true">
+        {toolkits.slice(0, 3).map(([name, { activity, toolkit }]) => <span key={name} className="flex size-6 items-center justify-center rounded-full border border-background bg-background"><ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={14} /></span>)}
+      </span>
+      <ChevronDown size={14} className="shrink-0 text-muted-foreground transition-transform group-open/activity:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+    </summary>
+    <div className="border-t border-foreground/[0.08]">
       <ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} />
-    </details>
-  </div>;
+    </div>
+  </details>;
 }
 
 function SubagentTree({ activities, parentToolCallId, live }: { activities: RunSubagentActivity[]; parentToolCallId: string; live: boolean }) {
@@ -409,6 +377,31 @@ async function hydrateRunImages(images?: RunImage[]): Promise<Array<RunImage & {
 type PendingAttachment = { localId: string; file?: File; id?: string; name: string; contentType: string; size: number; progress: number; phase?: "queued" | "uploading" | "verifying"; status: "uploading" | "ready" | "error"; error?: string; previewUrl?: string; downloadUrl?: string };
 type SendAttachment = { id: string; name: string; contentType: string; size: number; previewUrl?: string; downloadUrl?: string };
 type QueuedMessage = { text: string; attachments: SendAttachment[] };
+
+function AttachmentPreview({ item, onRemove, onRetry }: { item: PendingAttachment; onRemove: () => void; onRetry: () => void }) {
+  const isImage = item.contentType.startsWith("image/");
+  const [previewFailed, setPreviewFailed] = useState(false);
+  return <div className={`shrink-0 ${isImage ? "w-20" : "w-56"}`}>
+    <div className={`relative overflow-hidden rounded-xl border bg-foreground/[0.035] ${isImage ? "size-20" : "flex h-20 items-center gap-2 p-3 pr-8"} ${item.status === "error" ? "border-rose-500/40" : "border-foreground/10"}`} aria-busy={item.status === "uploading"}>
+      {isImage ? item.previewUrl && !previewFailed ? <img src={item.previewUrl} alt="Image attachment preview" className="size-full object-cover" onError={() => setPreviewFailed(true)} /> : <div className="flex size-full items-center justify-center text-muted-foreground"><FileImage size={22} aria-hidden="true" /></div> : <><FileText size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate text-[11px]">{item.name}</span></>}
+      {item.status === "uploading" ? <span role="status" className={`absolute flex items-center justify-center ${isImage ? "inset-0 bg-black/25 text-white" : "bottom-1 right-1 text-muted-foreground"}`}><LoaderCircle size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /><span className="sr-only">Loading attachment</span></span> : null}
+      <button type="button" onClick={onRemove} className="absolute right-0 top-0 flex size-8 items-center justify-center text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" aria-label={isImage ? "Remove image attachment" : `Remove ${item.name}`}><span className="flex size-5 items-center justify-center rounded-full bg-background/95 shadow-sm"><X size={12} aria-hidden="true" /></span></button>
+    </div>
+    {item.status === "error" ? <div className="mt-1 text-[10px] leading-4 text-rose-700 dark:text-rose-300" role="alert">
+      <p>{isImage ? "Image upload failed" : "Upload failed"}</p>
+      {item.file && ACCEPTED_TYPES.has(item.contentType) ? <button type="button" onClick={onRetry} className="inline-flex min-h-8 items-center gap-1 rounded underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"><RotateCcw size={11} aria-hidden="true" />Retry</button> : null}
+      {item.error ? <details><summary className="cursor-pointer py-1">Details</summary><p className="break-words">{item.error}</p></details> : null}
+    </div> : null}
+  </div>;
+}
+
+function SentAttachment({ file }: { file: NonNullable<Message["attachments"]>[number] }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  if (!file.contentType.startsWith("image/")) return <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background"><FileText size={12} aria-hidden="true" /><span className="max-w-48 truncate">{file.name}</span></span>;
+  const src = file.previewUrl || file.downloadUrl;
+  const preview = src && !previewFailed ? <img src={src} alt="Attached image" loading="lazy" decoding="async" onError={() => setPreviewFailed(true)} className="max-h-40 w-auto max-w-[min(12rem,60vw)] rounded-lg object-contain" /> : <span className="flex h-24 w-32 items-center justify-center gap-2 rounded-lg bg-background/10 text-[11px]"><FileImage size={18} aria-hidden="true" />Image unavailable</span>;
+  return file.downloadUrl ? <a href={file.downloadUrl} target="_blank" rel="noreferrer" aria-label="Open attached image" className="block overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background">{preview}</a> : <span className="block">{preview}</span>;
+}
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/markdown", "application/zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "audio/mpeg", "audio/ogg", "audio/wav", "audio/mp4", "video/mp4", "video/webm"]);
 const TYPE_BY_EXTENSION: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif", pdf: "application/pdf", txt: "text/plain", md: "text/markdown", zip: "application/zip", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", mp3: "audio/mpeg", ogg: "audio/ogg", oga: "audio/ogg", wav: "audio/wav", m4a: "audio/mp4", mp4: "video/mp4", webm: "video/webm" };
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -1249,12 +1242,12 @@ export function ChatPage() {
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
                     {headlineActivity ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} /> : null}
-                    {item.text && !item.failure ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
+                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
                     {item.role === "assistant" && item.privateLinks?.length ? <div className="mt-3 space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3"><p className="text-xs font-medium">Action needed in the private browser</p>{item.privateLinks.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-foreground px-3 py-2 text-[11px] text-background">{link.label}</a>)}<p className="text-[10px] leading-4 text-muted-foreground">Complete the website step, then return here and say “continue”. This link expires soon.</p></div> : null}
-                    {item.attachments?.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((file) => <span key={file.id} title={file.name} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-background/25 bg-background/10 px-2 py-1 text-[10px] text-background">{file.previewUrl || file.downloadUrl ? <img src={file.previewUrl || file.downloadUrl} alt={`Attached image: ${file.name}`} className="size-8 rounded object-cover" /> : <FileText size={12} />} <span className="max-w-48 truncate">{file.name}</span></span>)}</div> : null}
+                    {item.attachments?.length ? <div className="mt-2 flex flex-wrap gap-2">{item.attachments.map((file) => <SentAttachment key={file.id} file={file} />)}</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
                       {item.role === "user" ? <>
@@ -1276,18 +1269,7 @@ export function ChatPage() {
             <div className="shrink-0 pt-2 pb-[env(safe-area-inset-bottom)] sm:pt-4 sm:pb-0">
               <div data-chat-composer className="chat-composer rounded-2xl border border-foreground/10 bg-background">
                 <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,audio/mp4,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.md,.zip,.docx,.pptx,.xlsx,.mp3,.ogg,.oga,.wav,.m4a,.mp4,.webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} />
-                {attachments.length ? <div className="flex gap-2 overflow-x-auto px-3 pt-3 pb-2" aria-live="polite">{attachments.map((item) => <div key={item.localId} className={`w-[min(24rem,calc(100vw-3rem))] shrink-0 rounded-lg bg-foreground/[0.035] p-2.5 ${item.status === "error" ? "ring-1 ring-amber-600/25" : ""}`}>
-                  <div className="flex min-w-0 items-start gap-3">
-                    {item.previewUrl ? <img src={item.previewUrl} alt={`Preview of ${item.name}`} className="size-14 shrink-0 rounded-md object-cover" /> : <div className={`flex size-14 shrink-0 items-center justify-center rounded-md ${item.status === "error" ? "bg-amber-500/10 text-amber-700" : "bg-background text-muted-foreground"}`}>{item.contentType.startsWith("image/") ? <FileImage size={19} /> : <FileText size={19} />}</div>}
-                    <div className="min-w-0 flex-1"><div className="flex min-w-0 items-start gap-1"><p className="min-w-0 flex-1 truncate pt-1 text-xs font-medium" title={item.name}>{item.name}</p>
-                      {item.status === "error" && item.file && ACCEPTED_TYPES.has(item.contentType) ? <button type="button" onClick={() => retryAttachment(item)} className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground" aria-label={`Retry uploading ${item.name}`} title="Retry upload"><RotateCcw size={14} /></button> : null}
-                      <button type="button" onClick={() => void removeAttachment(item)} className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground" aria-label={`Remove ${item.name}`} title="Remove attachment"><X size={14} /></button>
-                    </div><p className={`mt-0.5 text-[10px] ${item.status === "error" ? "text-amber-700" : "text-muted-foreground"}`}>{item.status === "ready" ? `Ready · ${formatArtifactSize(item.size)}` : item.status === "error" ? "Upload failed" : item.phase === "queued" ? "Waiting to upload…" : item.phase === "verifying" ? "Verifying file…" : `Uploading · ${item.progress}%`}</p>
-                      {item.status === "uploading" ? <div className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/10"><div className={`h-full rounded-full bg-foreground/60 transition-[width] ${item.phase === "verifying" ? "animate-pulse" : ""}`} style={{ width: `${Math.max(4, item.progress)}%` }} /></div> : null}
-                    </div>
-                  </div>
-                  {item.error ? <p className="mt-2 break-words text-[11px] leading-4 text-amber-800" role="alert">{item.error}</p> : null}
-                </div>)}</div> : null}
+                {attachments.length ? <div className="flex items-start gap-2 overflow-x-auto px-3 pt-3 pb-2" aria-live="polite">{attachments.map((item) => <AttachmentPreview key={item.localId} item={item} onRemove={() => void removeAttachment(item)} onRetry={() => retryAttachment(item)} />)}</div> : null}
                 {attachments.some((item) => item.status === "error") ? <p className="px-3 pb-1 text-[10px] text-amber-800" role="status">Retry or remove failed files before sending, so Chusky won’t miss an attachment.</p> : null}
                 {queuedMessage ? <div className="relative mx-2 mb-1 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.055] px-2.5 py-2" role="status" aria-live="polite">
                   <Clock4 size={13} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
@@ -1309,7 +1291,7 @@ export function ChatPage() {
                   <div className="chat-voice-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <span key={index} ref={(element) => { voiceBarsRef.current[index] = element; }} />)}</div>
                   <button type="button" onClick={stopVoiceInput} className="chat-voice-control chat-voice-stop" aria-label="Stop, transcribe, and send voice input" title="Stop, transcribe, and send voice input"><Square size={10} fill="currentColor" /></button>
                 </div> : <>
-                  <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); handleComposerSend(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Queue a follow-up…" : attachments.some((item) => item.status === "uploading") ? "Uploading attachment…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || voiceStarting || voiceProcessing} className="chat-composer-input w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
+                  <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(min-width: 640px)").matches) { event.preventDefault(); handleComposerSend(); } }} placeholder={status === "offline" ? "Connect the Chusky backend to start chatting…" : isWorking ? "Queue a follow-up…" : editingMessageIndex !== undefined ? "Edit your message…" : "Ask Chusky anything…"} rows={3} disabled={!thread || voiceStarting || voiceProcessing} className="chat-composer-input w-full resize-none bg-transparent px-3 pt-2.5 text-xs leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed" />
                   <div className="chat-composer-controls flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
                     <div className="flex min-w-0 flex-1 items-center gap-1">
                       <button type="button" onClick={() => fileInputRef.current?.click()} disabled={!thread || attachments.length >= 5 || attachments.some((item) => item.status === "uploading")} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a file"><Plus size={15} strokeWidth={1.8} aria-hidden="true" /></button>
