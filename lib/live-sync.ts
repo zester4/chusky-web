@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DASHBOARD_IDLE_TIMEOUT_MS, DASHBOARD_REFRESH_INTERVAL_MS, shouldPollDashboard } from "./polling-policy";
+import { DASHBOARD_IDLE_TIMEOUT_MS, DASHBOARD_REFRESH_INTERVAL_MS, shouldPollDashboard, shouldRefreshAfterReturn } from "./polling-policy";
 
 export const CHUSKY_DATA_CHANGED = "chusky:data-changed";
 
@@ -46,12 +46,16 @@ export function useLiveData(load: () => void | Promise<void>, intervalMs = DASHB
   const loadRef = useRef(load);
   const loadingRef = useRef(false);
   const mountedActiveRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
   const lastActivityAt = useDashboardActivity();
   useEffect(() => { loadRef.current = load; }, [load]);
 
   useEffect(() => {
-    const refresh = () => {
-      if (!shouldPollDashboard({ visibilityState: document.visibilityState, lastActivityAt, now: Date.now() }) || loadingRef.current) return;
+    const refresh = (force = false) => {
+      const now = Date.now();
+      if (!shouldPollDashboard({ visibilityState: document.visibilityState, lastActivityAt, now }) || loadingRef.current) return;
+      if (!force && !shouldRefreshAfterReturn(lastRefreshAtRef.current, now)) return;
+      lastRefreshAtRef.current = now;
       loadingRef.current = true;
       try {
         void Promise.resolve(loadRef.current()).finally(() => { loadingRef.current = false; });
@@ -59,17 +63,19 @@ export function useLiveData(load: () => void | Promise<void>, intervalMs = DASHB
         loadingRef.current = false;
       }
     };
-    window.addEventListener(CHUSKY_DATA_CHANGED, refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
+    const refreshFromWrite = () => refresh(true);
+    const refreshFromReturn = () => refresh();
+    window.addEventListener(CHUSKY_DATA_CHANGED, refreshFromWrite);
+    window.addEventListener("focus", refreshFromReturn);
+    document.addEventListener("visibilitychange", refreshFromReturn);
     const timer = window.setInterval(refresh, intervalMs);
     const active = lastActivityAt > 0;
     if (active && mountedActiveRef.current) refresh();
     mountedActiveRef.current = active;
     return () => {
-      window.removeEventListener(CHUSKY_DATA_CHANGED, refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener(CHUSKY_DATA_CHANGED, refreshFromWrite);
+      window.removeEventListener("focus", refreshFromReturn);
+      document.removeEventListener("visibilitychange", refreshFromReturn);
       window.clearInterval(timer);
     };
   }, [intervalMs, lastActivityAt]);

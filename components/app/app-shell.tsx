@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, AlertTriangle, ArrowRight, Bell, Brain, Building2, CalendarDays, CheckCircle2, Code2, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessagesSquare, PanelLeftClose, PanelLeftOpen, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, SquareTerminal, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type AccountOverview, type CompanyBranding, type HealthSnapshot } from "@/lib/chusky-api";
 import { useDashboardActivity, useLiveData } from "@/lib/live-sync";
-import { DASHBOARD_REFRESH_INTERVAL_MS, shouldPollDashboard } from "@/lib/polling-policy";
+import { DASHBOARD_REFRESH_INTERVAL_MS, DASHBOARD_RETURN_REFRESH_COOLDOWN_MS, shouldPollDashboard, shouldRefreshAfterReturn } from "@/lib/polling-policy";
 import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
 import type { ReactNode } from "react";
 
@@ -43,8 +43,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [activityCount, setActivityCount] = useState(0);
   const [attentionOpen, setAttentionOpen] = useState(false);
   const [chatHeader, setChatHeader] = useState<ChatHeader>();
+  const lastActivityRefreshAtRef = useRef(0);
+  const dashboardLastActivityAtRef = useRef(0);
   const { data: session } = authClient.useSession();
   const dashboardLastActivityAt = useDashboardActivity();
+  useEffect(() => { dashboardLastActivityAtRef.current = dashboardLastActivityAt; }, [dashboardLastActivityAt]);
   useEffect(() => { if (pathname !== "/app/chat") setChatHeader(undefined); }, [pathname]);
   useEffect(() => {
     let active = true;
@@ -69,7 +72,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     let retryDelay = 30_000;
     let timer: number | undefined;
     const poll = async () => {
-      if (!active || !shouldPollDashboard({ visibilityState: document.visibilityState, lastActivityAt: dashboardLastActivityAt, now: Date.now() }) || controller) return;
+      const now = Date.now();
+      if (!active || !shouldPollDashboard({ visibilityState: document.visibilityState, lastActivityAt: dashboardLastActivityAtRef.current, now }) || controller) return;
+      if (!shouldRefreshAfterReturn(lastActivityRefreshAtRef.current, now)) {
+        if (active) timer = window.setTimeout(() => void poll(), DASHBOARD_RETURN_REFRESH_COOLDOWN_MS);
+        return;
+      }
+      lastActivityRefreshAtRef.current = now;
       controller = new AbortController();
       try {
         const activity = await chuskyApi.activity.get(since, controller.signal);
@@ -89,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => { active = false; controller?.abort(); if (timer !== undefined) window.clearTimeout(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
-  }, [dashboardLastActivityAt]);
+  }, []);
   useEffect(() => {
     try { setCollapsed(window.localStorage.getItem("chusky-sidebar-collapsed") === "true"); } catch { /* Storage can be unavailable in private browsing. */ }
   }, []);

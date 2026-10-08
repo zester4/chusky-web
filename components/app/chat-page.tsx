@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
@@ -424,6 +424,7 @@ const attachmentContentType = (file: File) => {
 
 export function ChatPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { data: session } = authClient.useSession();
   const requestedThreadId = searchParams.get("thread");
   const requestedNew = searchParams.get("new") === "1";
@@ -556,7 +557,7 @@ export function ChatPage() {
             canonicalUrl.searchParams.delete("new");
             canonicalUrl.searchParams.delete("nonce");
             canonicalUrl.searchParams.set("thread", current.id);
-            window.history.replaceState(window.history.state, "", `${canonicalUrl.pathname}${canonicalUrl.search}${canonicalUrl.hash}`);
+            router.replace(`${canonicalUrl.pathname}${canonicalUrl.search}${canonicalUrl.hash}`, { scroll: false });
           }
         }
         const [runs, artifactPage] = await Promise.all([
@@ -588,7 +589,7 @@ export function ChatPage() {
       }
     })();
     return () => { active = false; };
-  }, [requestedThreadId, requestedNew, newConversationNonce]);
+  }, [requestedThreadId, requestedNew, newConversationNonce, router]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
