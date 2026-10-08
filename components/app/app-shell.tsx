@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type AccountOverview, type CompanyBranding, type HealthSnapshot } from "@/lib/chusky-api";
-import { useLiveData } from "@/lib/live-sync";
-import { DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
+import { useDashboardActivity, useLiveData } from "@/lib/live-sync";
+import { DASHBOARD_REFRESH_INTERVAL_MS, shouldPollDashboard } from "@/lib/polling-policy";
 import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
 import type { ReactNode } from "react";
 
@@ -44,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [attentionOpen, setAttentionOpen] = useState(false);
   const [chatHeader, setChatHeader] = useState<ChatHeader>();
   const { data: session } = authClient.useSession();
+  const dashboardLastActivityAt = useDashboardActivity();
   useEffect(() => { if (pathname !== "/app/chat") setChatHeader(undefined); }, [pathname]);
   useEffect(() => {
     let active = true;
@@ -68,7 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     let retryDelay = 30_000;
     let timer: number | undefined;
     const poll = async () => {
-      if (!active || document.visibilityState !== "visible" || controller) return;
+      if (!active || !shouldPollDashboard({ visibilityState: document.visibilityState, lastActivityAt: dashboardLastActivityAt, now: Date.now() }) || controller) return;
       controller = new AbortController();
       try {
         const activity = await chuskyApi.activity.get(since, controller.signal);
@@ -88,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => { active = false; controller?.abort(); if (timer !== undefined) window.clearTimeout(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
-  }, []);
+  }, [dashboardLastActivityAt]);
   useEffect(() => {
     try { setCollapsed(window.localStorage.getItem("chusky-sidebar-collapsed") === "true"); } catch { /* Storage can be unavailable in private browsing. */ }
   }, []);

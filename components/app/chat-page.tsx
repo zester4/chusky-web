@@ -34,7 +34,7 @@ import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
 import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
-import { notifyChuskyDataChanged, useLiveData } from "@/lib/live-sync";
+import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
@@ -516,10 +516,16 @@ export function ChatPage() {
     return () => { active = false; };
   }, [messages, toolkitCatalogue]);
 
-  useLiveData(() => chuskyApi.account.get().then((next) => {
-    setAccount(next);
-    if (!runModel) setRunModel(next.model);
-  }).catch(() => undefined), DASHBOARD_REFRESH_INTERVAL_MS);
+  useEffect(() => {
+    const refreshAccount = () => {
+      void chuskyApi.account.get().then((next) => {
+        setAccount(next);
+        if (!runModel) setRunModel(next.model);
+      }).catch(() => undefined);
+    };
+    window.addEventListener(CHUSKY_DATA_CHANGED, refreshAccount);
+    return () => window.removeEventListener(CHUSKY_DATA_CHANGED, refreshAccount);
+  }, [runModel]);
 
   useEffect(() => {
     setChatHeader({ title: thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky", status });

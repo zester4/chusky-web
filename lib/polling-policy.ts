@@ -3,7 +3,14 @@
  * Successful writes and visibility/focus events already trigger immediate
  * refreshes through useLiveData, so background polling stays bounded.
  */
-export const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
+export const DASHBOARD_REFRESH_INTERVAL_MS = 60_000;
+
+/** Stop background refreshes when a dashboard has been left unattended. */
+export const DASHBOARD_IDLE_TIMEOUT_MS = 120_000;
 
 /** Fallback cadence used only while a run is genuinely active. */
 export const ACTIVE_RUN_RECOVERY_INTERVAL_MS = 5_000;
+
+export function shouldPollDashboard(input: { visibilityState: string; lastActivityAt: number; now: number }): boolean {
+  return input.visibilityState === "visible" && input.now - input.lastActivityAt < DASHBOARD_IDLE_TIMEOUT_MS;
+}
