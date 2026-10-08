@@ -62,10 +62,30 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     let since = Date.now();
-    const poll = async () => { try { const activity = await chuskyApi.activity.get(since); if (!active) return; since = activity.now; setActivityCount(activity.tasks.filter((task) => ["queued", "running", "blocked", "failed"].includes(task.status)).length); } catch { /* Keep navigation usable if activity is temporarily unavailable. */ } };
+    let controller: AbortController | undefined;
+    let retryDelay = 30_000;
+    let timer: number | undefined;
+    const poll = async () => {
+      if (!active || document.visibilityState !== "visible" || controller) return;
+      controller = new AbortController();
+      try {
+        const activity = await chuskyApi.activity.get(since, controller.signal);
+        if (!active) return;
+        since = activity.now;
+        retryDelay = 30_000;
+        setActivityCount(activity.tasks.filter((task) => ["queued", "running", "blocked", "failed"].includes(task.status)).length);
+      } catch {
+        if (active) retryDelay = Math.min(retryDelay * 2, 5 * 60_000);
+      } finally {
+        controller = undefined;
+        if (active) timer = window.setTimeout(() => void poll(), retryDelay);
+      }
+    };
+    const refresh = () => { if (document.visibilityState === "visible") void poll(); };
     void poll();
-    const timer = window.setInterval(() => void poll(), 5000);
-    return () => { active = false; window.clearInterval(timer); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { active = false; controller?.abort(); if (timer !== undefined) window.clearTimeout(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, []);
   useEffect(() => {
     try { setCollapsed(window.localStorage.getItem("chusky-sidebar-collapsed") === "true"); } catch { /* Storage can be unavailable in private browsing. */ }

@@ -13,13 +13,20 @@ export function notifyChuskyDataChanged() {
  * Keep a page truthful when work is completed by another surface (Telegram,
  * a worker, a webhook, or another browser tab). Refreshes pause while hidden.
  */
-export function useLiveData(load: () => void | Promise<void>, intervalMs = 10_000) {
+export function useLiveData(load: () => void | Promise<void>, intervalMs = 30_000) {
   const loadRef = useRef(load);
+  const loadingRef = useRef(false);
   useEffect(() => { loadRef.current = load; }, [load]);
 
   useEffect(() => {
     const refresh = () => {
-      if (document.visibilityState === "visible") void loadRef.current();
+      if (document.visibilityState !== "visible" || loadingRef.current) return;
+      loadingRef.current = true;
+      try {
+        void Promise.resolve(loadRef.current()).finally(() => { loadingRef.current = false; });
+      } catch {
+        loadingRef.current = false;
+      }
     };
     window.addEventListener(CHUSKY_DATA_CHANGED, refresh);
     window.addEventListener("focus", refresh);

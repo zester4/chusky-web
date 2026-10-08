@@ -349,7 +349,7 @@ export const chuskyApi = {
     decide: (approvalId: string, decision: "approve" | "deny") => request<Run | ApprovalDecision>(`/approvals/${encodeURIComponent(approvalId)}`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ decision }) }),
   },
   usage: { get: () => request<Usage>("/usage") },
-  activity: { get: (since = 0) => request<Activity>(`/activity?since=${since}`) },
+  activity: { get: (since = 0, signal?: AbortSignal) => request<Activity>(`/activity?since=${since}`, signal ? { signal } : undefined) },
   health: { get: () => request<HealthSnapshot>("/ops/health") },
   operator: {
     trace: (correlationId?: string, limit = 200) => request<{ data: OperatorTraceEvent[] }>(`/operator/trace?limit=${limit}${correlationId ? `&correlation_id=${encodeURIComponent(correlationId)}` : ""}`),
