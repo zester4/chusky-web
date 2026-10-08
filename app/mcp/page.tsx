@@ -70,7 +70,7 @@ export default function McpLandingPage() {
             <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">For custom backends and hosts that support headers, use the configuration below. The environment variables are placeholders: keep their real values in the host’s server-side secret store.</p>
             <Link href="/app/developer-api" className="mt-6 inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4">Create an API key in Chusky <ArrowRight className="h-4 w-4" /></Link>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-foreground/15 bg-[#f6f2ea] text-sm text-foreground shadow-[0_20px_60px_-30px_rgba(8,18,39,0.24)]">
+          <div className="overflow-hidden rounded-2xl border border-foreground/15 bg-background text-sm text-foreground shadow-sm">
             <div className="flex items-center justify-between border-b border-foreground/10 px-4 py-3 font-mono text-[10px] text-muted-foreground"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="h-2 w-2 rounded-full bg-amber-400" /><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="ml-2">mcp.json</span></div><span>server-side config</span></div>
             <pre className="overflow-x-auto p-4 text-[11px] leading-6 sm:p-5 sm:text-xs"><code>{config}</code></pre>
           </div>
