@@ -52,12 +52,10 @@ history or connection state.
   state, daily work windows, and owner-bounded budget controls. Policy changes
   go through the authenticated `/v1/missions/:id/control` route; the browser
   never advances a mission or bypasses approval and ownership checks.
-- `components/app/operations-dashboard.tsx` powers Operations and Delivery
-  from live health, failure counters, enabled-channel state, and recent
-  delivery records. Ambiguous channel sends show a destination-verification
-  warning and an owner confirmation action that only records the owner's
-  verified outcome; it never resends. Successful delivery duration is shown
-  where a provider receipt exists.
+- `components/app/operations-dashboard.tsx` powers the account-scoped Delivery
+  view from live health, enabled-channel state, and recent delivery records.
+  System-wide Operations now belongs to the private builder control plane;
+  it does not expose customer-scoped delivery actions.
 - The chat context intentionally shows only channels that Chusky has actually
   verified. It does not invent Composio OAuth connections such as GitHub or
   Gmail when the backend has not exposed them.
@@ -278,7 +276,8 @@ If port 3000 is free, `pnpm dev` can be used and the dashboard will be at
 `http://localhost:3000/app`.
 
 From the repository root, `npm run dashboard` starts the same Next.js app in
-one command. Operations is at `/app/operations`; Delivery is at `/app/delivery`.
+one command. Builder Operations is at `/admin`; account-scoped Delivery is at
+`/app/delivery`.
 
 ## Verification completed
 
@@ -408,11 +407,12 @@ exposing the private Oracle `CHUSKY_PROJECT_KEY` or any scoped developer
   empty, offline, and retry states.
 - `chusky-web/components/app/app-pages.tsx` — routes Overview, Chat,
   Conversations, and Tasks to the backend-connected page components.
-- `chusky-web/components/app/operations-dashboard.tsx` — live Operations and
-  Delivery pages for Redis/QStash/Sendblue readiness, enabled channels,
-  workflow/provider/delivery failure counters, and the latest runtime incident.
-- `chusky-web/components/app/app-shell.tsx` — adds `/app/operations` and
-  `/app/delivery` to the authenticated workspace navigation.
+- `chusky-web/components/app/operations-dashboard.tsx` — account-scoped
+  Delivery page for enabled channels and recent delivery records.
+- `chusky-web/components/admin/builder-admin-page.tsx` — private builder
+  Operations view for runtime health, failure counters, and provider presence.
+- `chusky-web/components/app/app-shell.tsx` — keeps system Operations out of
+  customer navigation while retaining the authenticated workspace shell.
 - `chusky-web/components/app/developer-api-page.tsx` — lets a signed-in,
   email-verified user create and manage up to 10 scoped developer credentials
   at `/app/developer-api`. A `chsk_…` key is shown only immediately after

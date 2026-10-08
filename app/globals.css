@@ -265,6 +265,60 @@
 }
 
 @layer components {
+  .integration-orbit-badge {
+    display: inline-flex;
+    min-width: 4.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+    border-radius: 9999px;
+    padding: 0.7rem 0.85rem;
+    background: color-mix(in srgb, var(--background) 90%, white);
+    box-shadow: 0 10px 24px rgb(var(--depth-shadow-rgb) / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.72);
+    color: var(--foreground);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .integration-orbit-badge:hover {
+    transform: translateY(-3px) rotate(0deg);
+    box-shadow: 0 14px 30px rgb(var(--depth-shadow-rgb) / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.8);
+  }
+
+  .integration-orbit-badge-lg {
+    min-width: 7.25rem;
+    padding-inline: 1rem;
+  }
+
+  .integration-orbit-badge-sm {
+    min-width: 4.75rem;
+  }
+
+  .integration-orbit-tone-coral { background: color-mix(in srgb, #e05d38 10%, var(--background)); }
+  .integration-orbit-tone-yellow { background: color-mix(in srgb, #e8b24c 15%, var(--background)); }
+  .integration-orbit-tone-blue { background: color-mix(in srgb, #4d8bd8 11%, var(--background)); }
+  .integration-orbit-tone-green { background: color-mix(in srgb, #4fa37b 12%, var(--background)); }
+  .integration-orbit-tone-ink { background: color-mix(in srgb, var(--foreground) 8%, var(--background)); }
+
+  .integration-orbit-mobile-card {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+    padding: 0.75rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .integration-orbit-badge,
+    .integration-orbit-badge:hover,
+    .integration-orbit-badge img,
+    .integration-orbit-badge + * {
+      transition: none;
+      transform: none;
+    }
+  }
+
   .app-depth-root {
     min-height: 100svh;
     isolation: isolate;

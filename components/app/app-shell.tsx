@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, AlertTriangle, ArrowRight, Bell, Brain, Building2, CalendarDays, CheckCircle2, Code2, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessagesSquare, PanelLeftClose, PanelLeftOpen, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, SquareTerminal, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bell, Brain, Building2, CalendarDays, CheckCircle2, Code2, FolderKanban, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessagesSquare, PanelLeftClose, PanelLeftOpen, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, SquareTerminal, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
 import { createContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import type { ReactNode } from "react";
 type NavItem = [label: string, href: string, icon: LucideIcon];
 const primary: NavItem[] = [
   ["Overview", "/app", LayoutDashboard], ["Chat", "/app/chat", MessageCircle], ["Conversations", "/app/conversations", MessagesSquare],
-  ["Approvals", "/app/approvals", ShieldCheck], ["Calls", "/app/calls", Phone], ["Autonomy", "/app/autonomy", Brain], ["Meetings", "/app/meetings", CalendarDays], ["Apps", "/app/apps", Plug], ["Channels", "/app/channels", Webhook], ["Capabilities", "/app/capabilities", Workflow], ["Tasks", "/app/tasks", ListChecks], ["Missions", "/app/missions", Repeat2], ["Operations", "/app/operations", Activity],
+  ["Approvals", "/app/approvals", ShieldCheck], ["Calls", "/app/calls", Phone], ["Autonomy", "/app/autonomy", Brain], ["Meetings", "/app/meetings", CalendarDays], ["Apps", "/app/apps", Plug], ["Channels", "/app/channels", Webhook], ["Capabilities", "/app/capabilities", Workflow], ["Tasks", "/app/tasks", ListChecks], ["Missions", "/app/missions", Repeat2],
 ];
 const work: NavItem[] = [
   ["Organizations", "/app/organizations", Building2],

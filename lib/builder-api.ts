@@ -1,5 +1,6 @@
 export interface BuilderAccess { name: string; role: "builder_admin" | "builder_viewer"; permissions: string[]; mfaEnabled: boolean; verified: boolean; fresh: boolean }
 export interface BuilderControl { version: number; agentEnabled: boolean; changedAt?: number }
+export interface BuilderPerson { id: string; name: string; email: string; emailVerified: boolean; createdAt: string | null; role: string; banned: boolean }
 export interface BuilderOverview {
   observedAt: number; scope: string; uptimeSeconds: number; persistence: string;
   neon: { enabled: boolean; reachable: boolean; schemaReady: boolean };

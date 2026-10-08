@@ -81,7 +81,8 @@ export function AppPage({ section }: { section: string }) {
   if (section === "tasks") return <WorkPage initialTab="tasks" />;
   if (section === "missions") return <MissionsPage />;
   if (section === "autonomy") return <AutonomyPage />;
-  if (section === "operations") return <OperationsDashboard />;
-  if (section === "delivery") return <OperationsDashboard />;
+  // System-wide operations moved to the private builder console. Keep the
+  // delivery view available for workspace owners because it is account-scoped.
+  if (section === "delivery") return <OperationsDashboard deliveryOnly />;
   return <OverviewPage />;
 }

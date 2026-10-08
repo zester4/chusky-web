@@ -62,6 +62,21 @@ type Message = {
   failure?: { code?: string; message?: string };
 };
 
+type ChatPageCache = {
+  thread: Thread;
+  messages: Message[];
+  account?: AccountOverview;
+  models: Model[];
+  artifacts: Artifact[];
+  cachedAt: number;
+};
+
+// Route changes unmount ChatPage. Keep the current private tab's timeline in
+// memory so returning from another dashboard tab does not re-read the whole
+// thread immediately. This is intentionally not persisted to Redis or storage.
+const chatPageCache = new Map<string, ChatPageCache>();
+const CHAT_RETURN_CACHE_MAX_AGE_MS = 30_000;
+
 const formatToolLabel = (tool?: string) => tool ? tool.replace(/^(CHUCK|COMPOSIO)_/i, "").replaceAll("_", " ").toLowerCase() : "working";
 const formatToolDuration = (durationMs?: number) => {
   if (durationMs === undefined || !Number.isFinite(durationMs)) return "";
@@ -528,6 +543,18 @@ export function ChatPage() {
 
   useEffect(() => {
     let active = true;
+    const cacheKey = requestedThreadId ? `thread:${requestedThreadId}` : "latest";
+    const cached = !requestedNew ? chatPageCache.get(cacheKey) : undefined;
+    if (cached && Date.now() - cached.cachedAt < CHAT_RETURN_CACHE_MAX_AGE_MS) {
+      setThread(cached.thread);
+      setMessages(cached.messages);
+      setArtifactCatalog(cached.artifacts);
+      setAccount(cached.account);
+      setModels(cached.models);
+      setRunModel(cached.account?.model ?? "");
+      setStatus("ready");
+      return () => { active = false; };
+    }
     setStatus("loading");
     setThread(undefined);
     setMessages([]);
@@ -574,15 +601,22 @@ export function ChatPage() {
             threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
           }
           setMessages(threadMessages);
+          chatPageCache.set(`thread:${current.id}`, { thread: current, messages: threadMessages, account: undefined, models: [], artifacts: artifactPage.data, cachedAt: Date.now() });
         }
-        void chuskyApi.account.get().then((next) => { if (active) { setAccount(next); setRunModel(next.model); } }).catch(() => undefined);
-        void chuskyApi.account.models().then((next) => { if (active) setModels(next.data); }).catch(() => undefined);
+        void chuskyApi.account.get().then((next) => { if (active) { setAccount(next); setRunModel(next.model); const cachedCurrent = chatPageCache.get(`thread:${current.id}`); if (cachedCurrent) chatPageCache.set(`thread:${current.id}`, { ...cachedCurrent, account: next, cachedAt: Date.now() }); } }).catch(() => undefined);
+        void chuskyApi.account.models().then((next) => { if (active) { setModels(next.data); const cachedCurrent = chatPageCache.get(`thread:${current.id}`); if (cachedCurrent) chatPageCache.set(`thread:${current.id}`, { ...cachedCurrent, models: next.data, cachedAt: Date.now() }); } }).catch(() => undefined);
       } catch {
         if (active) setStatus("offline");
       }
     })();
     return () => { active = false; };
   }, [requestedThreadId, requestedNew, newConversationNonce, router]);
+
+  useEffect(() => {
+    if (!thread || requestedNew) return;
+    const cacheKey = `thread:${thread.id}`;
+    chatPageCache.set(cacheKey, { thread, messages, account, models, artifacts: artifactCatalog, cachedAt: Date.now() });
+  }, [thread, messages, account, models, artifactCatalog, requestedNew]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1302,7 +1336,6 @@ export function ChatPage() {
                       </div>
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                      <span className="hidden font-mono text-[9px] text-muted-foreground sm:inline">Enter to send · Shift+Enter for newline</span>
                       <button type="button" onClick={() => void toggleVoiceInput()} disabled={!thread || isWorking || voiceStarting || voiceProcessing} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40" aria-label={voiceStarting ? "Starting voice input" : "Record voice message"} title={voiceStarting ? "Starting voice input" : "Record voice message"}>{voiceStarting ? <LoaderCircle size={13} className="animate-spin" /> : <Mic size={13} />}</button>
                       {isWorking && !input.trim() && !attachments.some((item) => item.status === "ready") ? <button type="button" onClick={() => void cancelActiveRun()} disabled={!activeRunId} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground disabled:opacity-50" aria-label="Stop response" title="Stop response"><Square size={11} fill="currentColor" /></button> : <button type="button" onClick={handleComposerSend} className="chat-composer-action flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:opacity-40" disabled={(!input.trim() && !attachments.some((item) => item.status === "ready")) || !thread || attachments.some((item) => item.status === "uploading" || item.status === "error")} aria-label={isWorking ? "Queue message" : editingMessageIndex !== undefined ? "Resend edited message" : "Send message"} title={isWorking ? "Queue message for after this reply" : editingMessageIndex !== undefined ? "Resend edited message" : "Send message"}><ArrowUp size={13} /></button>}
                     </div>
