@@ -366,6 +366,9 @@ export const chuskyApi = {
   },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
+    export: () => request<Record<string, unknown>>("/account/export"),
+    clearMemory: () => request<{ removed: number; message: string }>("/account/memory/clear", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    clearSession: () => request<{ message: string }>("/account/session/clear", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     history: () => request<{ data: AccountHistoryMessage[] }>("/account/history"),
     autonomy: {
       queue: (mode: "personal" | "business" = "personal") => request<AutonomySnapshot>(`/account/autonomy/queue?mode=${mode}`),
