@@ -24,11 +24,12 @@ import {
   ShieldCheck,
   Square,
   ThumbsUp,
+  ThumbsDown,
   Share2,
     X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type Model, type PrivateRunLink, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
-import { ACTIVE_RUN_RECOVERY_INTERVAL_MS, DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
+import { chuskyApi, type AccountOverview, type Artifact, type AttentionCandidate, type Model, type PrivateRunLink, type Run, type RunImage, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit } from "@/lib/chusky-api";
+import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
@@ -38,6 +39,7 @@ import { AppShellContext } from "./app-shell";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
+import { TriggerLogo } from "./trigger-logo";
 import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError } from "@/lib/error-copy";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
@@ -58,7 +60,9 @@ type Message = {
   artifacts?: ChatArtifact[];
   images?: Array<RunImage & { downloadUrl?: string }>;
   privateLinks?: PrivateRunLink[];
-  approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean };
+  approval?: { id: string; toolSlug: string; expiresAt: string; deciding?: boolean; phase?: "waiting" | "executing" };
+  approvalState?: "accepted" | "executing";
+  feedback?: "positive" | "negative";
   failure?: { code?: string; message?: string };
 };
 
@@ -68,6 +72,7 @@ type ChatPageCache = {
   account?: AccountOverview;
   models: Model[];
   artifacts: Artifact[];
+  olderRunsCursor?: string;
   cachedAt: number;
 };
 
@@ -121,6 +126,19 @@ const runStatusText = (run: Run) => {
   if (run.status === "cancelled") return [...(run.events ?? [])].reverse().find((event) => event.type === "run.cancelled")?.text || "Run cancelled. The completed steps are shown above.";
   return run.output ?? "";
 };
+
+async function runMessagePair(run: Run, artifactCatalog: Artifact[]): Promise<{ user?: Message; assistant: Message }> {
+  const userHistoryContent = `${run.input || "Attached file(s)"}${run.attachments?.length ? `\n[Attachments: ${run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
+  const approval = run.status === "requires_approval" && run.approvalId
+    ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
+    : undefined;
+  const active = run.status === "queued" || run.status === "running";
+  const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
+  return {
+    user: run.input || run.attachments?.length ? { role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent } : undefined,
+    assistant: { role: "assistant", runId: run.id, text: output, activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
+  };
+}
 const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + worker.slice(1);
 const activityStatusText = (activity: SubagentActivity, isLive: boolean) => activity.status === "started" ? isLive ? "In progress" : "No final result was recorded" : activity.status === "completed" ? `Completed${formatToolDuration(activity.durationMs) ? ` · ${formatToolDuration(activity.durationMs)}` : ""}${activity.summary ? ` · ${activity.summary}` : ""}` : activity.status === "approval_required" ? "Waiting for approval" : activity.status === "waiting" ? "Waiting for Chusky" : activity.status === "cancelled" ? "Cancelled" : "Couldn’t complete this step";
 
@@ -130,6 +148,16 @@ function ActivityBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo, size =
   if (toolSlug?.startsWith("CHUCK_")) return <img src="/brand/chusky-logo.png" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
   if (toolkitName || toolkitLogo) return <ToolkitLogo name={toolkitName || "Connected app"} logo={toolkitLogo} size={size} />;
   return <PlugZap size={size - 2} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
+}
+
+function AttentionCandidateCard({ candidate, busyAction, onAction }: { candidate: AttentionCandidate; busyAction?: string; onAction: (action: NonNullable<AttentionCandidate["suggestedActions"]>[number]) => void }) {
+  const actions = candidate.suggestedActions?.length ? candidate.suggestedActions : [{ id: "review", label: "Review", prompt: "Review this Elena suggestion, verify the current state, and tell me the safest useful next step." }];
+  return <article className="mx-auto w-full max-w-2xl rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3.5 shadow-sm sm:p-4" aria-label="Elena suggestion">
+    <div className="flex items-start gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-background"><TriggerLogo slug={candidate.providerSlug || "chusky"} size={25} /></div>
+      <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold">Elena found a useful next step</p><span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Suggestion</span></div><p className="mt-1.5 text-[11px] leading-5 text-foreground/85">{candidate.reason}</p>{candidate.proposedAction && <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">{candidate.proposedAction}</p>}<div className="mt-3 flex flex-wrap gap-1.5">{actions.map((action, index) => <button key={action.id} type="button" disabled={Boolean(busyAction)} onClick={() => onAction(action)} className={`inline-flex min-h-8 items-center rounded-md border px-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 disabled:cursor-wait disabled:opacity-60 ${index === 0 ? "border-foreground/20 bg-foreground text-background hover:bg-foreground/85" : "border-foreground/15 bg-background hover:border-foreground/35"}`}>{busyAction === action.id ? "Opening…" : action.label}</button>)}</div></div>
+    </div>
+  </article>;
 }
 
 function ActivityState({ activity, current }: { activity: PresentedToolActivity; current: boolean }) {
@@ -438,21 +466,31 @@ export function ChatPage() {
   const requestedNew = searchParams.get("new") === "1";
   const newConversationNonce = searchParams.get("nonce");
   const requestedDraft = searchParams.get("draft");
+  const requestedCandidateId = searchParams.get("candidate");
   const requestedOnboarding = searchParams.get("onboarding") === "1";
   const [thread, setThread] = useState<Thread>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [olderRunsCursor, setOlderRunsCursor] = useState<string>();
+  const [loadingOlderRuns, setLoadingOlderRuns] = useState(false);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [queuedMessage, setQueuedMessage] = useState<QueuedMessage>();
   const [queuedMenuOpen, setQueuedMenuOpen] = useState(false);
   const [account, setAccount] = useState<AccountOverview>();
+  const [attentionCandidate, setAttentionCandidate] = useState<AttentionCandidate>();
+  const [attentionActionBusy, setAttentionActionBusy] = useState<string>();
   const [models, setModels] = useState<Model[]>([]);
   const [runModel, setRunModel] = useState("");
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [controller, setController] = useState<AbortController>();
   const [activeMessageIndex, setActiveMessageIndex] = useState<number>();
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number>();
-  const [likedMessageIndex, setLikedMessageIndex] = useState<number>();
+  const [feedbackBusyRunId, setFeedbackBusyRunId] = useState<string>();
+  const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
+  const [conversationList, setConversationList] = useState<Thread[]>([]);
+  const [conversationListLoading, setConversationListLoading] = useState(false);
+  const [draftReadyThread, setDraftReadyThread] = useState<string>();
+  const [queueReadyThread, setQueueReadyThread] = useState<string>();
   const [editingMessageIndex, setEditingMessageIndex] = useState<number>();
   const [notice, setNotice] = useState<{ kind: "error" | "info"; message: string }>();
   const [globalApprovalBusy, setGlobalApprovalBusy] = useState<string>();
@@ -480,6 +518,9 @@ export function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef(new Set<string>());
   const uploadAbortControllersRef = useRef(new Map<string, AbortController>());
+  const refreshCurrentThreadRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const refreshInFlightRef = useRef(false);
+  const lastReturnRefreshAtRef = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const noticeTimerRef = useRef<number | undefined>(undefined);
   const toolkitLookupsRef = useRef(new Set<string>());
@@ -537,6 +578,10 @@ export function ChatPage() {
   }, [runModel]);
 
   useEffect(() => {
+    setAttentionCandidate(requestedCandidateId ? account?.attentionCandidates.find((candidate) => candidate.id === requestedCandidateId) : undefined);
+  }, [account, requestedCandidateId]);
+
+  useEffect(() => {
     setChatHeader({ title: thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky", status });
     return () => setChatHeader(undefined);
   }, [setChatHeader, status, thread]);
@@ -552,12 +597,15 @@ export function ChatPage() {
       setAccount(cached.account);
       setModels(cached.models);
       setRunModel(cached.account?.model ?? "");
+      setOlderRunsCursor(cached.olderRunsCursor);
+      lastReturnRefreshAtRef.current = Date.now();
       setStatus("ready");
       return () => { active = false; };
     }
     setStatus("loading");
     setThread(undefined);
     setMessages([]);
+    setOlderRunsCursor(undefined);
     setQueuedMessage(undefined);
     setQueuedMenuOpen(false);
     syncActiveRunId(undefined);
@@ -588,20 +636,15 @@ export function ChatPage() {
           setArtifactCatalog(artifactPage.data);
           const threadMessages: Message[] = [];
           for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
-            const userHistoryContent = `${run.input || "Attached file(s)"}${run.attachments?.length ? `\n[Attachments: ${run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
-            if (run.input || run.attachments?.length) threadMessages.push({ role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent });
-            const approval = run.status === "requires_approval" && run.approvalId
-              ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
-              : undefined;
-            const activities = runActivities(run);
-            const subagentActivities = runSubagentActivities(run);
-            const active = run.status === "queued" || run.status === "running";
-            const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
-            if (active) syncActiveRunId(run.id);
-            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
+            const pair = await runMessagePair(run, artifactPage.data);
+            if (pair.user) threadMessages.push(pair.user);
+            if (run.status === "queued" || run.status === "running") syncActiveRunId(run.id);
+            threadMessages.push(pair.assistant);
           }
           setMessages(threadMessages);
-          const cachedPage = { thread: current, messages: threadMessages, account: undefined, models: [], artifacts: artifactPage.data, cachedAt: Date.now() };
+          setOlderRunsCursor(runs.nextCursor);
+          lastReturnRefreshAtRef.current = Date.now();
+          const cachedPage = { thread: current, messages: threadMessages, account: undefined, models: [], artifacts: artifactPage.data, olderRunsCursor: runs.nextCursor, cachedAt: Date.now() };
           chatPageCache.set(`thread:${current.id}`, cachedPage);
           chatPageCache.set("latest", cachedPage);
         }
@@ -617,10 +660,10 @@ export function ChatPage() {
   useEffect(() => {
     if (!thread || requestedNew) return;
     const cacheKey = `thread:${thread.id}`;
-    const cachedPage = { thread, messages, account, models, artifacts: artifactCatalog, cachedAt: Date.now() };
+    const cachedPage = { thread, messages, account, models, artifacts: artifactCatalog, olderRunsCursor, cachedAt: Date.now() };
     chatPageCache.set(cacheKey, cachedPage);
     chatPageCache.set("latest", cachedPage);
-  }, [thread, messages, account, models, artifactCatalog, requestedNew]);
+  }, [thread, messages, account, models, artifactCatalog, olderRunsCursor, requestedNew]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -636,6 +679,65 @@ export function ChatPage() {
       }
     }
   }, [newConversationNonce, requestedDraft, requestedOnboarding, session?.user?.id]);
+
+  useEffect(() => {
+    if (!thread?.id || requestedNew || !session?.user?.id) return;
+    setDraftReadyThread(undefined);
+    setQueueReadyThread(undefined);
+    if (!requestedDraft && !requestedOnboarding) setInput("");
+    queuedMessageRef.current = undefined;
+    setQueuedMessage(undefined);
+    const draftKey = `chusky:chat:draft:${session.user.id}:${thread.id}`;
+    const queueKey = `chusky:chat:queue:${session.user.id}:${thread.id}`;
+    try {
+      if (!requestedDraft && !requestedOnboarding) {
+        const rawDraft = window.localStorage.getItem(draftKey);
+        if (rawDraft) {
+          const parsed = JSON.parse(rawDraft) as { text?: unknown };
+          if (typeof parsed.text === "string") setInput(parsed.text);
+        }
+      }
+      const rawQueue = window.localStorage.getItem(queueKey);
+      if (rawQueue) {
+        const parsed = JSON.parse(rawQueue) as { text?: unknown; attachments?: unknown };
+        const savedAttachments = Array.isArray(parsed.attachments) ? parsed.attachments.filter((item): item is SendAttachment => Boolean(item) && typeof item === "object" && typeof (item as SendAttachment).id === "string" && typeof (item as SendAttachment).name === "string" && typeof (item as SendAttachment).contentType === "string" && typeof (item as SendAttachment).size === "number") : [];
+        const savedQueue = { text: typeof parsed.text === "string" ? parsed.text : "", attachments: savedAttachments } satisfies QueuedMessage;
+        if (savedQueue.text || savedQueue.attachments.length) {
+          queuedMessageRef.current = savedQueue;
+          setQueuedMessage(savedQueue);
+        }
+      }
+    } catch {
+      // A malformed local draft must never prevent the chat from loading.
+    }
+    setDraftReadyThread(thread.id);
+    setQueueReadyThread(thread.id);
+  }, [requestedDraft, requestedNew, requestedOnboarding, session?.user?.id, thread?.id]);
+
+  useEffect(() => {
+    if (!thread?.id || !session?.user?.id || draftReadyThread !== thread.id) return;
+    const key = `chusky:chat:draft:${session.user.id}:${thread.id}`;
+    const timer = window.setTimeout(() => {
+      try {
+        if (input.trim()) window.localStorage.setItem(key, JSON.stringify({ text: input, updatedAt: Date.now() }));
+        else window.localStorage.removeItem(key);
+      } catch {
+        // Local storage is an optional convenience; the server remains canonical.
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [draftReadyThread, input, session?.user?.id, thread?.id]);
+
+  useEffect(() => {
+    if (!thread?.id || !session?.user?.id || queueReadyThread !== thread.id) return;
+    const key = `chusky:chat:queue:${session.user.id}:${thread.id}`;
+    try {
+      if (queuedMessage) window.localStorage.setItem(key, JSON.stringify({ text: queuedMessage.text, attachments: queuedMessage.attachments.map(({ id, name, contentType, size, downloadUrl }) => ({ id, name, contentType, size, ...(downloadUrl ? { downloadUrl } : {}) })), updatedAt: Date.now() }));
+      else window.localStorage.removeItem(key);
+    } catch {
+      // Queued follow-ups are still available for this tab if storage is blocked.
+    }
+  }, [queueReadyThread, queuedMessage, session?.user?.id, thread?.id]);
 
   useEffect(() => () => {
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
@@ -694,6 +796,7 @@ export function ChatPage() {
       const streamedOutput = runDeltaText(run);
       const text = run.status === "running" ? reconcileStreamedText(item.text, streamedOutput) : runStatusText(run) || (run.status === "completed" ? "Done." : "");
       const artifacts = run.artifacts?.length ? run.artifacts : run.status === "completed" ? item.artifacts : undefined;
+      const active = run.status === "queued" || run.status === "running";
       return {
         ...item,
         text,
@@ -702,8 +805,10 @@ export function ChatPage() {
         artifacts,
         images: images?.length ? images : item.images,
         pending: active,
-        statusText: active ? runProgressText(run) : undefined,
-        approval,
+        statusText: active ? runProgressText(run) : item.approvalState === "accepted" && run.status !== "completed" && run.status !== "failed" ? "Approval accepted. Executing the approved action…" : undefined,
+        approval: approval ? { ...approval, phase: "waiting" } : undefined,
+        approvalState: active && run.status === "running" && item.approval ? "executing" : run.status === "completed" || run.status === "failed" || run.status === "cancelled" ? undefined : item.approvalState,
+        feedback: run.feedback,
         failure: run.status === "failed" ? safeRunFailure(run.error) : undefined,
       };
     }));
@@ -712,6 +817,69 @@ export function ChatPage() {
   useEffect(() => {
     applyRunSnapshotRef.current = applyRunSnapshot;
   }, [applyRunSnapshot]);
+
+  const refreshCurrentThread = async () => {
+    if (!thread?.id || refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    try {
+      const page = await chuskyApi.threads.runs(thread.id, { limit: 50 });
+      setOlderRunsCursor(page.nextCursor);
+      const knownRunIds = new Set(messagesRef.current.filter((item) => item.role === "assistant" && item.runId).map((item) => item.runId!));
+      const newPairs = await Promise.all(page.data.filter((run) => !knownRunIds.has(run.id)).map(async (run) => ({ run, pair: await runMessagePair(run, artifactCatalog) })));
+      for (const { run } of newPairs) if (run.status === "queued" || run.status === "running") syncActiveRunId(run.id);
+      if (newPairs.length) {
+        const additions = newPairs.sort((left, right) => Date.parse(left.run.createdAt) - Date.parse(right.run.createdAt)).flatMap(({ pair }) => pair.user ? [pair.user, pair.assistant] : [pair.assistant]);
+        setMessages((current) => [...current, ...additions]);
+      }
+      await Promise.all(page.data.filter((run) => knownRunIds.has(run.id)).map(async (run) => { await applyRunSnapshotRef.current(run); }));
+      lastReturnRefreshAtRef.current = Date.now();
+    } catch {
+      // Focus recovery is best effort; the active-run poll remains authoritative.
+    } finally {
+      refreshInFlightRef.current = false;
+    }
+  };
+  useEffect(() => {
+    refreshCurrentThreadRef.current = refreshCurrentThread;
+    return () => {
+      if (refreshCurrentThreadRef.current === refreshCurrentThread) refreshCurrentThreadRef.current = undefined;
+    };
+  }, [artifactCatalog, refreshCurrentThread, thread?.id]);
+
+  const loadOlderRuns = async () => {
+    if (!thread?.id || !olderRunsCursor || loadingOlderRuns) return;
+    setLoadingOlderRuns(true);
+    try {
+      const page = await chuskyApi.threads.runs(thread.id, { limit: 50, cursor: olderRunsCursor });
+      const knownRunIds = new Set(messagesRef.current.filter((item) => item.role === "assistant" && item.runId).map((item) => item.runId!));
+      const olderRuns = page.data.filter((run) => !knownRunIds.has(run.id));
+      const pairs = await Promise.all(olderRuns.map(async (run) => ({ run, pair: await runMessagePair(run, artifactCatalog) })));
+      const additions = pairs.sort((left, right) => Date.parse(left.run.createdAt) - Date.parse(right.run.createdAt)).flatMap(({ pair }) => pair.user ? [pair.user, pair.assistant] : [pair.assistant]);
+      setMessages((current) => [...additions, ...current]);
+      setOlderRunsCursor(page.nextCursor);
+    } catch (error) {
+      showNotice(safeUserFacingError(error, "Older messages could not be loaded. Try again."));
+    } finally {
+      setLoadingOlderRuns(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!thread?.id) return;
+    const recover = () => {
+      if (document.visibilityState === "hidden") return;
+      if (Date.now() - lastReturnRefreshAtRef.current < 15_000) return;
+      void refreshCurrentThreadRef.current?.();
+    };
+    window.addEventListener("focus", recover);
+    window.addEventListener("pageshow", recover);
+    document.addEventListener("visibilitychange", recover);
+    return () => {
+      window.removeEventListener("focus", recover);
+      window.removeEventListener("pageshow", recover);
+      document.removeEventListener("visibilitychange", recover);
+    };
+  }, [thread?.id]);
 
   useEffect(() => {
     if (!thread?.id) return;
@@ -723,7 +891,7 @@ export function ChatPage() {
         try { await applyRunSnapshotRef.current(await chuskyApi.runs.get(thread.id, runId)); }
         catch { /* A transient network error must not erase the saved timeline; retry shortly. */ }
       }));
-      if (active) timer = window.setTimeout(() => void poll(), runIds.length ? ACTIVE_RUN_RECOVERY_INTERVAL_MS : DASHBOARD_REFRESH_INTERVAL_MS);
+      if (active && runIds.length) timer = window.setTimeout(() => void poll(), ACTIVE_RUN_RECOVERY_INTERVAL_MS);
     };
     timer = window.setTimeout(() => void poll(), ACTIVE_RUN_RECOVERY_INTERVAL_MS);
     return () => { active = false; if (timer !== undefined) window.clearTimeout(timer); };
@@ -948,6 +1116,81 @@ export function ChatPage() {
     }
   };
 
+  const loadConversationList = async () => {
+    setConversationMenuOpen(true);
+    if (conversationList.length || conversationListLoading) return;
+    setConversationListLoading(true);
+    try {
+      const page = await chuskyApi.threads.list({ limit: 30, includeArchived: false });
+      setConversationList(page.data);
+    } catch (error) {
+      showNotice(safeUserFacingError(error, "Conversations could not be loaded."));
+    } finally {
+      setConversationListLoading(false);
+    }
+  };
+
+  const renameConversation = async () => {
+    if (!thread) return;
+    const currentTitle = typeof thread.metadata.title === "string" ? thread.metadata.title : "";
+    const title = window.prompt("Name this conversation", currentTitle || "New conversation");
+    if (title === null) return;
+    const trimmed = title.trim();
+    if (!trimmed) {
+      showNotice("Give this conversation a name, or cancel to leave it unchanged.", "info");
+      return;
+    }
+    try {
+      const updated = await chuskyApi.threads.update(thread.id, { title: trimmed.slice(0, 120) });
+      setThread(updated);
+      setConversationList((current) => current.map((item) => item.id === updated.id ? updated : item));
+      showNotice("Conversation renamed.", "info");
+    } catch (error) {
+      showNotice(safeUserFacingError(error, "Conversation could not be renamed."));
+    }
+  };
+
+  const archiveConversation = async () => {
+    if (!thread) return;
+    try {
+      await chuskyApi.threads.update(thread.id, { archived: true });
+      chatPageCache.delete(`thread:${thread.id}`);
+      if (chatPageCache.get("latest")?.thread.id === thread.id) chatPageCache.delete("latest");
+      router.push("/app/conversations");
+    } catch (error) {
+      showNotice(safeUserFacingError(error, "Conversation could not be archived."));
+    }
+  };
+
+  const deleteConversation = async () => {
+    if (!thread || !window.confirm("Delete this conversation? This cannot be undone.")) return;
+    try {
+      await chuskyApi.threads.remove(thread.id);
+      chatPageCache.delete(`thread:${thread.id}`);
+      if (chatPageCache.get("latest")?.thread.id === thread.id) chatPageCache.delete("latest");
+      router.push("/app/chat?new=1");
+    } catch (error) {
+      showNotice(safeUserFacingError(error, "Conversation could not be deleted while it is active."));
+    }
+  };
+
+  const setMessageFeedback = async (index: number, feedback: "positive" | "negative") => {
+    const original = messagesRef.current[index];
+    if (!thread || !original || original.role !== "assistant" || !original.runId || feedbackBusyRunId) return;
+    const next = original.feedback === feedback ? null : feedback;
+    setFeedbackBusyRunId(original.runId);
+    setMessages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, feedback: next ?? undefined } : item));
+    try {
+      const saved = await chuskyApi.runs.feedback(thread.id, original.runId, next);
+      setMessages((current) => current.map((item) => item.runId === original.runId ? { ...item, feedback: saved.feedback } : item));
+    } catch (error) {
+      setMessages((current) => current.map((item) => item.runId === original.runId ? { ...item, feedback: original.feedback } : item));
+      showNotice(safeUserFacingError(error, "Feedback could not be saved."));
+    } finally {
+      setFeedbackBusyRunId(undefined);
+    }
+  };
+
   const decideApproval = async (approvalId: string, decision: "approve" | "deny") => {
     const original = [...messagesRef.current].reverse().find((item) => item.role === "assistant" && item.approval?.id === approvalId);
     if (!original?.approval || original.approval.deciding) return;
@@ -970,7 +1213,7 @@ export function ChatPage() {
           return;
         }
         const output = "text" in run && run.text ? run.text : undefined;
-        updateApprovalMessage({ text: decision === "approve" ? (output || "Approval accepted. Check the saved action status for its execution result.") : "Action denied; no action was taken.", approval: undefined, pending: false });
+        updateApprovalMessage({ text: decision === "approve" ? (output || "Approval accepted. Chusky is executing the approved action now.") : "Action denied; no action was taken.", approval: undefined, approvalState: decision === "approve" ? "accepted" : undefined, statusText: decision === "approve" ? "Approval accepted. Waiting for execution confirmation…" : undefined, pending: false });
       }
     } catch (error) {
       // A lost HTTP response is not evidence that execution failed. Reconcile
@@ -985,7 +1228,7 @@ export function ChatPage() {
         updateApprovalMessage({ approval: { ...savedApproval, deciding: false }, pending: false });
         showNotice(safeUserFacingError(error, "Approval is still pending. Please retry."));
       } else if (recovery !== "run") {
-        updateApprovalMessage({ approval: undefined, pending: false, text: recovery === "accepted" ? "Approval was accepted. Execution is not yet confirmed; check the saved run before retrying." : recovery === "denied" ? "Action denied; no action was taken." : "Could not confirm the approval state. Refresh before trying again." });
+        updateApprovalMessage({ approval: undefined, pending: false, approvalState: recovery === "accepted" ? "accepted" : undefined, statusText: recovery === "accepted" ? "Approval accepted. Execution is not yet confirmed; refresh before retrying." : undefined, text: recovery === "accepted" ? "Approval accepted. Execution is not yet confirmed; check the saved run before retrying." : recovery === "denied" ? "Action denied; no action was taken." : "Could not confirm the approval state. Refresh before trying again." });
       }
     }
   };
@@ -994,7 +1237,9 @@ export function ChatPage() {
     if (globalApprovalBusy) return;
     setGlobalApprovalBusy(approvalId);
     try {
-      await chuskyApi.approvals.decide(approvalId, decision);
+      const result = await chuskyApi.approvals.decide(approvalId, decision);
+      if ("run" in result && result.run) await applyRunSnapshot(result.run);
+      else setMessages((current) => current.map((item) => item.approval?.id === approvalId ? { ...item, approval: undefined, approvalState: decision === "approve" ? "accepted" : undefined, statusText: decision === "approve" ? "Approval accepted. Chusky is executing the approved action now." : undefined, pending: false, text: decision === "approve" ? "Approval accepted. Chusky is executing the approved action now." : "Action denied; no action was taken." } : item));
       const next = await chuskyApi.account.get();
       setAccount(next);
       notifyChuskyDataChanged();
@@ -1140,7 +1385,7 @@ export function ChatPage() {
         } else if (typed.type === "run.approval_required") {
           notifyChuskyDataChanged();
           syncActiveRunId(undefined);
-          updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", pending: false, statusText: undefined, tool: undefined, failure: undefined, approval: typed.approval });
+          updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", pending: false, statusText: undefined, tool: undefined, failure: undefined, approval: typed.approval ? { ...typed.approval, phase: "waiting" } : undefined, approvalState: undefined });
         } else if (typed.type === "run.failed") {
           syncActiveRunId(undefined);
           const failure = safeRunFailure(typed.error);
@@ -1245,6 +1490,28 @@ export function ChatPage() {
     });
   }, [thread?.id, queuedMessage, isWorking, messages]);
 
+  const activateAttentionAction = async (action: NonNullable<AttentionCandidate["suggestedActions"]>[number]) => {
+    if (!attentionCandidate || attentionActionBusy) return;
+    setAttentionActionBusy(action.id);
+    const context = [
+      `Elena suggested: ${attentionCandidate.reason}`,
+      attentionCandidate.proposedAction ? `Suggested next step: ${attentionCandidate.proposedAction}` : "",
+      `I selected: ${action.label}`,
+      `Please continue from this suggestion, verify the current state, and use the normal approval boundary before any consequential external action.`,
+      `Action details: ${action.prompt}`,
+    ].filter(Boolean).join("\n\n");
+    try {
+      await chuskyApi.account.activateAttentionCandidate(attentionCandidate.id, action.id);
+      await send(context);
+      setAttentionCandidate(undefined);
+      notifyChuskyDataChanged();
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : "Elena could not open this suggestion yet.");
+    } finally {
+      setAttentionActionBusy(undefined);
+    }
+  };
+
   const handleComposerSend = () => {
     if (isWorking) queueCurrentMessage();
     else void send();
@@ -1257,8 +1524,25 @@ export function ChatPage() {
       <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_250px]">
         <div className="flex min-h-0 min-w-0 flex-col">
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-1.5 py-2 sm:px-5 sm:py-6 lg:px-8">
+            <div className="relative mb-2 flex shrink-0 items-center justify-between gap-2 border-b border-foreground/10 pb-2">
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-medium">{thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky"}</p>
+                <p className="text-[9px] text-muted-foreground">{messages.length ? `${messages.filter((item) => item.role === "user").length} messages` : "Ready when you are"}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button type="button" onClick={() => void loadConversationList()} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-foreground/10 px-2.5 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground sm:hidden" aria-expanded={conversationMenuOpen} aria-label="Open conversations"><ChevronLeft size={12} className="rotate-90" />Conversations</button>
+                <button type="button" onClick={() => setConversationMenuOpen((open) => !open)} className="flex size-8 items-center justify-center rounded-full border border-foreground/10 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground" aria-label="Conversation options" aria-expanded={conversationMenuOpen} title="Conversation options"><MoreHorizontal size={15} /></button>
+              </div>
+              {conversationMenuOpen ? <div className="absolute right-0 top-10 z-30 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-foreground/10 bg-background p-1.5 shadow-xl">
+                <div className="flex items-center justify-between gap-2 border-b border-foreground/10 px-2.5 py-2"><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Conversations</p><button type="button" onClick={() => setConversationMenuOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-foreground/5" aria-label="Close conversation menu"><X size={13} /></button></div>
+                <div className="grid grid-cols-3 gap-1 p-1.5"><button type="button" onClick={() => void renameConversation()} className="rounded-md px-2 py-2 text-[10px] hover:bg-foreground/5">Rename</button><button type="button" onClick={() => void archiveConversation()} className="rounded-md px-2 py-2 text-[10px] hover:bg-foreground/5">Archive</button><button type="button" onClick={() => void deleteConversation()} className="rounded-md px-2 py-2 text-[10px] text-rose-700 hover:bg-rose-500/10 dark:text-rose-300">Delete</button></div>
+                <div className="max-h-56 overflow-y-auto border-t border-foreground/10 pt-1.5">{conversationListLoading ? <p className="px-2.5 py-3 text-[10px] text-muted-foreground">Loading conversations…</p> : conversationList.length ? conversationList.map((item) => <button key={item.id} type="button" onClick={() => { setConversationMenuOpen(false); router.push(`/app/chat?thread=${encodeURIComponent(item.id)}`); }} className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-[10px] hover:bg-foreground/5 ${item.id === thread?.id ? "bg-foreground/5 font-medium" : ""}`}><span className="min-w-0 truncate">{String(item.metadata.title || "New conversation")}</span><span className="shrink-0 text-[9px] text-muted-foreground">{new Date(item.updatedAt).toLocaleDateString([], { month: "short", day: "numeric" })}</span></button>) : <p className="px-2.5 py-3 text-[10px] text-muted-foreground">No saved conversations yet.</p>}</div>
+              </div> : null}
+            </div>
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-3.5 sm:space-y-4">
+              {olderRunsCursor ? <div className="flex justify-center pb-1"><button type="button" onClick={() => void loadOlderRuns()} disabled={loadingOlderRuns} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-foreground/10 px-3 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:opacity-50">{loadingOlderRuns ? <LoaderCircle size={12} className="animate-spin" /> : <ChevronDown size={12} className="rotate-180" />} {loadingOlderRuns ? "Loading older messages…" : "Load older messages"}</button></div> : null}
+              {attentionCandidate ? <AttentionCandidateCard candidate={attentionCandidate} busyAction={attentionActionBusy} onAction={(action) => void activateAttentionAction(action)} /> : null}
               {account?.approvals?.filter((approval) => !messages.some((message) => message.approval?.id === approval.id)).map((approval) => <div key={approval.id} className="mx-auto flex w-full max-w-2xl items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50/80 px-3 py-3 text-amber-950 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-100" role="alert">
                 <ShieldCheck size={17} className="mt-0.5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
@@ -1286,13 +1570,15 @@ export function ChatPage() {
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
                     {item.role === "assistant" && item.privateLinks?.length ? <div className="mt-3 space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3"><p className="text-xs font-medium">Action needed in the private browser</p>{item.privateLinks.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-foreground px-3 py-2 text-[11px] text-background">{link.label}</a>)}<p className="text-[10px] leading-4 text-muted-foreground">Complete the website step, then return here and say “continue”. This link expires soon.</p></div> : null}
                     {item.attachments?.length ? <div className="mt-2 flex flex-wrap gap-2">{item.attachments.map((file) => <SentAttachment key={file.id} file={file} />)}</div> : null}
+                    {item.role === "assistant" && item.approvalState === "accepted" ? <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-700 dark:text-emerald-300" role="status"><LoaderCircle size={11} className="animate-spin motion-reduce:animate-none" /> Approval accepted · executing</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
                       {item.role === "user" ? <>
                         <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={11} /> : <Copy size={11} />}</button>
                         <button type="button" onClick={() => editMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label="Edit message" title="Edit"><Pencil size={11} /></button>
                       </> : <>
-                        <button type="button" onClick={() => setLikedMessageIndex((current) => current === index ? undefined : index)} className={`flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground ${likedMessageIndex === index ? "text-emerald-600" : ""}`} aria-label={likedMessageIndex === index ? "Unlike message" : "Like message"} aria-pressed={likedMessageIndex === index} title="Like"><ThumbsUp size={11} fill={likedMessageIndex === index ? "currentColor" : "none"} /></button>
+                        <button type="button" onClick={() => void setMessageFeedback(index, "positive")} disabled={feedbackBusyRunId === item.runId} className={`flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground ${item.feedback === "positive" ? "text-emerald-600" : ""}`} aria-label={item.feedback === "positive" ? "Remove positive feedback" : "Mark message helpful"} aria-pressed={item.feedback === "positive"} title="Helpful"><ThumbsUp size={11} fill={item.feedback === "positive" ? "currentColor" : "none"} /></button>
+                        <button type="button" onClick={() => void setMessageFeedback(index, "negative")} disabled={feedbackBusyRunId === item.runId} className={`flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground ${item.feedback === "negative" ? "text-rose-600" : ""}`} aria-label={item.feedback === "negative" ? "Remove negative feedback" : "Mark message not helpful"} aria-pressed={item.feedback === "negative"} title="Not helpful"><ThumbsDown size={11} fill={item.feedback === "negative" ? "currentColor" : "none"} /></button>
                         <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={11} /> : <Copy size={11} />}</button>
                         <button type="button" onClick={() => void shareMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label="Share message" title="Share"><Share2 size={11} /></button>
                       </>}

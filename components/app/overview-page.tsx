@@ -27,7 +27,7 @@ type OverviewData = {
   tools: Tool[];
 };
 
-const emptyActivity: ActivitySnapshot = { now: 0, approvals: [], tasks: [], reminders: [], jobs: [] };
+const emptyActivity: ActivitySnapshot = { now: 0, approvals: [], tasks: [], reminders: [], jobs: [], attentionCandidates: [] };
 const emptyAutonomy: AutonomySnapshot = {
   userId: 0,
   mode: "personal",

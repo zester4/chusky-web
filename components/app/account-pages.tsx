@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, ExternalLink, Laptop, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
+import { Brain, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, ExternalLink, Laptop, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
 import { chuskyApi, type AccountOverview, type ConnectedAccount, type Toolkit, type Trigger, type TriggerEventActivity, type TriggerCatalogueItem, type TriggerConfigField, type TriggerToolkit } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
@@ -62,6 +62,10 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "approvals") {
     const attentionEvents = data.triggerEvents.filter((event) => event.needsAttention || ["pending", "failed"].includes(event.notificationStatus));
     return <div className="space-y-4">
+      {data.attentionCandidates.length > 0 && <Card>
+        <div className="border-b border-foreground/10 px-3.5 py-3.5 sm:px-4"><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Elena’s proactive suggestions</p><p className="mt-1 text-xs text-muted-foreground">These are capability suggestions, not provider activity. Connect an app to unlock the bounded work described below.</p></div>
+        <div className="space-y-2.5 p-3.5 sm:p-4">{data.attentionCandidates.slice(0, 8).map((candidate) => <div key={candidate.id} className="flex flex-col gap-3 border border-foreground/10 p-3 sm:flex-row sm:items-start sm:p-3.5"><Brain className="mt-0.5 shrink-0 text-amber-600" size={17} /><div className="min-w-0 flex-1"><p className="text-xs font-medium">{candidate.reason}</p>{candidate.proposedAction && <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">{candidate.proposedAction}</p>}<div className="mt-2.5 flex flex-wrap gap-1.5">{(candidate.suggestedActions?.length ? candidate.suggestedActions : [{ id: "connect", label: "Connect app", prompt: "Open Connected Apps and choose the provider Elena should monitor." }]).map((action, index) => <Button key={action.id} secondary={index > 0} onClick={() => activateAttentionCandidate(action)}>{action.label}</Button>)}</div></div></div>)}</div>
+      </Card>}
       {attentionEvents.length > 0 && <Card>
         <div className="border-b border-foreground/10 px-3.5 py-3.5 sm:px-4"><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Connected-app attention</p><p className="mt-1 text-xs text-muted-foreground">Elena turns verified events into clear next steps. Choose an action to open a prepared request in Chat; consequential actions still use the normal approval gate.</p></div>
         <div className="space-y-2.5 p-3.5 sm:p-4">{attentionEvents.slice(0, 10).map((event) => <AttentionActionCard key={event.id} event={event} />)}</div>
@@ -77,6 +81,14 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "devices") return <DevicesPanel initial={data.devices} />;
   if (kind === "workspace") return <Card className="p-4 sm:p-5">{data.workspace ? <div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-700"><Laptop size={17} /></span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{data.workspace.name}</h2><p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-2 sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No agent workspace has been created for this account.</Empty>}</Card>;
   return <div className="space-y-4"><SettingsPanel initialModel={data.model} initialVoice={data.voiceReplies} /><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
+}
+
+function activateAttentionCandidate(action: { id: string; prompt: string }): void {
+  if (["connect", "open-apps"].includes(action.id)) {
+    window.location.assign("/app/apps");
+    return;
+  }
+  window.location.assign(`/app/chat?new=1&draft=${encodeURIComponent(action.prompt)}`);
 }
 
 function AppsPanel() {

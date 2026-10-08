@@ -8,7 +8,7 @@ export interface BuilderOverview {
   monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string } | null };
   providers: Array<{ name: string; configured: boolean }>;
 }
-export interface BuilderAudit { id: string; actorId: string; action: string; at: number; enabled?: boolean; reason?: string; version?: number }
+export interface BuilderAudit { id: string; actorId: string; action: string; at: number; enabled?: boolean; reason?: string; version?: number; targetUserId?: string }
 export class BuilderApiError extends Error {
   constructor(public readonly code: string, public readonly status: number, message: string) { super(message); }
 }

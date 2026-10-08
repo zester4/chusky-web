@@ -16,7 +16,7 @@ export type AccountHistoryMessage = { role: "user" | "assistant"; content: strin
 export type RunBatchAction = { id: string; toolSlug: string; actionLabel?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; status: "started" | "completed" | "failed" | "unknown" | "approval_required" | "cancelled"; summary?: string };
 export type RunToolActivity = { id: string; type: "run.tool_activity"; at: number; toolSlug: string; callId?: string; status: "started" | "completed" | "failed" | "approval_required" | "cancelled"; message: string; actionLabel?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; batchActions?: RunBatchAction[]; summary?: string; durationMs?: number };
 export type RunSubagentActivity = { id: string; type: "run.subagent_activity"; at: number; activityId: string; parentToolCallId: string; handoffId: string; worker: string; objective: string; kind: "worker" | "tool"; status: "started" | "completed" | "failed" | "approval_required" | "cancelled" | "waiting"; message: string; toolCallId?: string; toolSlug?: string; actionLabel?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; summary?: string; durationMs?: number };
-export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; images?: RunImage[]; output?: string; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string; toolSlug?: string; callId?: string; status?: RunToolActivity["status"] | RunSubagentActivity["status"] | RunBatchAction["status"]; message?: string; actionLabel?: string; summary?: string; durationMs?: number; activityId?: string; parentToolCallId?: string; handoffId?: string; worker?: string; objective?: string; kind?: RunSubagentActivity["kind"]; toolCallId?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; batchActions?: RunBatchAction[] }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
+export type Run = { id: string; threadId: string; status: "queued" | "running" | "requires_approval" | "completed" | "failed" | "cancelled"; input: string; model?: string; attachments?: Array<Pick<UploadedFile, "id" | "name" | "contentType" | "size">>; artifacts?: RunArtifact[]; images?: RunImage[]; output?: string; feedback?: "positive" | "negative"; cost?: number; taskId?: string; approvalId?: string; metadata?: Record<string, unknown>; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; events?: Array<{ id: string; type: string; at: number; text?: string; toolSlug?: string; callId?: string; status?: RunToolActivity["status"] | RunSubagentActivity["status"] | RunBatchAction["status"]; message?: string; actionLabel?: string; summary?: string; durationMs?: number; activityId?: string; parentToolCallId?: string; handoffId?: string; worker?: string; objective?: string; kind?: RunSubagentActivity["kind"]; toolCallId?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; batchActions?: RunBatchAction[] }>; error?: { code: string; message: string }; createdAt: string; updatedAt: string };
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
   | { type: "run.started"; run: Run }
@@ -70,7 +70,7 @@ export type CompanyAuditEvent = { id: string; requestId: string; action: string;
 export type CompanyUsagePeriod = { month: string; completedRuns: number; costUsd: number };
 export type CompanyUsage = { currentMonth: CompanyUsagePeriod; periods: CompanyUsagePeriod[]; runs: { indexed: number; active: number } };
 export type CompanyBranding = { organizationId: string; displayName: string; logoUrl?: string; accentColor: string; backgroundColor: string; customDomain?: string; customDomainStatus: "not_configured" | "pending_dns"; updatedAt?: string };
-export type Activity = { now: number; approvals: Approval[]; tasks: Task[]; reminders: Array<{ id: string; text: string; createdAt: number }>; jobs: Array<{ id: string; text: string; cron: string; createdAt: number }> };
+export type Activity = { now: number; approvals: Approval[]; tasks: Task[]; reminders: Array<{ id: string; text: string; createdAt: number }>; jobs: Array<{ id: string; text: string; cron: string; createdAt: number }>; attentionCandidates: Array<{ id: string; reason: string; updatedAt: number }> };
 export type HealthSnapshot = { ok: boolean; status: "operational" | "degraded"; persistence: "redis" | "memory"; checks: Record<string, string>; channels: Record<string, boolean>; monitoring: { counters: Record<string, number>; lastFailure: { at: string; type?: string; message?: string } | null; vector: { failures: number; degraded: boolean; lastFailure: { at: string; message?: string } | null } } };
 export type ReliabilityHealth = { operation: string; windowMs: number; sampleCount: number; successRate: number; uncertaintyRate: number; p95LatencyMs?: number; state: "healthy" | "degraded" | "meltdown"; reasons: string[]; calculatedAt: number };
 export type OperatorTraceEvent = { id: string; ownerId: number; kind: string; type: string; at: number; correlationId?: string; parentId?: string; status?: string; summary: string; metadata?: Record<string, string | number | boolean | null> };
@@ -78,6 +78,7 @@ export type Compensation = { id: string; ownerId: number; missionId?: string; mi
 export type AccountOverview = {
   model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences;
   approvals: Array<{ id: string; toolSlug: string; request: string; status: string; missionId?: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
+  attentionCandidates: AttentionCandidate[];
   channels: Array<{ id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
   reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
   jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string }>;
@@ -91,6 +92,7 @@ export type AccountOverview = {
   telegramLink: { linked: boolean };
   deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; durationMs?: number; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
+export type AttentionCandidate = { id: string; candidateType: string; reason: string; proposedAction?: string; providerSlug?: string; suggestedActions?: Array<{ id: string; label: string; prompt: string }>; score: number; createdAt: string };
 export type FluxVoice = { id: string; name: string; accent: string };
 export type BlandVoice = { id: string; name: string; description?: string };
 export type LiveVoicePreferences = { twilio?: string; meetings?: string; bland?: { id: string; name: string } };
@@ -293,6 +295,7 @@ export const chuskyApi = {
   runs: {
     create: (threadId: string, input: { input: string; model?: string; metadata?: Record<string, unknown>; attachments?: string[]; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; wait?: boolean }) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     get: (threadId: string, runId: string) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}`),
+    feedback: (threadId: string, runId: string, feedback: "positive" | "negative" | null) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/feedback`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ feedback }) }),
     events: (threadId: string, runId: string, after = 0) => request<{ data: Array<{ id: string; type: string; at: number; text?: string }> }>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/events?after=${after}`),
     cancel: (threadId: string, runId: string) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     resume: (threadId: string, runId: string) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
@@ -366,6 +369,7 @@ export const chuskyApi = {
   },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
+    activateAttentionCandidate: (candidateId: string, actionId?: string) => request<{ candidate: AttentionCandidate; actionId?: string; alreadyActivated?: boolean }>(`/account/attention-candidates/${encodeURIComponent(candidateId)}/activate`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(actionId ? { actionId } : {}) }),
     export: () => request<Record<string, unknown>>("/account/export"),
     clearMemory: () => request<{ removed: number; message: string }>("/account/memory/clear", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     clearSession: () => request<{ message: string }>("/account/session/clear", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
