@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Copy, ExternalLink, Laptop, Link2, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
-import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoicePreferences, type Model, type TelegramLinkCode, type Toolkit, type Trigger, type TriggerEventActivity, type TriggerCatalogueItem, type TriggerConfigField, type TriggerToolkit, type VoiceOptions } from "@/lib/chusky-api";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, ExternalLink, Laptop, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
+import { chuskyApi, type AccountOverview, type ConnectedAccount, type LiveVoicePreferences, type Model, type Toolkit, type Trigger, type TriggerEventActivity, type TriggerCatalogueItem, type TriggerConfigField, type TriggerToolkit, type VoiceOptions } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -76,7 +76,7 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "triggers") return <ComprehensiveTriggersPanel />;
   if (kind === "devices") return <DevicesPanel initial={data.devices} />;
   if (kind === "workspace") return <Card className="p-4 sm:p-5">{data.workspace ? <div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-700"><Laptop size={17} /></span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{data.workspace.name}</h2><p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-2 sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No agent workspace has been created for this account.</Empty>}</Card>;
-  return <div className="grid gap-4 lg:grid-cols-2"><SettingsPanel initialModel={data.model} initialVoice={data.voiceReplies} initialPreferences={data.voicePreferences} /><TelegramLink linked={data.telegramLink.linked} /><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
+  return <div className="grid gap-4 lg:grid-cols-2"><SettingsPanel initialModel={data.model} initialVoice={data.voiceReplies} initialPreferences={data.voicePreferences} /><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
 }
 
 function SettingsPanel({ initialModel, initialVoice, initialPreferences }: { initialModel: string; initialVoice: boolean; initialPreferences: LiveVoicePreferences }) {
@@ -542,25 +542,6 @@ function calendarTriggerGuidance(slug: string): string | undefined {
   if (normalized.endsWith("EVENT_STARTING_SOON_TRIGGER")) return "Starting-soon can refresh the brief or surface a join suggestion for a supported video meeting. It does not authorize Chusky to join automatically.";
   if (["GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_CREATED_TRIGGER", "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_UPDATED_TRIGGER", "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_CHANGE_TRIGGER", "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_SYNC_TRIGGER"].includes(normalized)) return "This broad calendar event trigger may include non-meeting events. Chusky treats an item as a meeting only when it can verify a supported conferencing URL; a trigger never directly authorizes a join.";
   return undefined;
-}
-
-function TelegramLink({ linked }: { linked: boolean }) {
-  const [link, setLink] = useState<TelegramLinkCode>();
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string>();
-  const create = async () => {
-    setBusy(true); setError(undefined); setCopied(false);
-    try { setLink(await chuskyApi.account.createTelegramLink()); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create a Telegram link code."); }
-    finally { setBusy(false); }
-  };
-  const copy = async () => {
-    if (!link) return;
-    try { await navigator.clipboard.writeText(`/link ${link.code}`); setCopied(true); }
-    catch { setError("Copy the command manually, then send it in Telegram."); }
-  };
-  return <Card className="p-4 sm:p-5"><div className="flex items-start gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground/10"><Link2 size={15} /></span><div className="min-w-0 flex-1"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Telegram workspace</p><h2 className="mt-1.5 text-sm font-medium">{linked ? "Linked to Telegram" : "Link your Telegram workspace"}</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">{linked ? "This dashboard now reads and controls the same private Chusky workspace as your Telegram account." : "Generate a one-time code, then send it from the Telegram account that already uses Chusky."}</p>{!linked && <div className="mt-3 space-y-2.5">{link ? <div className="rounded-lg border border-foreground/10 bg-muted/30 p-2.5"><div className="flex items-center justify-between gap-2.5"><code className="min-w-0 break-all text-xs">/link {link.code}</code><Button secondary aria-label="Copy Telegram link command" onClick={() => void copy()}>{copied ? <Check size={14} /> : <Copy size={14} />}</Button></div><p className="mt-2 text-[10px] text-muted-foreground">Send this command in Telegram before {date(link.expiresAt)}. It works once.</p></div> : <Button onClick={() => void create()} disabled={busy}>{busy ? <LoaderCircle size={14} className="animate-spin" /> : <Link2 size={14} />}{busy ? "Creating code" : "Create link code"}</Button>}{error && <p className="text-xs text-amber-700">{error}</p>}</div>}</div></div></Card>;
 }
 
 function Row({ icon, title, detail, meta, status }: { icon: ReactNode; title: string; detail?: string; meta?: string; status?: string }) { return <div className="flex min-w-0 items-start gap-2.5 border-b border-foreground/10 px-3.5 py-2.5 last:border-0 sm:px-4 sm:py-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center border border-foreground/10 text-muted-foreground">{icon}</span><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{title}</p>{detail && <p className="mt-1 break-words text-[11px] text-muted-foreground">{detail}</p>}{meta && <p className="mt-1.5 break-words text-[9px] text-muted-foreground">{meta}</p>}</div>{status && <Status tone={status === "failed" ? "amber" : status === "cancelled" ? "gray" : "green"}>{status}</Status>}</div>; }

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
-import { chuskyApi, type ChannelConnection, type ChannelLinkCode, type Delivery } from "@/lib/chusky-api";
+import { Check, Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
+import { chuskyApi, type ChannelConnection, type ChannelLinkCode, type Delivery, type TelegramLinkCode } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
+import { ChannelLogo, channelBrand } from "./channel-brand";
 
-const channelNames: Record<string, string> = { telegram: "Telegram", slack: "Slack", whatsapp: "WhatsApp", sendblue: "iMessage", sms: "SMS", x: "X Direct Messages", xchat: "Encrypted XChat" };
 const linkable = ["slack", "whatsapp", "sendblue", "sms", "x"] as const;
 
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
@@ -17,10 +17,12 @@ export function ChannelsPage() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [provider, setProvider] = useState<(typeof linkable)[number]>("slack");
   const [linkCode, setLinkCode] = useState<ChannelLinkCode>();
+  const [telegramLink, setTelegramLink] = useState<TelegramLinkCode>();
   const [confirm, setConfirm] = useState<ChannelConnection>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [telegramCopied, setTelegramCopied] = useState(false);
   const [deliveryError, setDeliveryError] = useState<string>();
 
   const load = async () => {
@@ -39,6 +41,17 @@ export function ChannelsPage() {
     try { setLinkCode(await chuskyApi.channels.createLinkCode(provider)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create a channel link code."); }
     finally { setBusy(undefined); }
+  };
+  const createTelegramLink = async () => {
+    setBusy("telegram-link"); setError(undefined); setNotice(undefined);
+    try { setTelegramLink(await chuskyApi.account.createTelegramLink()); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create a Telegram link code."); }
+    finally { setBusy(undefined); }
+  };
+  const copyTelegramLink = async () => {
+    if (!telegramLink) return;
+    try { await navigator.clipboard.writeText(`/link ${telegramLink.code}`); setTelegramCopied(true); setNotice("Telegram link command copied."); window.setTimeout(() => setTelegramCopied(false), 1800); }
+    catch { setError("Clipboard access is unavailable. Copy the Telegram command manually."); }
   };
   const copyCode = async () => {
     if (!linkCode) return;
@@ -67,21 +80,22 @@ export function ChannelsPage() {
       <Card>
         <div className="border-b border-foreground/10 p-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Linked identities</p></div>
         {channels === undefined ? <p className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin"/> Loading linked channels…</p> : channels.length ? channels.map((channel) => <div key={channel.id} className="flex flex-col gap-3 border-b border-foreground/10 p-4 last:border-0 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{channelNames[channel.provider] ?? channel.provider}</p><Status>{channel.provider === "telegram" ? "Primary workspace" : "Linked"}</Status></div><p className="mt-1 break-all text-[11px] text-muted-foreground">{channel.displayName || channel.externalUserId}{channel.workspaceId ? ` · ${channel.workspaceId}` : ""}</p><p className="mt-1 text-[10px] text-muted-foreground">Verified {date(channel.verifiedAt)}</p></div>
+          <div className="flex min-w-0 flex-1 items-start gap-3"><ChannelLogo provider={channel.provider} size={34}/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{channelBrand(channel.provider).name}</p><Status>{channel.provider === "telegram" ? "Primary workspace" : "Linked"}</Status></div><p className="mt-1 break-all text-[11px] text-muted-foreground">{channel.displayName || channel.externalUserId}{channel.workspaceId ? ` · ${channel.workspaceId}` : ""}</p><p className="mt-1 text-[10px] text-muted-foreground">Verified {date(channel.verifiedAt)}</p></div></div>
           <div className="flex flex-wrap items-center gap-3"><label className="flex min-h-9 items-center gap-2 text-[11px]"><input type="checkbox" checked={channel.proactiveOptIn} disabled={busy === channel.id} onChange={(event) => void setProactive(channel, event.target.checked)} className="accent-foreground"/>Allow proactive replies</label>{channel.provider !== "telegram" && <Button secondary disabled={busy === channel.id} onClick={() => setConfirm(channel)}><Unlink size={12}/> Unlink</Button>}</div>
-        </div>) : <p className="p-4 text-xs text-muted-foreground">No linked channels yet. Link a channel below, or connect Telegram from Settings.</p>}
+        </div>) : <p className="p-4 text-xs text-muted-foreground">No linked channels yet. Link a channel below, including Telegram.</p>}
       </Card>
-      <Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Link a channel</p><h2 className="mt-1.5 font-display text-2xl">Bring Chusky into your workspace</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Generate a short-lived link instruction for the account you want to pair. Codes expire after ten minutes.</p>
-        <label className="mt-4 block text-xs text-muted-foreground">Channel<select value={provider} onChange={(event) => { setProvider(event.target.value as (typeof linkable)[number]); setLinkCode(undefined); }} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs">{linkable.map((item) => <option key={item} value={item}>{channelNames[item]}</option>)}</select></label>
+      <Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Link a channel</p><h2 className="mt-1.5 font-display text-2xl">Bring Chusky into your workspace</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Connect Telegram or generate a short-lived pairing instruction for another channel. Codes expire after ten minutes.</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">{linkable.map((item) => { const brand = channelBrand(item); const selected = provider === item; return <button key={item} type="button" aria-pressed={selected} onClick={() => { setProvider(item); setLinkCode(undefined); }} className={`flex min-h-16 items-center gap-3 border px-3 text-left transition-colors ${selected ? "border-foreground bg-foreground/[0.04]" : "border-foreground/10 hover:border-foreground/30"}`}><ChannelLogo provider={item} size={34}/><span className="min-w-0"><span className="block text-xs font-medium">{brand.name}</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{brand.description}</span></span></button>; })}</div>
         <div className="mt-3"><Button disabled={busy === "link"} onClick={() => void createCode()}>{busy === "link" ? <LoaderCircle size={13} className="animate-spin"/> : <Link2 size={13}/>} Generate link code</Button></div>
         {linkCode && <div className="mt-4 border border-foreground/10 bg-foreground/[0.02] p-3"><p className="text-[11px] leading-5">{linkCode.instructions}</p>{linkCode.installUrl && <a className="mt-2 block break-all text-[11px] underline" href={linkCode.installUrl} target="_blank" rel="noreferrer">Open Slack installation</a>}<div className="mt-3 flex flex-wrap items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">{linkCode.provider === "slack" ? linkCode.code : linkCode.instructions.match(/\/link\s+\S+/)?.[0] ?? linkCode.code}</code><Button secondary onClick={() => void copyCode()}><Copy size={13}/> Copy</Button></div><p className="mt-2 text-[10px] text-muted-foreground">This code is private to your account. Complete linking within ten minutes.</p></div>}
+        <div className="mt-5 border-t border-foreground/10 pt-4"><div className="flex items-start gap-3"><ChannelLogo provider="telegram" size={34}/><div className="min-w-0 flex-1"><p className="text-xs font-medium">{channels?.some((item) => item.provider === "telegram") ? "Telegram is connected" : "Connect Telegram"}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Link the Telegram account that already uses Chusky to share this private workspace.</p>{!channels?.some((item) => item.provider === "telegram") && <div className="mt-3">{telegramLink ? <div className="border border-foreground/10 bg-foreground/[0.02] p-2.5"><div className="flex items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">/link {telegramLink.code}</code><Button secondary aria-label="Copy Telegram link command" onClick={() => void copyTelegramLink()}>{telegramCopied ? <Check size={13}/> : <Copy size={13}/>}</Button></div><p className="mt-2 text-[10px] text-muted-foreground">Send this command in Telegram before {date(telegramLink.expiresAt)}.</p></div> : <Button secondary disabled={busy === "telegram-link"} onClick={() => void createTelegramLink()}>{busy === "telegram-link" ? <LoaderCircle size={13} className="animate-spin"/> : <Link2 size={13}/>} Create Telegram link code</Button>}</div>}</div></div></div>
       </Card>
     </div>
     <Card className="mt-4 overflow-hidden">
       <div className="border-b border-foreground/10 p-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Recent delivery activity</p><p className="mt-1 text-xs text-muted-foreground">See the latest outbound channel results alongside your linked identities.</p></div>
       {deliveryError && <p role="alert" className="border-b border-amber-300/70 bg-amber-50 p-3 text-xs text-amber-950">{deliveryError}</p>}
-      {deliveries.length ? <div className="divide-y divide-foreground/10">{deliveries.slice(0, 8).map((item) => <div key={item.id} className="flex flex-col gap-2 p-4 text-[11px] sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{channelNames[item.provider] ?? item.provider} · {item.kind}</p><Status tone={item.status === "delivered" ? "green" : item.status === "failed" || item.status === "ambiguous" ? "amber" : "gray"}>{item.status === "delivered" && item.providerStatus === "owner_confirmed_delivered" ? "confirmed by you" : item.status}</Status></div><p className="mt-1 text-muted-foreground">{date(item.deliveredAt || item.updatedAt)} · {item.attempts} attempt{item.attempts === 1 ? "" : "s"}{item.lastError ? ` · ${item.lastError}` : ""}</p></div>{item.status === "ambiguous" && <span className="shrink-0 text-muted-foreground">Outcome uncertain</span>}</div>)}</div> : !deliveryError && <p className="p-4 text-xs text-muted-foreground">No outbound deliveries have been recorded for this account yet.</p>}
+      {deliveries.length ? <div className="divide-y divide-foreground/10">{deliveries.slice(0, 8).map((item) => <div key={item.id} className="flex flex-col gap-2 p-4 text-[11px] sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="flex min-w-0 items-center gap-2"><ChannelLogo provider={item.provider} size={22}/><p className="font-medium">{channelBrand(item.provider).name} · {item.kind}</p></div><Status tone={item.status === "delivered" ? "green" : item.status === "failed" || item.status === "ambiguous" ? "amber" : "gray"}>{item.status === "delivered" && item.providerStatus === "owner_confirmed_delivered" ? "confirmed by you" : item.status}</Status></div><p className="mt-1 text-muted-foreground">{date(item.deliveredAt || item.updatedAt)} · {item.attempts} attempt{item.attempts === 1 ? "" : "s"}{item.lastError ? ` · ${item.lastError}` : ""}</p></div>{item.status === "ambiguous" && <span className="shrink-0 text-muted-foreground">Outcome uncertain</span>}</div>)}</div> : !deliveryError && <p className="p-4 text-xs text-muted-foreground">No outbound deliveries have been recorded for this account yet.</p>}
     </Card>
-    {confirm && <ConfirmDialog open onOpenChange={(open) => !open && setConfirm(undefined)} title={`Unlink ${channelNames[confirm.provider] ?? confirm.provider}?`} description="Chusky will stop accepting messages for this linked identity. The provider-side app or workspace installation will remain in place." confirmLabel="Unlink channel" destructive onConfirm={unlink}/>}
+    {confirm && <ConfirmDialog open onOpenChange={(open) => !open && setConfirm(undefined)} title={`Unlink ${channelBrand(confirm.provider).name}?`} description="Chusky will stop accepting messages for this linked identity. The provider-side app or workspace installation will remain in place." confirmLabel="Unlink channel" destructive onConfirm={unlink}/>}
   </>;
 }
