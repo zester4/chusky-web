@@ -601,7 +601,9 @@ export function ChatPage() {
             threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
           }
           setMessages(threadMessages);
-          chatPageCache.set(`thread:${current.id}`, { thread: current, messages: threadMessages, account: undefined, models: [], artifacts: artifactPage.data, cachedAt: Date.now() });
+          const cachedPage = { thread: current, messages: threadMessages, account: undefined, models: [], artifacts: artifactPage.data, cachedAt: Date.now() };
+          chatPageCache.set(`thread:${current.id}`, cachedPage);
+          chatPageCache.set("latest", cachedPage);
         }
         void chuskyApi.account.get().then((next) => { if (active) { setAccount(next); setRunModel(next.model); const cachedCurrent = chatPageCache.get(`thread:${current.id}`); if (cachedCurrent) chatPageCache.set(`thread:${current.id}`, { ...cachedCurrent, account: next, cachedAt: Date.now() }); } }).catch(() => undefined);
         void chuskyApi.account.models().then((next) => { if (active) { setModels(next.data); const cachedCurrent = chatPageCache.get(`thread:${current.id}`); if (cachedCurrent) chatPageCache.set(`thread:${current.id}`, { ...cachedCurrent, models: next.data, cachedAt: Date.now() }); } }).catch(() => undefined);
@@ -615,7 +617,9 @@ export function ChatPage() {
   useEffect(() => {
     if (!thread || requestedNew) return;
     const cacheKey = `thread:${thread.id}`;
-    chatPageCache.set(cacheKey, { thread, messages, account, models, artifacts: artifactCatalog, cachedAt: Date.now() });
+    const cachedPage = { thread, messages, account, models, artifacts: artifactCatalog, cachedAt: Date.now() };
+    chatPageCache.set(cacheKey, cachedPage);
+    chatPageCache.set("latest", cachedPage);
   }, [thread, messages, account, models, artifactCatalog, requestedNew]);
 
   useEffect(() => {

@@ -34,14 +34,23 @@ export function BuilderAdminPage() {
     setBusy(true); setError("");
     try {
       const current = await builderRequest<BuilderAccess>("access"); setAccess(current);
-      if (!current.verified) { setOverview(undefined); setControls(undefined); setEvents([]); setPeople([]); return; }
-      const [health, saved, audit, directory] = await Promise.all([
+      if (!current.verified) { setOverview(undefined); setControls(undefined); setEvents([]); setPeople([]); setPeopleTotal(0); return; }
+      const [health, saved, audit] = await Promise.all([
         builderRequest<{ data: BuilderOverview }>("overview"), builderRequest<BuilderControl>("controls"), builderRequest<{ data: BuilderAudit[] }>("audit"),
-        current.permissions.includes("view_users") ? builderRequest<{ data: BuilderPerson[]; total: number }>("people") : Promise.resolve(null),
       ]);
-      setOverview(health.data); setControls(saved); setDraft(saved.agentEnabled); setEvents(audit.data); setPeople(directory?.data ?? []); setPeopleTotal(directory?.total ?? 0);
+      setOverview(health.data); setControls(saved); setDraft(saved.agentEnabled); setEvents(audit.data);
+      if (current.permissions.includes("view_users")) {
+        try {
+          const directory = await builderRequest<{ data: BuilderPerson[]; total: number }>("people");
+          setPeople(directory.data); setPeopleTotal(directory.total);
+        } catch (failure) {
+          setPeople([]); setPeopleTotal(0); setNotice(`People directory: ${errorMessage(failure)}`);
+        }
+      } else {
+        setPeople([]); setPeopleTotal(0); setNotice("People directory: user directory access requires builder administrator permission.");
+      }
     } catch (failure) {
-      setOverview(undefined); setControls(undefined); setEvents([]); setPeople([]);
+      setOverview(undefined); setControls(undefined); setEvents([]); setPeople([]); setPeopleTotal(0);
       if (failure instanceof BuilderApiError && failure.status === 401) { window.location.assign("/sign-in?callbackURL=%2Fadmin"); return; }
       setError(errorMessage(failure));
     } finally { setBusy(false); }
