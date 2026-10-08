@@ -1,4 +1,5 @@
 import { notifyChuskyDataChanged as notifyDataChanged } from "./live-sync";
+import { safeUserFacingError } from "./error-copy";
 
 export type Page<T> = { data: T[]; nextCursor?: string };
 export type Thread = { id: string; externalId?: string; metadata: Record<string, unknown>; createdAt: string; updatedAt: string };
@@ -163,7 +164,10 @@ const apiBaseURL = typeof window === "undefined"
   : window.location.origin;
 
 export class ChuskyApiError extends Error {
-  constructor(public readonly status: number, message: string, public readonly code?: string) { super(message); this.name = "ChuskyApiError"; }
+  constructor(public readonly status: number, message: string, public readonly code?: string) {
+    super(safeUserFacingError(message, "Chusky could not complete the request. Please try again in a moment."));
+    this.name = "ChuskyApiError";
+  }
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

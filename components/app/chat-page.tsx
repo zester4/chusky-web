@@ -38,6 +38,7 @@ import { AppShellContext } from "./app-shell";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
+import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError } from "@/lib/error-copy";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
 
@@ -472,7 +473,7 @@ export function ChatPage() {
             const active = run.status === "queued" || run.status === "running";
             const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
             if (active) syncActiveRunId(run.id);
-            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval, failure: run.status === "failed" ? (run.error || {}) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
+            threadMessages.push({ role: "assistant", runId: run.id, text: output, activities, subagentActivities, artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactPage.data), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output });
           }
           setMessages(threadMessages);
         }
@@ -567,7 +568,7 @@ export function ChatPage() {
         pending: active,
         statusText: active ? runProgressText(run) : undefined,
         approval,
-        failure: run.status === "failed" ? (run.error || {}) : undefined,
+        failure: run.status === "failed" ? safeRunFailure(run.error) : undefined,
       };
     }));
   };
@@ -846,7 +847,7 @@ export function ChatPage() {
       const recovery = approvalRecoveryState(savedApproval?.status, savedRun?.status);
       if (recovery === "retry" && savedApproval) {
         updateApprovalMessage({ approval: { ...savedApproval, deciding: false }, pending: false });
-        showNotice(error instanceof Error ? error.message : "Approval is still pending. Please retry.");
+        showNotice(safeUserFacingError(error, "Approval is still pending. Please retry."));
       } else if (recovery !== "run") {
         updateApprovalMessage({ approval: undefined, pending: false, text: recovery === "accepted" ? "Approval was accepted. Execution is not yet confirmed; check the saved run before retrying." : recovery === "denied" ? "Action denied; no action was taken." : "Could not confirm the approval state. Refresh before trying again." });
       }
@@ -864,7 +865,7 @@ export function ChatPage() {
       showNotice(decision === "approve" ? "Approval accepted. Chusky is resuming the saved mission." : "Approval denied; no action was taken.", "info");
     } catch (error) {
       const saved = await chuskyApi.approvals.get(approvalId).catch(() => undefined);
-      if (saved?.status === "pending") showNotice(error instanceof Error ? error.message : "Approval is still pending. Refresh and try again.");
+      if (saved?.status === "pending") showNotice(safeUserFacingError(error, "Approval is still pending. Refresh and try again."));
       else {
         const next = await chuskyApi.account.get().catch(() => undefined);
         if (next) setAccount(next);
@@ -1006,11 +1007,12 @@ export function ChatPage() {
           updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", pending: false, statusText: undefined, tool: undefined, failure: undefined, approval: typed.approval });
         } else if (typed.type === "run.failed") {
           syncActiveRunId(undefined);
-          const detail = typed.error?.message || "";
+          const failure = safeRunFailure(typed.error);
+          const detail = failure?.message || "";
           showNotice(/429|rate limit|quota|too many requests/i.test(detail)
             ? "The selected model is rate limited. Choose another model or try again in a moment."
             : "Chusky could not complete that run. Please try again.");
-          updateLastAssistant({ text: "", failure: typed.error, pending: false, statusText: undefined, tool: undefined });
+          updateLastAssistant({ text: "", failure, pending: false, statusText: undefined, tool: undefined });
         } else if (typed.type === "run.cancelled") {
           activeRunIdRef.current = undefined;
           updateLastAssistant({ text: "Run cancelled. The completed steps are shown above.", failure: undefined, pending: false, statusText: undefined, tool: undefined });
@@ -1021,12 +1023,12 @@ export function ChatPage() {
       if ((error as Error).name === "AbortError") {
         if (runId) updateLastAssistant({ runId, pending: true, statusText: "Connection interrupted; reconnecting to this run…" });
       } else {
-        const detail = error instanceof Error ? error.message : "";
+        const detail = safeUserFacingError(error, "");
         showNotice(/429|rate limit|quota|too many requests/i.test(detail)
           ? "The selected model is rate limited. Choose another model or try again in a moment."
           : "The live connection was interrupted. Chusky’s saved run will keep updating here.");
         if (runId) updateLastAssistant({ runId, pending: true, statusText: "Connection interrupted; checking saved run progress…" });
-        else updateLastAssistant({ pending: false, text: "", failure: { message: detail }, statusText: undefined });
+        else updateLastAssistant({ pending: false, text: "", failure: detail ? { message: detail } : { message: INTERNAL_SESSION_RECOVERY_MESSAGE }, statusText: undefined });
       }
     } finally {
       if (shouldTitle) {
