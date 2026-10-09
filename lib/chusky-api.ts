@@ -81,8 +81,9 @@ export type AccountOverview = {
   attentionCandidates: AttentionCandidate[];
   channels: Array<{ id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
   reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
-  jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string }>;
+  jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string; deliveryError?: string; scheduleError?: string }>;
   memory: MemoryFact[];
+  memoryStatus?: "available" | "degraded";
   scratchpad: Array<{ key: string; content: string; updatedAt: string }>;
   triggers: string[];
   triggerEvents: TriggerEventActivity[];
@@ -119,6 +120,26 @@ export type VideoJob = { id: string; prompt: string; destination: "telegram" | "
 export type Worker = { id: string; worker: string; from: string; objective: string; expectedOutput: string; status: string; taskId?: string; workflowRunId?: string; timestamp: string; delegation?: Record<string, unknown>; context?: Record<string, unknown> };
 export type ChannelConnection = { id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean };
 export type AttentionPulseProvider = "telegram" | "slack" | "sendblue";
+export type AttentionPulseHealthStatus = "off" | "waiting_for_connection" | "waiting_for_setup" | "never_run" | "running" | "healthy" | "watch_attention" | "stale" | "failed";
+export type AttentionPulseRecoveryAction = "none" | "connect_app" | "run_now" | "inspect";
+export type AttentionPulseHealth = {
+  status: AttentionPulseHealthStatus;
+  title: string;
+  summary: string;
+  recoveryAction: AttentionPulseRecoveryAction;
+  expectedIntervalMs: number;
+  activeWatches: number;
+  currentWatches: number;
+  scheduledWatches: number;
+  staleWatches: number;
+  failedWatches: number;
+  neverCheckedWatches: number;
+  pendingSuggestions: number;
+  connectedAccountsVerified: boolean;
+  lastRunAt?: number;
+  lastRunStatus?: string;
+  lastError?: string;
+};
 export type AttentionPulsePreferences = {
   enabled: boolean;
   cadence: "every_30_minutes" | "hourly" | "daily";
@@ -127,6 +148,7 @@ export type AttentionPulsePreferences = {
   maxPerDay: number;
   quietHoursUtc?: { startMinute: number; endMinute: number };
   monitoredDomains: string[];
+  health: AttentionPulseHealth;
 };
 export type ChannelLinkCode = { provider: string; code: string; expiresInSeconds: number; instructions: string; installUrl?: string };
 export type MeetingRepresentativeRole = "sales" | "client_onboarding" | "employee_onboarding" | "customer_success" | "custom";
@@ -155,8 +177,9 @@ export type AutonomyMode = "notify" | "check_in" | "act" | "wait_until";
 export type AutonomyLinks = { taskId?: string; missionId?: string; missionStepId?: string; openLoopId?: string; attentionCandidateId?: string; projectId?: string; meetingId?: string; conversationId?: string };
 export type AutonomyContextSnapshot = { capturedAt: number; objective: string; summary?: string; nextAction?: string; links?: AutonomyLinks; freshnessMs?: number; source?: string };
 export type Reminder = { id: string; text: string; runAt: string; status: "scheduled" | "waiting" | "paused" | "sent" | "cancelled" | "failed"; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; pollEverySeconds?: number; deliveryError?: string };
-export type Job = { id: string; text: string; cron: string; status: "active" | "paused" | "cancelled"; scheduleId?: string; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; deliveryError?: string };
-export type JobOccurrence = { id: string; jobId: string; occurrenceId: string; status: string; mode: AutonomyMode; result?: string; nextAction?: string; waitReason?: string; error?: string; cost?: number; toolCalls?: number; startedAt?: string; completedAt?: string; createdAt: string; updatedAt: string; version: number };
+export type Job = { id: string; text: string; cron: string; status: "active" | "paused" | "cancelled"; scheduleId?: string; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; deliveryError?: string; scheduleError?: string };
+export type AttentionPulseRunEvidence = { state: "completed" | "waiting" | "blocked" | "failed" | "skipped"; dueWatches: number; watchesReconciled: number; pendingObservations: number; pendingCandidates: number; handled: boolean; delegated: number; approvalRequired: boolean; delivery: "dashboard" | "external" | "suppressed" | "none" };
+export type JobOccurrence = { id: string; jobId: string; occurrenceId: string; status: string; mode: AutonomyMode; result?: string; pulseEvidence?: AttentionPulseRunEvidence; nextAction?: string; waitReason?: string; error?: string; cost?: number; toolCalls?: number; startedAt?: string; completedAt?: string; createdAt: string; updatedAt: string; version: number };
 export type MemoryFact = { id: string; category: string; key: string; value: string; confidence: number; source?: string; sensitivity: "normal" | "sensitive"; projectId?: string; organizationId?: string; createdAt: string; updatedAt: string; expiresAt?: string; reviewAt?: string };
 export type ScratchpadNote = { key: string; content: string; updatedAt: string };
 
@@ -299,7 +322,7 @@ export const chuskyApi = {
     events: (threadId: string, runId: string, after = 0) => request<{ data: Array<{ id: string; type: string; at: number; text?: string }> }>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/events?after=${after}`),
     cancel: (threadId: string, runId: string) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     resume: (threadId: string, runId: string) => request<Run>(`/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
-    async *stream(threadId: string, input: string, attachments: string[] = [], signal?: AbortSignal, options: { model?: string; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[] } = {}): AsyncIterable<RunStreamEvent> {
+    async *stream(threadId: string, input: string, attachments: string[] = [], signal?: AbortSignal, options: { model?: string; budget?: RunBudget; tools?: RunToolPolicy; skills?: string[]; metadata?: Record<string, unknown> } = {}): AsyncIterable<RunStreamEvent> {
       const response = await fetch(`${apiBaseURL}/v1/threads/${encodeURIComponent(threadId)}/runs/stream`, { method: "POST", cache: "no-store", credentials: "include", signal, headers: { Accept: "application/x-ndjson", "Content-Type": "application/json", "Idempotency-Key": idempotency() }, body: JSON.stringify({ input, attachments, ...options }) });
       if (!response.ok) {
         const body = await response.json().catch(() => undefined) as { error?: { message?: string; code?: string } } | undefined;

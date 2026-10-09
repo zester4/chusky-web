@@ -61,11 +61,11 @@ function AppsDataPage() {
 
 function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOverview; decide: (id: string, decision: "approve" | "deny") => Promise<void>; busy?: string }) {
   if (kind === "approvals") {
-    const attentionEvents = data.triggerEvents.filter((event) => event.needsAttention || ["pending", "failed"].includes(event.notificationStatus));
+    const attentionEvents = data.triggerEvents.filter((event) => event.needsAttention || ["pending", "failed", "unavailable"].includes(event.notificationStatus));
     return <div className="space-y-4">
       {data.attentionCandidates.length > 0 && <Card>
         <div className="flex items-start justify-between gap-4 border-b border-foreground/10 bg-foreground/[0.018] px-3.5 py-3.5 sm:px-4"><div><div className="flex items-center gap-2"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/12 text-amber-700"><Brain size={13} /></span><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Elena’s proactive suggestions</p></div><p className="mt-2 text-xs text-muted-foreground">Capability ideas based on your workspace. Open one in Chat to decide the next safe step.</p></div><span className="shrink-0 rounded-full bg-amber-500/12 px-2 py-1 font-mono text-[9px] font-medium text-amber-800">{data.attentionCandidates.length} open</span></div>
-        <div className="space-y-2.5 p-3.5 sm:p-4">{data.attentionCandidates.slice(0, 8).map((candidate) => <div key={candidate.id} className="group flex flex-col gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition-colors hover:border-foreground/20 sm:flex-row sm:items-start sm:p-3.5"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/[0.025]"><TriggerLogoGroup text={`${candidate.reason} ${candidate.proposedAction || ""}`} slugs={[candidate.providerSlug || "chusky"]} size={25} /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{candidate.reason}</p><span className="rounded-full bg-foreground/[0.05] px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-muted-foreground">Suggestion</span></div>{candidate.proposedAction && <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">{candidate.proposedAction}</p>}<div className="mt-3 flex flex-wrap gap-1.5">{(candidate.suggestedActions?.length ? candidate.suggestedActions : [{ id: "connect", label: "Connect app", prompt: "Open Connected Apps and choose the provider Elena should monitor." }]).map((action, index) => <Button key={action.id} secondary={index > 0} onClick={() => activateAttentionCandidate(action)}>{action.label}</Button>)}</div></div></div>)}</div>
+        <div className="space-y-2.5 p-3.5 sm:p-4">{data.attentionCandidates.slice(0, 8).map((candidate) => <div key={candidate.id} className="group flex flex-col gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition-colors hover:border-foreground/20 sm:flex-row sm:items-start sm:p-3.5"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/[0.025]"><TriggerLogoGroup text={`${candidate.reason} ${candidate.proposedAction || ""}`} slugs={[candidate.providerSlug || "chusky"]} size={25} /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{candidate.reason}</p><span className="rounded-full bg-foreground/[0.05] px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-muted-foreground">Suggestion</span></div>{candidate.proposedAction && <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">{candidate.proposedAction}</p>}<div className="mt-3 flex flex-wrap gap-1.5">{(candidate.suggestedActions?.length ? candidate.suggestedActions : [{ id: "connect", label: "Connect app", prompt: "Open Connected Apps and choose the provider Elena should monitor." }]).map((action, index) => <Button key={action.id} secondary={index > 0} onClick={() => activateAttentionCandidate(candidate.id, action.id)}>{action.label}</Button>)}</div></div></div>)}</div>
       </Card>}
       {attentionEvents.length > 0 && <Card>
         <div className="border-b border-foreground/10 px-3.5 py-3.5 sm:px-4"><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Connected-app attention</p><p className="mt-1 text-xs text-muted-foreground">Elena turns verified events into clear next steps. Choose an action to open a prepared request in Chat; consequential actions still use the normal approval gate.</p></div>
@@ -84,12 +84,11 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   return <div className="space-y-4"><SettingsPanel initialModel={data.model} initialVoice={data.voiceReplies} /><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
 }
 
-function activateAttentionCandidate(action: { id: string; prompt: string }): void {
-  if (["connect", "open-apps"].includes(action.id)) {
-    window.location.assign("/app/apps");
-    return;
-  }
-  window.location.assign(`/app/chat?new=1&draft=${encodeURIComponent(action.prompt)}`);
+function activateAttentionCandidate(candidateId: string, actionId?: string): void {
+  // Keep the candidate visible in Chat so the server can validate the
+  // owner-scoped action and accept it only when a real run is created.
+  const query = new URLSearchParams({ new: "1", candidate: candidateId, ...(actionId ? { candidateAction: actionId, auto: "1" } : {}) });
+  window.location.assign(`/app/chat?${query.toString()}`);
 }
 
 function AppsPanel() {

@@ -43,7 +43,8 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
   const ProviderIcon = event.status === "failed" || event.notificationStatus === "failed" ? CircleAlert : event.actions?.length ? Sparkles : Plug;
   const activate = (action: TriggerEventAction) => {
     if (onAction) { onAction(action); return; }
-    window.location.assign(`/app/chat?new=1&draft=${encodeURIComponent(action.prompt)}`);
+    const query = new URLSearchParams({ new: "1", draft: action.prompt, triggerEvent: event.id, triggerAction: action.id, auto: "1" });
+    window.location.assign(`/app/chat?${query.toString()}`);
   };
   return <article className={`group flex min-w-0 items-start gap-2.5 border border-foreground/10 bg-foreground/[0.025] ${compact ? "rounded-md px-3 py-2.5" : "rounded-xl px-3.5 py-3 sm:px-4 sm:py-3.5"}`}>
     <div className="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-background text-muted-foreground" aria-hidden="true">
