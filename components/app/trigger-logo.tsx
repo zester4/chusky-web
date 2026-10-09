@@ -7,6 +7,12 @@ export type TriggerProviderBrand = {
   logo?: string;
 };
 
+export type TriggerProviderBrandMention = TriggerProviderBrand & {
+  start: number;
+  end: number;
+  matchedText: string;
+};
+
 type LogoDefinition = TriggerProviderBrand & {
   aliases: string[];
 };
@@ -17,7 +23,7 @@ type LogoDefinition = TriggerProviderBrand & {
 // response does not include toolkit metadata.
 const LOGO_DEFINITIONS: LogoDefinition[] = [
   { aliases: ["googlecalendar", "google_calendar", "calendar"], name: "Google Calendar", logo: "/logos/google-calendar.svg" },
-  { aliases: ["googledrive", "google_drive"], name: "Google Drive", logo: "/logos/google-drive.svg" },
+  { aliases: ["googledrive", "google_drive", "drive"], name: "Google Drive", logo: "/logos/google-drive.svg" },
   { aliases: ["googledocs", "google_docs"], name: "Google Docs", logo: "/logos/google-docs.svg" },
   { aliases: ["googlesheets", "google_sheets"], name: "Google Sheets", logo: "/logos/google-sheets.svg" },
   { aliases: ["googlemeet", "google_meet"], name: "Google Meet", logo: "/logos/google-meet.svg" },
@@ -89,6 +95,40 @@ export function triggerProviderBrand(slug: string): TriggerProviderBrand {
 
   const provider = slug.split(/[_:.\-/]/)[0]?.trim() || "connected app";
   return { name: provider.charAt(0).toUpperCase() + provider.slice(1).toLowerCase() };
+}
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const mentionTerms = LOGO_DEFINITIONS.flatMap((definition) => [definition.name, ...definition.aliases]
+  .filter((term) => term.length >= 3)
+  .map((term) => ({ definition, term }))
+).sort((left, right) => right.term.length - left.term.length);
+
+export function findTriggerProviderBrandMentions(text: string): TriggerProviderBrandMention[] {
+  const mentions: TriggerProviderBrandMention[] = [];
+  for (const { definition, term } of mentionTerms) {
+    const pattern = term.split(/[\s_-]+/).map(escapeRegExp).join("[\\s_-]+");
+    const matcher = new RegExp(`\\b${pattern}\\b`, "gi");
+    for (const match of text.matchAll(matcher)) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      if (mentions.some((mention) => start < mention.end && end > mention.start)) continue;
+      mentions.push({ name: definition.name, logo: definition.logo, start, end, matchedText: match[0] });
+    }
+  }
+  return mentions.sort((left, right) => left.start - right.start);
+}
+
+export function TriggerLogoGroup({ text, slugs = [], size = 25 }: { text?: string; slugs?: string[]; size?: number }) {
+  const detected = text ? findTriggerProviderBrandMentions(text) : [];
+  const brands = detected.length
+    ? detected.map(({ name, logo }) => ({ name, logo }))
+    : slugs.map(triggerProviderBrand);
+  const uniqueBrands = [...new Map(brands.map((brand) => [brand.name, brand])).values()].slice(0, 3);
+  const visibleBrands = uniqueBrands.length ? uniqueBrands : [{ name: "Chusky" }];
+  const iconSize = visibleBrands.length === 1 ? Math.round(size * 0.78) : Math.max(14, Math.round(size * 0.66));
+  return <span className="relative block shrink-0" style={{ width: size, height: size }} role="img" aria-label={visibleBrands.map((brand) => brand.name).join(", ")}>
+    {visibleBrands.map((brand, index) => <span key={brand.name} className="absolute top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md border border-background bg-background" style={{ width: iconSize, height: iconSize, left: visibleBrands.length === 1 ? (size - iconSize) / 2 : index * ((size - iconSize) / (visibleBrands.length - 1)), zIndex: index + 1 }}><ToolkitLogo name={brand.name} logo={brand.logo} size={iconSize} /></span>)}
+  </span>;
 }
 
 export function TriggerLogo({ slug, size = 32 }: { slug: string; size?: number }) {
