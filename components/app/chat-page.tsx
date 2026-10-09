@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   CheckCircle2,
@@ -39,7 +39,7 @@ import { AppShellContext } from "./app-shell";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
-import { findTriggerProviderBrandMentions, TriggerLogoGroup } from "./trigger-logo";
+import { TriggerLogoGroup } from "./trigger-logo";
 import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError } from "@/lib/error-copy";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
@@ -216,20 +216,6 @@ const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Recor
 // Strip decorative prefixes from progress copy while retaining the server's action text.
 const cleanActivityLabel = (value: string) => value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
 
-function BrandedActivityText({ value }: { value: string }) {
-  const mentions = findTriggerProviderBrandMentions(value);
-  if (!mentions.length) return <>{value}</>;
-  const parts: ReactNode[] = [];
-  let cursor = 0;
-  for (const mention of mentions) {
-    if (mention.start > cursor) parts.push(value.slice(cursor, mention.start));
-    parts.push(<span key={`${mention.start}-${mention.name}`} title={mention.name} className="mx-0.5 inline-flex items-center gap-1 rounded-md border border-foreground/10 bg-foreground/[0.04] px-1.5 py-0.5 align-middle text-[0.9em] font-medium text-foreground/85"><ToolkitLogo name={mention.name} logo={mention.logo} size={13} /><span>{mention.name}</span></span>);
-    cursor = mention.end;
-  }
-  if (cursor < value.length) parts.push(value.slice(cursor));
-  return <>{parts}</>;
-}
-
 function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
   return <ol aria-label="Tool activity" className="divide-y divide-foreground/[0.06]">
     {activities.map((activity) => {
@@ -243,7 +229,7 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
             <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={17} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="break-words text-[11px] font-medium leading-5"><BrandedActivityText value={cleanActivityLabel(activity.actionLabel || activity.message)} /></p>
+            <p className="break-words text-[11px] font-medium leading-5">{cleanActivityLabel(activity.actionLabel || activity.message)}</p>
             <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
               <span>{toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app")}</span>
               {formatToolDuration(activity.durationMs) ? <span>{formatToolDuration(activity.durationMs)}</span> : null}
@@ -280,7 +266,7 @@ function ActivityNarrative({ activities, subagentActivities, toolkitCatalogue, p
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[11px] font-medium leading-5">{title}</span>
-        <span className="block truncate text-[10px] leading-4 text-muted-foreground">{pending && current ? <BrandedActivityText value={cleanActivityLabel(current.actionLabel || current.message)} /> : `${completed} of ${activities.length} actions completed`}</span>
+        <span className="block truncate text-[10px] leading-4 text-muted-foreground">{pending && current ? cleanActivityLabel(current.actionLabel || current.message) : `${completed} of ${activities.length} actions completed`}</span>
       </span>
       <span className="hidden items-center -space-x-1.5 sm:flex" aria-hidden="true">
         {toolkits.slice(0, 3).map(([name, { activity, toolkit }]) => <span key={name} className="flex size-6 items-center justify-center rounded-full border border-background bg-background"><ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={14} /></span>)}
@@ -311,7 +297,7 @@ function SubagentTree({ activities, parentToolCallId, live }: { activities: RunS
             {steps.map((step) => <li key={step.activityId} className="chat-subagent-step relative flex min-w-0 items-start gap-2">
               <ActivityMarker status={step.status} current={live && step.status === "started"} className="chat-subagent-marker" />
               <ActivityBrand toolSlug={step.toolSlug} toolkitSlug={step.toolkitSlug} toolkitName={step.toolkitName} toolkitLogo={step.toolkitLogo} size={14} />
-              <div className="min-w-0 flex-1"><p className="text-[11px] leading-4"><BrandedActivityText value={step.actionLabel || step.message} /></p><div className="text-[10px] leading-4 text-muted-foreground">{step.toolkitName || step.toolkitSlug || (step.toolSlug ? formatToolLabel(step.toolSlug) : "Chusky tool")} · {activityStatusText(step, live)}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
+              <div className="min-w-0 flex-1"><p className="text-[11px] leading-4">{step.actionLabel || step.message}</p><div className="text-[10px] leading-4 text-muted-foreground">{step.toolkitName || step.toolkitSlug || (step.toolSlug ? formatToolLabel(step.toolSlug) : "Chusky tool")} · {activityStatusText(step, live)}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
             </li>)}
           </ol> : null}
         </li>;
@@ -1448,10 +1434,8 @@ export function ChatPage() {
     setAttentionActionBusy(action.id);
     const context = [
       `Elena suggested: ${attentionCandidate.reason}`,
-      attentionCandidate.proposedAction ? `Suggested next step: ${attentionCandidate.proposedAction}` : "",
       `I selected: ${action.label}`,
       `Please continue from this suggestion, verify the current state, and use the normal approval boundary before any consequential external action.`,
-      `Action details: ${action.prompt}`,
     ].filter(Boolean).join("\n\n");
     try {
       await chuskyApi.account.activateAttentionCandidate(attentionCandidate.id, action.id);
