@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
+  ArrowDown,
+  Reply,
   CheckCircle2,
   Check,
   Clock4,
@@ -40,11 +42,13 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
 import { TriggerLogoGroup } from "./trigger-logo";
+import { SwipeReply, useChatViewport, composeReply, parseReply, type ReplyQuote } from "./chat-interactions";
 import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError } from "@/lib/error-copy";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
 
 type Message = {
+  uiId?: string;
   role: "user" | "assistant";
   text: string;
   time?: string;
@@ -473,6 +477,7 @@ export function ChatPage() {
   const [olderRunsCursor, setOlderRunsCursor] = useState<string>();
   const [loadingOlderRuns, setLoadingOlderRuns] = useState(false);
   const [input, setInput] = useState("");
+  const [replyQuote, setReplyQuote] = useState<ReplyQuote>();
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [queuedMessage, setQueuedMessage] = useState<QueuedMessage>();
   const [queuedMenuOpen, setQueuedMenuOpen] = useState(false);
@@ -511,7 +516,7 @@ export function ChatPage() {
   const queuedMessageRef = useRef<QueuedMessage | undefined>(undefined);
   const queuedFlushRef = useRef(false);
   const sendRef = useRef<((inputOverride?: string, attachmentOverride?: SendAttachment[]) => Promise<void>) | undefined>(undefined);
-  const endRef = useRef<HTMLDivElement>(null);
+  const { rootRef, scrollRef, contentRef, showLatest, jumpToLatest } = useChatViewport(thread?.id);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef(new Set<string>());
   const uploadAbortControllersRef = useRef(new Map<string, AbortController>());
@@ -634,9 +639,9 @@ export function ChatPage() {
           const threadMessages: Message[] = [];
           for (const run of [...runs.data].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))) {
             const pair = await runMessagePair(run, artifactPage.data);
-            if (pair.user) threadMessages.push(pair.user);
+            if (pair.user) threadMessages.push({ ...pair.user, uiId: `${run.id}-user` });
             if (run.status === "queued" || run.status === "running") syncActiveRunId(run.id);
-            threadMessages.push(pair.assistant);
+            threadMessages.push({ ...pair.assistant, uiId: `${run.id}-assistant` });
           }
           setMessages(threadMessages);
           setOlderRunsCursor(runs.nextCursor);
@@ -662,9 +667,7 @@ export function ChatPage() {
     chatPageCache.set("latest", cachedPage);
   }, [thread, messages, account, models, artifactCatalog, olderRunsCursor, requestedNew]);
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { setReplyQuote(undefined); }, [thread?.id]);
 
   useEffect(() => {
     if (requestedDraft) setInput(requestedDraft);
@@ -1097,7 +1100,9 @@ export function ChatPage() {
   };
 
   const editMessage = (index: number, text: string) => {
-    setInput(text);
+    const parsed = parseReply(text);
+    setInput(parsed.text);
+    setReplyQuote(parsed.quote);
     setEditingMessageIndex(index);
     window.setTimeout(() => inputRef.current?.focus(), 0);
   };
@@ -1262,16 +1267,23 @@ export function ChatPage() {
   };
 
   const send = async (inputOverride?: string, attachmentOverride?: SendAttachment[]) => {
-    const text = (inputOverride ?? input).trim();
+    if (inputOverride === undefined && !input.trim() && !attachments.some((item) => item.status === "ready")) return;
+    const text = inputOverride === undefined ? composeReply(input.trim(), replyQuote) : inputOverride.trim();
     const readyAttachments = attachmentOverride ?? attachments.filter((item) => item.status === "ready" && item.id).map((item) => ({ id: item.id!, name: item.name, contentType: item.contentType, size: item.size, previewUrl: item.previewUrl, downloadUrl: item.downloadUrl }));
     if ((!text && !readyAttachments.length) || !thread || controller || messagesRef.current.some((item) => item.role === "assistant" && item.pending && item.runId) || (!attachmentOverride && attachments.some((item) => item.status === "uploading" || item.status === "error"))) return;
     const abort = new AbortController();
     const artifactIdsBefore = new Set(artifactCatalog.map((artifact) => artifact.id));
     setController(abort);
-    setInput("");
-    setAttachments([]);
+    if (inputOverride === undefined) {
+      jumpToLatest();
+      setInput("");
+      setReplyQuote(undefined);
+      setAttachments([]);
+    }
     const outgoing: Message = { role: "user", text: text || (attachmentOverride ? "Voice message" : "Attached file(s)"), time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size, previewUrl, downloadUrl }) => ({ id, name, contentType, size, previewUrl, downloadUrl })) };
-    setMessages((current) => editingMessageIndex === undefined ? [...current, outgoing, { role: "assistant", text: "", pending: true }] : [...current.slice(0, editingMessageIndex), outgoing, { role: "assistant", text: "", pending: true }]);
+    const userMessage = { ...outgoing, uiId: crypto.randomUUID() };
+    const assistantMessage: Message = { uiId: crypto.randomUUID(), role: "assistant", text: "", pending: true };
+    setMessages((current) => editingMessageIndex === undefined || inputOverride !== undefined ? [...current, userMessage, assistantMessage] : [...current.slice(0, editingMessageIndex), userMessage, assistantMessage]);
     setEditingMessageIndex(undefined);
     const shouldTitle = Boolean(text && !thread.metadata.title);
     try {
@@ -1370,7 +1382,8 @@ export function ChatPage() {
   }, [send]);
 
   const queueCurrentMessage = () => {
-    const text = input.trim();
+    if (!input.trim() && !attachments.some((item) => item.status === "ready")) return;
+    const text = composeReply(input.trim(), replyQuote);
     const readyAttachments = attachments.filter((item) => item.status === "ready" && item.id).map((item) => ({
       id: item.id!, name: item.name, contentType: item.contentType, size: item.size, downloadUrl: item.downloadUrl,
     }));
@@ -1380,6 +1393,7 @@ export function ChatPage() {
       return;
     }
     const next: QueuedMessage = { text, attachments: readyAttachments };
+    setReplyQuote(undefined);
     queuedMessageRef.current = next;
     setQueuedMessage(next);
     setQueuedMenuOpen(false);
@@ -1392,7 +1406,9 @@ export function ChatPage() {
   const editQueuedMessage = () => {
     const queued = queuedMessageRef.current;
     if (!queued) return;
-    setInput(queued.text);
+    const parsed = parseReply(queued.text);
+    setInput(parsed.text);
+    setReplyQuote(parsed.quote);
     setAttachments(queued.attachments.map((item, index) => ({
       localId: `queued-${item.id}-${index}`,
       id: item.id,
@@ -1454,15 +1470,21 @@ export function ChatPage() {
     else void send();
   };
 
+  const replyToMessage = (item: Message) => {
+    setEditingMessageIndex(undefined);
+    setReplyQuote({ author: item.role === "assistant" ? "Chusky" : "You", text: parseReply(item.text).text.slice(0, 1200) });
+    inputRef.current?.focus({ preventScroll: true });
+  };
+
   return (
-    <div className="-mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-background sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
+    <div ref={rootRef} className="chat-native-viewport -mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-background sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
       {notice && <div className={`fixed left-1/2 top-16 z-50 flex w-[min(calc(100%-1rem),32rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border px-3 py-2 text-[11px] shadow-lg ${notice.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`} role="alert"><span>{notice.message}</span><button type="button" onClick={() => setNotice(undefined)} className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss notification"><X size={13} /></button></div>}
 
       <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_250px]">
         <div className="flex min-h-0 min-w-0 flex-col">
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-1.5 py-2 sm:px-5 sm:py-6 lg:px-8">
-            <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
-            <div className="space-y-3.5 sm:space-y-4">
+            <div ref={scrollRef} className="chat-conversation-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
+            <div ref={contentRef} className="space-y-3.5 sm:space-y-4">
               {olderRunsCursor ? <div className="flex justify-center pb-1"><button type="button" onClick={() => void loadOlderRuns()} disabled={loadingOlderRuns} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-foreground/10 px-3 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:opacity-50">{loadingOlderRuns ? <LoaderCircle size={12} className="animate-spin" /> : <ChevronDown size={12} className="rotate-180" />} {loadingOlderRuns ? "Loading older messages…" : "Load older messages"}</button></div> : null}
               {attentionCandidate ? <AttentionCandidateCard candidate={attentionCandidate} busyAction={attentionActionBusy} onAction={(action) => void activateAttentionAction(action)} /> : null}
               {account?.approvals?.filter((approval) => !messages.some((message) => message.approval?.id === approval.id)).map((approval) => <div key={approval.id} className="mx-auto flex w-full max-w-2xl items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50/80 px-3 py-3 text-amber-950 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-100" role="alert">
@@ -1481,12 +1503,14 @@ export function ChatPage() {
               {messages.map((item, index) => {
                 const visibleActivities = item.activities?.length ? presentToolActivities(item.activities) : [];
                 const headlineActivity = visibleActivities.find((activity) => item.pending && activity.status === "started") || visibleActivities[0];
-                return <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : containsVisualBlock(item.text) ? "group relative w-full max-w-3xl" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
+                const parsed = item.role === "user" ? parseReply(item.text) : { text: item.text };
+                return <SwipeReply id={`chat-message-${index}`} key={item.uiId || `${item.role}-${index}`} enabled={Boolean(item.text) && !item.pending} onReply={() => replyToMessage(item)} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : containsVisualBlock(item.text) ? "group relative w-full max-w-3xl" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/15 bg-foreground px-2.5 py-1.5 text-[12px] leading-5 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-md border border-foreground/10 bg-background px-2.5 py-1.5 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1 flex items-baseline gap-2"><p className="text-xs font-medium">Chusky</p><span className="font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span></div>}
+                    {parsed.quote ? <blockquote className="chat-sent-quote"><span>{parsed.quote.author}</span><p>{parsed.quote.text}</p></blockquote> : null}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
                     {headlineActivity ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} /> : null}
-                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-xs leading-5">{item.text}</p> : null}
+                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-xs leading-5">{parsed.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
@@ -1495,6 +1519,7 @@ export function ChatPage() {
                     {item.role === "assistant" && item.approvalState === "accepted" ? <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-700 dark:text-emerald-300" role="status"><LoaderCircle size={11} className="animate-spin motion-reduce:animate-none" /> Approval accepted · executing</div> : null}
                     {item.approval && <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="rounded-full bg-foreground px-3 py-1.5 text-[11px] text-background disabled:opacity-50">Approve</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="rounded-full border border-foreground/15 px-3 py-1.5 text-[11px] disabled:opacity-50">Deny</button></div>}
                     {item.text ? <div className={`absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-md bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
+                      <button type="button" disabled={item.pending} onClick={() => replyToMessage(item)} className="chat-reply-action flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground disabled:opacity-40" aria-label="Reply to message" title="Reply"><Reply size={13} /></button>
                       {item.role === "user" ? <>
                         <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={11} /> : <Copy size={11} />}</button>
                         <button type="button" onClick={() => editMessage(index, item.text)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-foreground/5 hover:text-foreground" aria-label="Edit message" title="Edit"><Pencil size={11} /></button>
@@ -1506,14 +1531,15 @@ export function ChatPage() {
                       </>}
                     </div> : null}
                   </div>
-                </div>;
+                </SwipeReply>;
               })}
-              <div ref={endRef} />
             </div>
             </div>
 
             <div className="shrink-0 pt-2 pb-[env(safe-area-inset-bottom)] sm:pt-4 sm:pb-0">
+              {showLatest ? <div className="flex justify-center pb-2"><button type="button" onClick={jumpToLatest} className="chat-latest-button"><ArrowDown size={14} aria-hidden="true" /> Latest message</button></div> : null}
               <div data-chat-composer className="chat-composer rounded-2xl border border-foreground/10 bg-background">
+                {replyQuote ? <div className="chat-reply-preview" role="status"><Reply size={16} aria-hidden="true" /><div><span>Replying to {replyQuote.author}</span><p>{replyQuote.text}</p></div><button type="button" onClick={() => setReplyQuote(undefined)} aria-label="Cancel reply"><X size={15} /></button></div> : null}
                 <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,audio/mp4,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.md,.zip,.docx,.pptx,.xlsx,.mp3,.ogg,.oga,.wav,.m4a,.mp4,.webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} />
                 {attachments.length ? <div className="flex items-start gap-2 overflow-x-auto px-3 pt-3 pb-2" aria-live="polite">{attachments.map((item) => <AttachmentPreview key={item.localId} item={item} onRemove={() => void removeAttachment(item)} onRetry={() => retryAttachment(item)} />)}</div> : null}
                 {attachments.some((item) => item.status === "error") ? <p className="px-3 pb-1 text-[10px] text-amber-800" role="status">Retry or remove failed files before sending, so Chusky won’t miss an attachment.</p> : null}
