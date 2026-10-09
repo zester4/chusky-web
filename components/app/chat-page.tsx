@@ -486,9 +486,6 @@ export function ChatPage() {
   const [activeMessageIndex, setActiveMessageIndex] = useState<number>();
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number>();
   const [feedbackBusyRunId, setFeedbackBusyRunId] = useState<string>();
-  const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
-  const [conversationList, setConversationList] = useState<Thread[]>([]);
-  const [conversationListLoading, setConversationListLoading] = useState(false);
   const [draftReadyThread, setDraftReadyThread] = useState<string>();
   const [queueReadyThread, setQueueReadyThread] = useState<string>();
   const [editingMessageIndex, setEditingMessageIndex] = useState<number>();
@@ -1116,64 +1113,6 @@ export function ChatPage() {
     }
   };
 
-  const loadConversationList = async () => {
-    setConversationMenuOpen(true);
-    if (conversationList.length || conversationListLoading) return;
-    setConversationListLoading(true);
-    try {
-      const page = await chuskyApi.threads.list({ limit: 30, includeArchived: false });
-      setConversationList(page.data);
-    } catch (error) {
-      showNotice(safeUserFacingError(error, "Conversations could not be loaded."));
-    } finally {
-      setConversationListLoading(false);
-    }
-  };
-
-  const renameConversation = async () => {
-    if (!thread) return;
-    const currentTitle = typeof thread.metadata.title === "string" ? thread.metadata.title : "";
-    const title = window.prompt("Name this conversation", currentTitle || "New conversation");
-    if (title === null) return;
-    const trimmed = title.trim();
-    if (!trimmed) {
-      showNotice("Give this conversation a name, or cancel to leave it unchanged.", "info");
-      return;
-    }
-    try {
-      const updated = await chuskyApi.threads.update(thread.id, { title: trimmed.slice(0, 120) });
-      setThread(updated);
-      setConversationList((current) => current.map((item) => item.id === updated.id ? updated : item));
-      showNotice("Conversation renamed.", "info");
-    } catch (error) {
-      showNotice(safeUserFacingError(error, "Conversation could not be renamed."));
-    }
-  };
-
-  const archiveConversation = async () => {
-    if (!thread) return;
-    try {
-      await chuskyApi.threads.update(thread.id, { archived: true });
-      chatPageCache.delete(`thread:${thread.id}`);
-      if (chatPageCache.get("latest")?.thread.id === thread.id) chatPageCache.delete("latest");
-      router.push("/app/conversations");
-    } catch (error) {
-      showNotice(safeUserFacingError(error, "Conversation could not be archived."));
-    }
-  };
-
-  const deleteConversation = async () => {
-    if (!thread || !window.confirm("Delete this conversation? This cannot be undone.")) return;
-    try {
-      await chuskyApi.threads.remove(thread.id);
-      chatPageCache.delete(`thread:${thread.id}`);
-      if (chatPageCache.get("latest")?.thread.id === thread.id) chatPageCache.delete("latest");
-      router.push("/app/chat?new=1");
-    } catch (error) {
-      showNotice(safeUserFacingError(error, "Conversation could not be deleted while it is active."));
-    }
-  };
-
   const setMessageFeedback = async (index: number, feedback: "positive" | "negative") => {
     const original = messagesRef.current[index];
     if (!thread || !original || original.role !== "assistant" || !original.runId || feedbackBusyRunId) return;
@@ -1524,21 +1463,6 @@ export function ChatPage() {
       <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_250px]">
         <div className="flex min-h-0 min-w-0 flex-col">
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-1.5 py-2 sm:px-5 sm:py-6 lg:px-8">
-            <div className="relative mb-2 flex shrink-0 items-center justify-between gap-2 border-b border-foreground/10 pb-2">
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-medium">{thread ? String(thread.metadata.title || "New conversation") : "Connecting to Chusky"}</p>
-                <p className="text-[9px] text-muted-foreground">{messages.length ? `${messages.filter((item) => item.role === "user").length} messages` : "Ready when you are"}</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button type="button" onClick={() => void loadConversationList()} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-foreground/10 px-2.5 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground sm:hidden" aria-expanded={conversationMenuOpen} aria-label="Open conversations"><ChevronLeft size={12} className="rotate-90" />Conversations</button>
-                <button type="button" onClick={() => setConversationMenuOpen((open) => !open)} className="flex size-8 items-center justify-center rounded-full border border-foreground/10 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground" aria-label="Conversation options" aria-expanded={conversationMenuOpen} title="Conversation options"><MoreHorizontal size={15} /></button>
-              </div>
-              {conversationMenuOpen ? <div className="absolute right-0 top-10 z-30 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-foreground/10 bg-background p-1.5 shadow-xl">
-                <div className="flex items-center justify-between gap-2 border-b border-foreground/10 px-2.5 py-2"><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Conversations</p><button type="button" onClick={() => setConversationMenuOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-foreground/5" aria-label="Close conversation menu"><X size={13} /></button></div>
-                <div className="grid grid-cols-3 gap-1 p-1.5"><button type="button" onClick={() => void renameConversation()} className="rounded-md px-2 py-2 text-[10px] hover:bg-foreground/5">Rename</button><button type="button" onClick={() => void archiveConversation()} className="rounded-md px-2 py-2 text-[10px] hover:bg-foreground/5">Archive</button><button type="button" onClick={() => void deleteConversation()} className="rounded-md px-2 py-2 text-[10px] text-rose-700 hover:bg-rose-500/10 dark:text-rose-300">Delete</button></div>
-                <div className="max-h-56 overflow-y-auto border-t border-foreground/10 pt-1.5">{conversationListLoading ? <p className="px-2.5 py-3 text-[10px] text-muted-foreground">Loading conversations…</p> : conversationList.length ? conversationList.map((item) => <button key={item.id} type="button" onClick={() => { setConversationMenuOpen(false); router.push(`/app/chat?thread=${encodeURIComponent(item.id)}`); }} className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-[10px] hover:bg-foreground/5 ${item.id === thread?.id ? "bg-foreground/5 font-medium" : ""}`}><span className="min-w-0 truncate">{String(item.metadata.title || "New conversation")}</span><span className="shrink-0 text-[9px] text-muted-foreground">{new Date(item.updatedAt).toLocaleDateString([], { month: "short", day: "numeric" })}</span></button>) : <p className="px-2.5 py-3 text-[10px] text-muted-foreground">No saved conversations yet.</p>}</div>
-              </div> : null}
-            </div>
             <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
             <div className="space-y-3.5 sm:space-y-4">
               {olderRunsCursor ? <div className="flex justify-center pb-1"><button type="button" onClick={() => void loadOlderRuns()} disabled={loadingOlderRuns} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-foreground/10 px-3 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:opacity-50">{loadingOlderRuns ? <LoaderCircle size={12} className="animate-spin" /> : <ChevronDown size={12} className="rotate-180" />} {loadingOlderRuns ? "Loading older messages…" : "Load older messages"}</button></div> : null}
