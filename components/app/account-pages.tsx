@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Brain, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, ExternalLink, Laptop, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
+import { Brain, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Copy, ExternalLink, Laptop, LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2, Webhook, Zap, Unplug } from "lucide-react";
 import { chuskyApi, type AccountOverview, type ConnectedAccount, type Toolkit, type Trigger, type TriggerEventActivity, type TriggerCatalogueItem, type TriggerConfigField, type TriggerToolkit } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
@@ -11,8 +11,9 @@ import { TriggerLogoGroup } from "./trigger-logo";
 import { MarkdownMessage } from "./markdown-message";
 import { AttentionActionCard } from "./attention-action-card";
 import { SettingsPanel } from "./settings-panel";
+import { connectedAccountStatusLabel, connectedAppSummary, isUsableConnectedAccount } from "@/lib/connected-account-state";
 
-type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "workspace" | "devices" | "settings";
+type PageKind = "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "devices" | "settings";
 
 const copy: Record<PageKind, { eyebrow: string; title: string; description: string }> = {
   approvals: { eyebrow: "Safety center", title: "Approvals", description: "Review externally visible actions before Chusky executes them." },
@@ -22,7 +23,6 @@ const copy: Record<PageKind, { eyebrow: string; title: string; description: stri
   memory: { eyebrow: "Long-term context", title: "Memory", description: "Facts and preferences you explicitly asked Chusky to remember." },
   scratchpad: { eyebrow: "Private working notes", title: "Scratchpad", description: "Temporary notes saved in your private Chusky session." },
   triggers: { eyebrow: "Real-time events", title: "Triggers", description: "Turn trusted app events into durable, approval-aware workflows. Choose the exact account, configure the event, and keep the saved outcome visible." },
-  workspace: { eyebrow: "Agent workspace", title: "Workspace", description: "A private execution surface for files, commands, browser work, and generated artifacts. Chusky keeps the runtime state and latest handoff visible here." },
   devices: { eyebrow: "CLI access", title: "Devices", description: "Terminals currently linked to your Chusky account." },
   settings: { eyebrow: "Account configuration", title: "Settings", description: "Manage your identity, security, privacy, and general runtime preferences." },
 };
@@ -80,7 +80,6 @@ function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOv
   if (kind === "scratchpad") return <Card>{data.scratchpad.length ? data.scratchpad.map((item) => <div key={item.key} className="scratchpad-entry min-w-0 border-b border-foreground/10 p-3.5 last:border-0 sm:p-4"><div className="flex min-w-0 items-start gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-foreground/10 text-muted-foreground"><ExternalLink size={15} /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words text-xs font-medium">{item.key}</p><span className="text-[9px] text-muted-foreground">Updated {date(item.updatedAt)}</span></div><div className="mt-2.5 rounded-lg bg-foreground/[0.025] p-3"><MarkdownMessage content={item.content} /></div></div></div></div>) : <Empty>Your scratchpad is empty.</Empty>}</Card>;
   if (kind === "triggers") return <ComprehensiveTriggersPanel />;
   if (kind === "devices") return <DevicesPanel initial={data.devices} />;
-  if (kind === "workspace") return <Card className="p-4 sm:p-5">{data.workspace ? <div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-700"><Laptop size={17} /></span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{data.workspace.name}</h2><p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{data.workspace.sandboxId}</p></div><Status tone={data.workspace.lastKnownState === "running" ? "green" : "amber"}>{data.workspace.lastKnownState || "available"}</Status></div><div className="grid gap-2 sm:grid-cols-3"><Info label="PTY sessions" value={String(data.workspace.ptySessions)} /><Info label="Updated" value={date(data.workspace.updatedAt)} /><Info label="Browser" value={data.workspace.lastUrl || "No page saved"} /></div></div> : <Empty>No agent workspace has been created for this account.</Empty>}</Card>;
   return <div className="space-y-4"><SettingsPanel initialModel={data.model} initialVoice={data.voiceReplies} /><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Developer webhooks</p>{data.webhooks.length ? data.webhooks.map((item) => <Row key={item.id} icon={<Webhook size={15} />} title={item.url} detail={item.id} meta={`Created ${date(item.createdAt)}`} />) : <Empty>No developer webhooks configured.</Empty>}</Card></div>;
 }
 
@@ -263,14 +262,14 @@ function AppsPanel() {
         {items.map((item) => {
           const accounts = connections.filter((connection) => connection.toolkit.toLowerCase() === item.slug.toLowerCase());
           const canConnect = !item.noAuth;
-          const connectionStatus = item.noAuth ? "No sign-in required" : !connectionsLoaded ? "Checking connection…" : accounts.length ? `${accounts.length} connected` : "Not connected";
+          const connectionSummary = item.noAuth ? { label: "No sign-in required", tone: "gray" as const } : connectedAppSummary(accounts, connectionsLoaded);
           return <article key={item.slug} className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-4">
             <div className="flex min-w-0 items-start gap-3">
               <ToolkitLogo name={item.name} logo={item.logo} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h2 className="text-sm font-medium">{item.name}</h2>
-                  <Status tone={accounts.length ? "green" : "gray"}>{connectionStatus}</Status>
+                  <Status tone={connectionSummary.tone}>{connectionSummary.label}</Status>
                 </div>
                 <p className="mt-1 truncate font-mono text-[9px] text-muted-foreground">{item.slug}</p>
               </div>
@@ -282,9 +281,10 @@ function AppsPanel() {
               {typeof item.toolsCount === "number" && <span className="rounded-full bg-foreground/[0.05] px-2 py-1 text-[9px] text-muted-foreground">{item.toolsCount.toLocaleString()} tools</span>}
               {typeof item.triggersCount === "number" && item.triggersCount > 0 && <span className="rounded-full bg-foreground/[0.05] px-2 py-1 text-[9px] text-muted-foreground">{item.triggersCount.toLocaleString()} triggers</span>}
             </div>
-            {accounts.map((account) => <div key={account.id} className="flex min-w-0 flex-wrap items-center gap-2 border-l border-emerald-600/30 pl-3">
-              <span className="min-w-0 flex-1 truncate text-[11px]">{account.alias || account.status}</span>
-              {account.status.toUpperCase() !== "ACTIVE" && <Button secondary disabled={busy === account.id} onClick={() => void reconnect(account)}>{busy === account.id ? "Preparing…" : "Reconnect"}</Button>}
+            {accounts.map((account) => <div key={account.id} className={`flex min-w-0 flex-wrap items-center gap-2 border-l pl-3 ${isUsableConnectedAccount(account.status) ? "border-emerald-600/30" : "border-amber-500/40"}`}>
+              <span className="min-w-0 flex-1 truncate text-[11px]">{account.alias || item.name}</span>
+              <Status tone={isUsableConnectedAccount(account.status) ? "green" : "amber"}>{connectedAccountStatusLabel(account.status)}</Status>
+              {!isUsableConnectedAccount(account.status) && <Button secondary disabled={busy === account.id} onClick={() => void reconnect(account)}>{busy === account.id ? "Preparing…" : "Reconnect"}</Button>}
               <Button secondary disabled={busy === account.id} onClick={() => setConfirmId(account.id)}><Unplug size={12} /> Disconnect</Button>
             </div>)}
             {canConnect && <div className="flex flex-wrap items-center gap-2">
@@ -308,12 +308,62 @@ function AppsPanel() {
   </div>;
 }
 function DevicesPanel({ initial }: { initial: AccountOverview["devices"] }) {
-  const [devices, setDevices] = useState(initial); const [confirmId, setConfirmId] = useState<string>(); const [busy, setBusy] = useState(false); const [error, setError] = useState<string>();
+  const [devices, setDevices] = useState(initial);
+  const [confirmId, setConfirmId] = useState<string>();
+  const [deviceName, setDeviceName] = useState("terminal");
+  const [token, setToken] = useState<string>();
+  const [tokenDeviceId, setTokenDeviceId] = useState<string>();
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [tokenBusy, setTokenBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const load = async () => { try { setDevices((await chuskyApi.devices.list()).data); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load CLI devices."); } };
   useEffect(() => { setDevices(initial); }, [initial]);
   useLiveData(load);
-  const revoke = async (id: string) => { setBusy(true); setError(undefined); try { await chuskyApi.devices.revoke(id); setDevices((current) => current.filter((item) => item.id !== id)); setConfirmId(undefined); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not revoke this device."); } finally { setBusy(false); } };
-  return <><Card>{devices.length ? devices.map((item) => <div key={item.id} className="flex flex-col gap-2 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Laptop size={15} className="shrink-0 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{item.name}</p><p className="mt-1 text-[11px] text-muted-foreground">Last seen {date(item.lastSeenAt)} · linked {date(item.createdAt)}</p></div><Button secondary disabled={busy} onClick={() => setConfirmId(item.id)}>Revoke access</Button></div>) : <Empty>No CLI devices are linked.</Empty>}{error && <p role="alert" className="p-3 text-xs text-amber-700">{error}</p>}</Card>{confirmId && <ConfirmDialog open onOpenChange={(open) => !open && setConfirmId(undefined)} title="Revoke this device?" description="Its CLI token will stop working immediately. The device can pair again later." confirmLabel="Revoke device" destructive onConfirm={() => revoke(confirmId)} />}</>;
+  const revoke = async (id: string) => { setBusy(true); setError(undefined); try { await chuskyApi.devices.revoke(id); setDevices((current) => current.filter((item) => item.id !== id)); if (id === tokenDeviceId) { setToken(undefined); setTokenDeviceId(undefined); setCopied(false); } setConfirmId(undefined); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not revoke this device."); } finally { setBusy(false); } };
+  const createToken = async () => {
+    const name = deviceName.trim();
+    if (!name) { setError("Enter a name for this terminal."); return; }
+    setTokenBusy(true); setError(undefined); setCopied(false);
+    try {
+      const result = await chuskyApi.devices.create(name);
+      setToken(result.token);
+      setTokenDeviceId(result.device.id);
+      setDevices((current) => [result.device, ...current.filter((item) => item.id !== result.device.id)]);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not generate a CLI token."); }
+    finally { setTokenBusy(false); }
+  };
+  const copyToken = async () => {
+    if (!token) return;
+    try { await navigator.clipboard.writeText(token); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
+    catch { setError("Clipboard access is unavailable. Copy the token manually."); }
+  };
+  return <>
+    <Card className="p-4 sm:p-5">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Direct CLI connection</p>
+      <h2 className="mt-1.5 font-display text-2xl">Generate a terminal token</h2>
+      <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Create a bearer token here, then use it to connect the CLI directly. Telegram pairing remains available, but it is no longer required.</p>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <label className="min-w-0 flex-1 text-[11px] font-medium">Terminal name<input value={deviceName} maxLength={80} onChange={(event) => setDeviceName(event.target.value)} className="mt-1.5 block min-h-9 w-full border border-foreground/15 bg-background px-3 text-xs outline-none focus:border-foreground/50" placeholder="terminal" /></label>
+        <Button disabled={tokenBusy} onClick={() => void createToken()}>{tokenBusy ? <LoaderCircle size={13} className="animate-spin" /> : <Laptop size={13} />} Generate token</Button>
+      </div>
+      {token && <div className="mt-4 border border-amber-300/70 bg-amber-50 p-3 text-amber-950">
+        <p className="text-xs font-medium">Copy this token now</p>
+        <p className="mt-1 text-[11px] leading-4">It is shown once in this page state. Treat it like a password; the server stores only its hash.</p>
+        <div className="mt-3 flex items-center gap-2">
+          <code className="min-w-0 flex-1 break-all border border-amber-300/70 bg-white/70 p-2 text-[11px]">{token}</code>
+          <Button secondary aria-label="Copy CLI token" onClick={() => void copyToken()}>{copied ? <Check size={13} /> : <Copy size={13} />}<span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span></Button>
+        </div>
+        <p className="mt-2 text-[10px] leading-4">On the computer you want to connect, run <code className="rounded bg-amber-100 px-1 py-0.5">chusky auth link --token &lt;paste-token&gt;</code>.</p>
+      </div>}
+    </Card>
+    <Card className="mt-4 overflow-hidden">
+      <div className="border-b border-foreground/10 p-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Linked terminals</p></div>
+      {devices.length ? devices.map((item) => <div key={item.id} className="flex flex-col gap-2 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Laptop size={15} className="shrink-0 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{item.name}</p><p className="mt-1 text-[11px] text-muted-foreground">Last seen {date(item.lastSeenAt)} · linked {date(item.createdAt)}</p></div><Button secondary disabled={busy} onClick={() => setConfirmId(item.id)}>Revoke access</Button></div>) : <Empty>No CLI devices are linked.</Empty>}
+      {error && <p role="alert" className="border-t border-foreground/10 p-3 text-xs text-amber-700">{error}</p>}
+    </Card>
+    {confirmId && <ConfirmDialog open onOpenChange={(open) => !open && setConfirmId(undefined)} title="Revoke this device?" description="Its CLI token will stop working immediately. The device can pair again later." confirmLabel="Revoke device" destructive onConfirm={() => revoke(confirmId)} />}
+  </>;
 }
 
 const GMAIL_MESSAGE_TRIGGER = "GMAIL_NEW_GMAIL_MESSAGE";
@@ -580,4 +630,3 @@ function calendarTriggerGuidance(slug: string): string | undefined {
 }
 
 function Row({ icon, title, detail, meta, status }: { icon: ReactNode; title: string; detail?: string; meta?: string; status?: string }) { return <div className="flex min-w-0 items-start gap-2.5 border-b border-foreground/10 px-3.5 py-2.5 last:border-0 sm:px-4 sm:py-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center border border-foreground/10 text-muted-foreground">{icon}</span><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{title}</p>{detail && <p className="mt-1 break-words text-[11px] text-muted-foreground">{detail}</p>}{meta && <p className="mt-1.5 break-words text-[9px] text-muted-foreground">{meta}</p>}</div>{status && <Status tone={status === "failed" ? "amber" : status === "cancelled" ? "gray" : "green"}>{status}</Status>}</div>; }
-function Info({ label, value }: { label: string; value: string }) { return <div className="flex items-start justify-between gap-4 border-b border-foreground/10 pb-3 text-xs last:border-0"><span className="text-muted-foreground">{label}</span><span className="max-w-[65%] break-words text-right">{value}</span></div>; }
