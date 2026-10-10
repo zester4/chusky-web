@@ -3,15 +3,15 @@ import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 
 const orbitItems = [
-  { name: "Connected apps", category: "Email, calendar, CRM", logo: "/logos/composio.svg", tone: "coral", x: "7%", y: "37%", rotate: "-12deg", size: "lg" },
+  { name: "Apps", category: "Email, calendar, CRM", logo: "/logos/composio.svg", tone: "coral", x: "7%", y: "37%", rotate: "-12deg", size: "lg" },
   { name: "Slack", category: "Team communication", logo: "/logos/slack.svg", tone: "yellow", x: "17%", y: "14%", rotate: "10deg", size: "md" },
   { name: "Gmail", category: "Inbox and follow-up", logo: "/logos/gmail.svg", tone: "blue", x: "39%", y: "3%", rotate: "-7deg", size: "sm" },
   { name: "Google Calendar", category: "Scheduling", logo: "/logos/google-calendar.svg", tone: "green", x: "65%", y: "7%", rotate: "8deg", size: "md" },
   { name: "Notion", category: "Knowledge and docs", logo: "/logos/notion.svg", tone: "ink", x: "82%", y: "25%", rotate: "-9deg", size: "sm" },
-  { name: "iMessage", category: "Private delivery", logo: "/logos/imessage.svg", tone: "blue", x: "84%", y: "61%", rotate: "12deg", size: "md" },
+  { name: "HubSpot", category: "Customer relationships", logo: "/logos/hubspot.svg", tone: "blue", x: "84%", y: "61%", rotate: "12deg", size: "md" },
   { name: "Twilio", category: "Calls and SMS", logo: "/logos/twilio.svg", tone: "coral", x: "66%", y: "84%", rotate: "-8deg", size: "lg" },
-  { name: "Browser work", category: "Private website tasks", logo: "/logos/daytona.svg", tone: "yellow", x: "38%", y: "88%", rotate: "7deg", size: "sm" },
-  { name: "Files and outputs", category: "Reports and artifacts", logo: "/logos/file.svg", tone: "green", x: "13%", y: "72%", rotate: "-10deg", size: "md" },
+  { name: "Box", category: "Cloud content", logo: "/logos/box.png", tone: "yellow", x: "38%", y: "88%", rotate: "7deg", size: "sm" },
+  { name: "Stripe", category: "Payments", logo: "/logos/stripe.svg", tone: "green", x: "13%", y: "72%", rotate: "-10deg", size: "md" },
 ];
 
 export function IntegrationsSection() {
@@ -36,7 +36,7 @@ export function IntegrationsSection() {
                 Chusky connects the research, messages, meetings, files, and follow-through that keep your work moving. Connect what you use, then ask for the outcome—not a sequence of tabs.
               </p>
               <Link href="/integrations" className="group mt-7 inline-flex min-h-11 items-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-foreground">
-                Explore connected apps
+                Explore apps
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
               </Link>
             </div>
@@ -45,20 +45,18 @@ export function IntegrationsSection() {
           <div className="hidden sm:block" aria-label="Examples of connected app and work categories">
             {orbitItems.map((item) => (
               <div key={item.name} className="absolute z-20" style={{ left: item.x, top: item.y, transform: `rotate(${item.rotate})` }}>
-                <div className={`integration-orbit-badge integration-orbit-badge-${item.size} integration-orbit-tone-${item.tone} group`} title={`${item.name}: ${item.category}`}>
-                  <Image src={item.logo} alt="" width={36} height={36} className="h-7 w-7 object-contain transition-transform duration-300 group-hover:scale-110 sm:h-8 sm:w-8" />
-                  <span className="hidden whitespace-nowrap text-[10px] font-medium sm:block">{item.name}</span>
+                <div title={item.name}>
+                  <Image src={item.logo} alt={item.name === "Apps" ? "Composio" : item.name} width={56} height={56} className="h-10 w-14 object-contain sm:h-12 sm:w-16" />
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-2 sm:hidden" aria-label="Examples of connected app and work categories">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 sm:hidden" aria-label="App logos">
           {orbitItems.map((item) => (
-            <div key={item.name} className={`integration-orbit-mobile-card integration-orbit-tone-${item.tone}`}>
-              <Image src={item.logo} alt="" width={24} height={24} className="h-6 w-6 object-contain" />
-              <span className="min-w-0"><span className="block truncate text-xs font-medium">{item.name}</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{item.category}</span></span>
+            <div key={item.name} title={item.name}>
+              <Image src={item.logo} alt={item.name === "Apps" ? "Composio" : item.name} width={48} height={40} className="h-10 w-12 object-contain" />
             </div>
           ))}
         </div>
