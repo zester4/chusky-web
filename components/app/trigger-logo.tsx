@@ -25,7 +25,7 @@ const LOGO_DEFINITIONS: LogoDefinition[] = [
   { aliases: ["googlecalendar", "google_calendar", "calendar"], name: "Google Calendar", logo: "/logos/google-calendar.svg" },
   { aliases: ["googledrive", "google_drive", "drive"], name: "Google Drive", logo: "/logos/google-drive.svg" },
   { aliases: ["googledocs", "google_docs"], name: "Google Docs", logo: "/logos/google-docs.svg" },
-  { aliases: ["googlesheets", "google_sheets"], name: "Google Sheets", logo: "/logos/google-sheets.svg" },
+  { aliases: ["googlesheets", "google_sheets", "sheets"], name: "Google Sheets", logo: "/logos/google-sheets.svg" },
   { aliases: ["googlemeet", "google_meet"], name: "Google Meet", logo: "/logos/google-meet.svg" },
   { aliases: ["googlecontacts", "google_contacts"], name: "Google Contacts", logo: "/logos/google-contacts.png" },
   { aliases: ["googlebigquery", "google_bigquery"], name: "Google BigQuery", logo: "/logos/google_bigquery.svg" },
