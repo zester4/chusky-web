@@ -50,12 +50,13 @@ export type ComposerWorkflow = { id: string; name: string; description?: string;
 export type Usage = { messages: number; cost: number; files: { count: number; declaredBytes: number; available: number }; runs: { count: number; active: number }; tasks: { count: number } };
 export type Approval = { id: string; status?: "pending" | "approved" | "denied" | "consumed"; toolSlug: string; args: Record<string, unknown>; request?: string; missionId?: string; channelProvider?: string; handoffId?: string; createdAt?: string; expiresAt: string };
 export type ApprovalDecision = { id: string; status: "approved" | "denied" | "consumed"; text?: string; mission?: Record<string, unknown>; run?: Run };
-export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; summary?: string; error?: string; createdAt: string; updatedAt: string };
+export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; runtimeState?: "healthy" | "degraded" | "reconnecting" | "ended"; summary?: string; outcome?: { title: string; summary: string; decisions: string[]; actionItems: { task: string; owner: string; dueDate?: string }[]; openQuestions: string[] }; outcomeStatus?: "pending" | "completed" | "failed"; error?: string; createdAt: string; updatedAt: string };
+export type CallControl = { action: "hangup" } | { action: "send_dtmf"; digits: string } | { action: "transfer"; phoneNumber: string };
 export type CallMode = "general" | "sales" | "onboarding" | "support" | "scheduling";
 export type CallTone = "professional" | "warm" | "direct" | "consultative";
 export type CallCapability = "memory_lookup" | "scratchpad_lookup" | "schedule_lookup" | "task_lookup" | "call_history";
 export type CallProfile = { identity: string; organization?: string; mode: CallMode; tone: CallTone; opening?: string; facts: string[]; guardrails: string[]; capabilities: CallCapability[] };
-export type CallApproval = { id: string; toolSlug: "CHUCK_START_PHONE_CALL"; args: { phoneNumber: string; purpose: string; profile: CallProfile }; status: "pending"; expiresAt: string };
+export type CallApproval = { id: string; toolSlug: "CHUCK_START_PHONE_CALL"; args: { phoneNumber: string; purpose: string; profile: CallProfile; continuityFromCallId?: string }; status: "pending"; expiresAt: string };
 export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; organizationId?: string; createdAt: string; rotatedAt?: string; revokedAt?: string };
 export type CreatedDeveloperProject = DeveloperProject & { key: string };
 export type CompanyAgentTemplate = { slug: string; name: string; outcome: string; allowedTools: string[]; requireApproval: string[] };
@@ -140,6 +141,7 @@ export type AttentionPulseHealth = {
   lastRunAt?: number;
   lastRunStatus?: string;
   lastError?: string;
+  lastOccurrence?: JobOccurrence;
 };
 export type AttentionPulsePreferences = {
   enabled: boolean;
@@ -412,7 +414,8 @@ export const chuskyApi = {
     updatePreferences: (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => request<VoiceSettings>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     calls: {
       list: () => request<{ available: boolean; provider: "twilio" | "bland" | null; data: CallRecord[] }>("/account/calls"),
-      request: (input: { phoneNumber: string; purpose: string; profile: CallProfile }) => request<CallApproval>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      request: (input: { phoneNumber: string; purpose: string; profile: CallProfile; continuityFromCallId?: string }) => request<CallApproval>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      control: (callId: string, input: CallControl) => request<CallRecord>(`/account/calls/${encodeURIComponent(callId)}/control`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     },
     projects: {
       list: (organizationId?: string) => request<Page<DeveloperProject>>(`/account/projects${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
@@ -575,6 +578,7 @@ export const chuskyApi = {
   },
   devices: {
     list: () => request<Page<AccountOverview["devices"][number]>>("/devices"),
+    create: (name: string) => request<{ token: string; device: AccountOverview["devices"][number] }>("/devices", { method: "POST", body: JSON.stringify({ name }) }),
     revoke: (id: string) => request<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   triggers: {
