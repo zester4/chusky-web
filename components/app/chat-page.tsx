@@ -632,12 +632,15 @@ export function ChatPage() {
     syncActiveRunId(undefined);
     (async () => {
       try {
-        const page = await chuskyApi.threads.list({ limit: 50, includeArchived: true });
         // A fresh-chat request is authoritative even if a stale thread query
         // parameter survives a client-side navigation or copied URL.
         const current = requestedNew
           ? await chuskyApi.threads.create({ source: "web-dashboard" })
-          : requestedThreadId ? await chuskyApi.threads.get(requestedThreadId) : page.data[0] || await chuskyApi.threads.create({ source: "web-dashboard" });
+          : requestedThreadId
+            ? await chuskyApi.threads.get(requestedThreadId)
+            : (await chuskyApi.threads.list({ limit: 1, includeArchived: false })).data[0]
+              || (await chuskyApi.threads.list({ limit: 1, includeArchived: true })).data[0]
+              || await chuskyApi.threads.create({ source: "web-dashboard" });
         if (active) {
           setThread(current);
           setStatus("ready");

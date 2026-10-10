@@ -202,7 +202,26 @@ export class ChuskyApiError extends Error {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
-  const response = await fetch(`${apiBaseURL}/v1${path}`, { cache: "no-store", ...init, credentials: "include", headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
+  const controller = new AbortController();
+  const timeoutMs = method === "GET" || method === "HEAD" ? 15_000 : 30_000;
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  const callerSignal = init.signal;
+  const forwardAbort = () => controller.abort(callerSignal?.reason);
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort(callerSignal.reason);
+    else callerSignal.addEventListener("abort", forwardAbort, { once: true });
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseURL}/v1${path}`, { cache: "no-store", ...init, credentials: "include", signal: controller.signal, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
+  } catch (cause) {
+    if (timedOut) throw new ChuskyApiError(504, "Chusky is taking too long to respond. Please retry.");
+    throw cause;
+  } finally {
+    clearTimeout(timeout);
+    callerSignal?.removeEventListener("abort", forwardAbort);
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { error?: { message?: string; code?: string } } | undefined;
     throw new ChuskyApiError(response.status, body?.error?.message || `Chusky returned HTTP ${response.status}`, body?.error?.code);
@@ -494,7 +513,7 @@ export const chuskyApi = {
     disconnect: (serverId: string) => request<void>(`/mcp/connections/${encodeURIComponent(serverId)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   apps: {
-    list: (options: { search?: string; cursor?: string; limit?: number } = {}) => { const params = new URLSearchParams(); if (options.search) params.set("search", options.search); if (options.cursor) params.set("cursor", options.cursor); params.set("limit", String(options.limit ?? 30)); return request<{ data: Toolkit[]; nextCursor?: string; currentPage: number; totalPages: number; total: number; pageSize: number }>(`/apps?${params.toString()}`); },
+    list: (options: { search?: string; cursor?: string; limit?: number; enrich?: boolean } = {}) => { const params = new URLSearchParams(); if (options.search) params.set("search", options.search); if (options.cursor) params.set("cursor", options.cursor); if (options.enrich !== undefined) params.set("enrich", String(options.enrich)); params.set("limit", String(options.limit ?? 30)); return request<{ data: Toolkit[]; nextCursor?: string; currentPage: number; totalPages: number; total: number; pageSize: number }>(`/apps?${params.toString()}`); },
     connections: () => request<Page<ConnectedAccount>>("/apps/connections"),
     disconnect: (connectionId: string) => request<void>(`/apps/connections/${encodeURIComponent(connectionId)}`, { method: "DELETE" }),
     reconnect: (connectionId: string) => request<{ connectionId: string; url: string }>(`/apps/connections/${encodeURIComponent(connectionId)}/reconnect`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),

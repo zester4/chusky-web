@@ -106,19 +106,31 @@ function AppsPanel() {
   const [nextCursor, setNextCursor] = useState<string>();
   const [cursorByPage, setCursorByPage] = useState<Array<string | undefined>>([undefined]);
   const [loading, setLoading] = useState(false);
+  const [connectionsLoaded, setConnectionsLoaded] = useState(false);
   const [connectionNotice, setConnectionNotice] = useState<"returned" | "failed">();
   const requestId = useRef(0);
+  const searchInitialized = useRef(false);
 
   const load = async (requestedPage = page, cursor = cursorByPage[requestedPage - 1], query = search) => {
     const currentRequest = ++requestId.current;
     setError(undefined);
     setLoading(true);
+    setConnectionsLoaded(false);
+    const options = { search: query.trim(), cursor, limit: 30 };
+    // Keep connection metadata independent from the catalogue request. The
+    // visible app rows must not wait for a second provider call to settle.
+    void chuskyApi.apps.connections().then((accounts) => {
+      if (currentRequest !== requestId.current) return;
+      setConnections(accounts.data);
+      setConnectionsLoaded(true);
+    }).catch(() => {
+      if (currentRequest === requestId.current) setError((current) => current ?? "Apps loaded, but connection status is temporarily unavailable.");
+    });
     try {
-      const [apps, accounts, channelPage] = await Promise.all([
-        chuskyApi.apps.list({ search: query.trim(), cursor, limit: 30 }),
-        chuskyApi.apps.connections(),
-        chuskyApi.channels.list().catch(() => ({ data: [] })),
-      ]);
+      // The catalogue is the primary page content. Do not make it wait for
+      // account metadata or channel identities, both of which are separate
+      // dashboard concerns and may involve another provider request.
+      const apps = await chuskyApi.apps.list({ ...options, enrich: false });
       // Live refreshes and page changes can overlap. Ignore an older response so
       // it cannot put the user back on a previous page or search result.
       if (currentRequest !== requestId.current) return;
@@ -126,13 +138,28 @@ function AppsPanel() {
       // cursor was supplied. The cursor requested by the UI is authoritative.
       const effectivePage = requestedPage;
       setItems(apps.data);
-      setConnections(accounts.data);
-      setChannels(channelPage.data as AccountOverview["channels"]);
       setPage(effectivePage);
       setTotalPages(Math.max(1, apps.totalPages || 1));
       setTotal(apps.total);
       setNextCursor(apps.nextCursor);
       if (apps.nextCursor) setCursorByPage((current) => { const next = [...current]; next[effectivePage] = apps.nextCursor; return next; });
+      setLoading(false);
+
+      // Official logos/descriptions/counts are useful but not required to
+      // make the catalogue usable. Enrich after the fast rows are visible.
+      void chuskyApi.apps.list({ ...options, enrich: true }).then((enriched) => {
+        if (currentRequest !== requestId.current) return;
+        setItems(enriched.data);
+        setTotalPages(Math.max(1, enriched.totalPages || 1));
+        setTotal(enriched.total);
+        setNextCursor(enriched.nextCursor);
+      }).catch(() => undefined);
+
+      // Channel identities remain independent. They only decorate the footer
+      // and must never block the app catalogue.
+      void chuskyApi.channels.list().then((channelPage) => {
+        if (currentRequest === requestId.current) setChannels(channelPage.data as AccountOverview["channels"]);
+      }).catch(() => undefined);
     } catch (cause) {
       if (currentRequest === requestId.current) setError(cause instanceof Error ? cause.message : "Could not load Composio apps.");
     } finally {
@@ -149,6 +176,10 @@ function AppsPanel() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
   }, []);
   useEffect(() => {
+    if (!searchInitialized.current) {
+      searchInitialized.current = true;
+      return;
+    }
     const timer = window.setTimeout(() => {
       setPage(1);
       setCursorByPage([undefined]);
@@ -215,7 +246,7 @@ function AppsPanel() {
     {connectionNotice === "failed" && <Card className="border-amber-600/25 bg-amber-50/60 p-3.5 text-xs text-amber-950"><p role="alert">The app authorization did not complete. No connection is claimed; you can try again below.</p></Card>}
     <Card className="p-3.5 sm:p-4">
       <div className="flex justify-end">
-        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{total.toLocaleString()} apps · page {page} of {totalPages}</span>
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{loading && !items.length ? "Loading apps…" : `${total.toLocaleString()} apps · page ${page} of ${totalPages}`}</span>
       </div>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <label className="relative min-w-0 flex-1">
@@ -232,13 +263,14 @@ function AppsPanel() {
         {items.map((item) => {
           const accounts = connections.filter((connection) => connection.toolkit.toLowerCase() === item.slug.toLowerCase());
           const canConnect = !item.noAuth;
+          const connectionStatus = item.noAuth ? "No sign-in required" : !connectionsLoaded ? "Checking connection…" : accounts.length ? `${accounts.length} connected` : "Not connected";
           return <article key={item.slug} className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-4">
             <div className="flex min-w-0 items-start gap-3">
               <ToolkitLogo name={item.name} logo={item.logo} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h2 className="text-sm font-medium">{item.name}</h2>
-                  <Status tone={accounts.length ? "green" : "gray"}>{accounts.length ? `${accounts.length} connected` : item.noAuth ? "No sign-in required" : "Not connected"}</Status>
+                  <Status tone={accounts.length ? "green" : "gray"}>{connectionStatus}</Status>
                 </div>
                 <p className="mt-1 truncate font-mono text-[9px] text-muted-foreground">{item.slug}</p>
               </div>
@@ -264,7 +296,7 @@ function AppsPanel() {
       </div> : <Empty>{error || (loading ? "Loading Composio apps…" : "No Composio apps matched your search.")}</Empty>}
       {error && <p role="alert" className="border-t border-amber-600/20 p-3 text-xs text-amber-700">{error}</p>}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-foreground/10 px-3.5 py-2.5 sm:px-4">
-        <span className="text-[10px] text-muted-foreground">Showing {items.length ? ((page - 1) * 30 + 1) + "–" + ((page - 1) * 30 + items.length) : "0"} of {total.toLocaleString()}</span>
+        <span className="text-[10px] text-muted-foreground">{loading && !items.length ? "Loading apps…" : `Showing ${items.length ? ((page - 1) * 30 + 1) + "–" + ((page - 1) * 30 + items.length) : "0"} of ${total.toLocaleString()}`}</span>
         <div className="flex items-center gap-1">
           <Button secondary onClick={goPrevious} disabled={loading || page <= 1}><ChevronLeft size={13} /> Previous</Button>
           <Button secondary onClick={goNext} disabled={loading || !nextCursor || page >= totalPages}>Next <ChevronRight size={13} /></Button>
