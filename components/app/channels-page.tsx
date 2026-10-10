@@ -28,6 +28,7 @@ export function ChannelsPage() {
   const [telegramCopied, setTelegramCopied] = useState(false);
   const [cliCopied, setCliCopied] = useState(false);
   const [deliveryError, setDeliveryError] = useState<string>();
+  const availableLinkable = channels === undefined ? linkable : linkable.filter((item) => !channels.some((channel) => channel.provider === item));
 
   const load = async () => {
     setError(undefined); setDeliveryError(undefined);
@@ -38,6 +39,11 @@ export function ChannelsPage() {
     else setDeliveryError(deliveryResult.reason instanceof Error ? deliveryResult.reason.message : "Could not load recent delivery activity.");
   };
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (channels === undefined || availableLinkable.includes(provider)) return;
+    setProvider(availableLinkable[0] ?? "slack");
+    setLinkCode(undefined);
+  }, [availableLinkable, channels, provider]);
   useLiveData(load);
 
   const createCode = async () => {
@@ -93,8 +99,8 @@ export function ChannelsPage() {
         </div>) : <p className="p-4 text-xs text-muted-foreground">No linked channels yet. Link a channel below, including Telegram.</p>}
       </Card>
       <Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Link a channel</p><h2 className="mt-1.5 font-display text-2xl">Bring Chusky into your workspace</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Connect Telegram or generate a short-lived pairing instruction for another channel. Codes expire after ten minutes.</p>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">{linkable.map((item) => { const brand = channelBrand(item); const selected = provider === item; return <button key={item} type="button" aria-pressed={selected} onClick={() => { setProvider(item); setLinkCode(undefined); }} className={`flex min-h-16 items-center gap-3 border px-3 text-left transition-colors ${selected ? "border-foreground bg-foreground/[0.04]" : "border-foreground/10 hover:border-foreground/30"}`}><ChannelLogo provider={item} size={34}/><span className="min-w-0"><span className="block text-xs font-medium">{brand.name}</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{brand.description}</span></span></button>; })}</div>
-        <div className="mt-3"><Button disabled={busy === "link"} onClick={() => void createCode()}>{busy === "link" ? <LoaderCircle size={13} className="animate-spin"/> : <Link2 size={13}/>} Generate link code</Button></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">{channels === undefined ? <p className="border border-dashed border-foreground/15 p-3 text-xs text-muted-foreground">Loading available channels…</p> : availableLinkable.length ? availableLinkable.map((item) => { const brand = channelBrand(item); const selected = provider === item; return <button key={item} type="button" aria-pressed={selected} onClick={() => { setProvider(item); setLinkCode(undefined); }} className={`flex min-h-16 items-center gap-3 border px-3 text-left transition-colors ${selected ? "border-foreground bg-foreground/[0.04]" : "border-foreground/10 hover:border-foreground/30"}`}><ChannelLogo provider={item} size={34}/><span className="min-w-0"><span className="block text-xs font-medium">{brand.name}</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{brand.description}</span></span></button>; }) : <p className="border border-dashed border-foreground/15 p-3 text-xs text-muted-foreground sm:col-span-2">All supported channels are already linked. Unlink a channel above if you need to pair it again.</p>}</div>
+        {channels !== undefined && availableLinkable.length > 0 && <div className="mt-3"><Button disabled={busy === "link"} onClick={() => void createCode()}>{busy === "link" ? <LoaderCircle size={13} className="animate-spin"/> : <Link2 size={13}/>} Generate link code</Button></div>}
         {linkCode && <div className="mt-4 border border-foreground/10 bg-foreground/[0.02] p-3"><p className="text-[11px] leading-5">{linkCode.instructions}</p>{linkCode.installUrl && <a className="mt-2 block break-all text-[11px] underline" href={linkCode.installUrl} target="_blank" rel="noreferrer">Open Slack installation</a>}<div className="mt-3 flex flex-wrap items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">{linkCode.provider === "slack" ? linkCode.code : linkCode.instructions.match(/\/link\s+\S+/)?.[0] ?? linkCode.code}</code><Button secondary onClick={() => void copyCode()}><Copy size={13}/> Copy</Button></div><p className="mt-2 text-[10px] text-muted-foreground">This code is private to your account. Complete linking within ten minutes.</p></div>}
         <div className="mt-5 border-t border-foreground/10 pt-4"><div className="flex items-start gap-3"><ChannelLogo provider="telegram" size={34}/><div className="min-w-0 flex-1"><p className="text-xs font-medium">{channels?.some((item) => item.provider === "telegram") ? "Telegram is connected" : "Connect Telegram"}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Link the Telegram account that already uses Chusky to share this private workspace.</p>{!channels?.some((item) => item.provider === "telegram") && <div className="mt-3">{telegramLink ? <div className="border border-foreground/10 bg-foreground/[0.02] p-2.5"><div className="flex items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">/link {telegramLink.code}</code><Button secondary aria-label="Copy Telegram link command" onClick={() => void copyTelegramLink()}>{telegramCopied ? <Check size={13}/> : <Copy size={13}/>}</Button></div><p className="mt-2 text-[10px] text-muted-foreground">Send this command in Telegram before {date(telegramLink.expiresAt)}.</p></div> : <Button secondary disabled={busy === "telegram-link"} onClick={() => void createTelegramLink()}>{busy === "telegram-link" ? <LoaderCircle size={13} className="animate-spin"/> : <Link2 size={13}/>} Create Telegram link code</Button>}</div>}</div></div></div>
       </Card>
