@@ -118,6 +118,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     void Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]).then(([nextAccount, nextHealth]) => { if (active) { setAccount(nextAccount); setHealth(nextHealth); } }).catch(() => undefined);
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    if (!session?.user?.id || typeof window === "undefined" || typeof window.EventSource === "undefined") return;
+    const stream = new EventSource("/v1/account/notifications/stream");
+    const refresh = () => { void chuskyApi.account.get().then(setAccount).catch(() => undefined); };
+    stream.addEventListener("notification", refresh);
+    return () => { stream.removeEventListener("notification", refresh); stream.close(); };
+  }, [session?.user?.id]);
   useLiveData(async () => {
     try {
       const [nextAccount, nextHealth] = await Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]);
@@ -177,7 +184,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pulseReceipt = account?.attentionPulse?.lastOccurrence;
   const pulseNeedsAttention = Boolean(pulseReceipt);
   const attentionCount = (account?.approvals.length ?? 0) + (account?.attentionCandidates.length ?? 0) + attentionEvents.length + activityCount + (pulseNeedsAttention ? 1 : 0);
-  const openTriggerEvent = (eventId: string) => { setAttentionOpen(false); router.push(`/app/chat?new=1&triggerEvent=${encodeURIComponent(eventId)}`); };
+  const openTriggerEvent = (eventId: string) => {
+    const event = account?.triggerEvents.find((item) => item.id === eventId);
+    setAttentionOpen(false);
+    void chuskyApi.triggers.markEventRead(eventId).then(() => {
+      setAccount((current) => current ? { ...current, triggerEvents: current.triggerEvents.map((item) => item.id === eventId ? { ...item, needsAttention: false, webReadAt: new Date().toISOString() } : item) } : current);
+    }).catch(() => undefined);
+    const thread = event?.webThreadId ? `&thread=${encodeURIComponent(event.webThreadId)}` : "";
+    router.push(`/app/chat?triggerEvent=${encodeURIComponent(eventId)}${thread}`);
+  };
   const toggleCollapsed = () => setCollapsed((current) => {
     const next = !current;
     try { window.localStorage.setItem("chusky-sidebar-collapsed", String(next)); } catch { /* Storage can be unavailable in private browsing. */ }

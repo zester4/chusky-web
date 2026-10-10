@@ -107,7 +107,7 @@ export type Toolkit = { slug: string; name: string; connected: boolean; logo?: s
 export type ConnectedAccount = { id: string; alias?: string; toolkit: string; status: string; createdAt?: string; updatedAt?: string };
 export type Trigger = { id: string; slug: string; status: string; enabled: boolean; config: Record<string, unknown>; instructions?: string };
 export type TriggerEventAction = { id: string; label: string; prompt: string };
-export type TriggerEventActivity = { id: string; triggerId?: string; slug: string; summary: string; status: string; notificationStatus: "pending" | "delivered" | "unavailable" | "failed"; result?: string; actions?: TriggerEventAction[]; needsAttention?: boolean; createdAt: string; updatedAt: string };
+export type TriggerEventActivity = { id: string; triggerId?: string; slug: string; summary: string; status: string; notificationStatus: "pending" | "delivered" | "unavailable" | "failed"; result?: string; actions?: TriggerEventAction[]; needsAttention?: boolean; webThreadId?: string; webRunId?: string; webReadAt?: string; createdAt: string; updatedAt: string };
 export type TriggerConfigField = { name: string; required: boolean; sensitive?: boolean; type?: string; description?: string; allowedValues?: Array<string | number | boolean>; minLength?: number; maxLength?: number };
 export type TriggerCatalogueItem = { token: string; slug: string; name: string; description: string; setupInstructions?: string; toolkit: { slug: string; name: string; logo?: string }; requiredFields: string[]; fields: TriggerConfigField[] };
 export type TriggerToolkit = { slug: string; name: string; logo?: string; triggerCount: number; connected: boolean; accountCount: number };
@@ -609,6 +609,7 @@ export const chuskyApi = {
     create: (slug: string, triggerConfig: Record<string, unknown> = {}, connectedAccountId?: string, instructions?: string, idempotencyKey = idempotency()) => request<Trigger>("/triggers", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ slug, triggerConfig, ...(connectedAccountId ? { connectedAccountId } : {}), ...(instructions ? { instructions } : {}) }) }),
     setEnabled: (id: string, enabled: boolean) => request<unknown>(`/triggers/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ enabled }) }),
     updateInstructions: (id: string, instructions: string) => request<{ id: string; instructions: string }>(`/triggers/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ instructions }) }),
+    markEventRead: (eventId: string) => request<{ ok: boolean; eventId: string; readAt: string }>(`/account/trigger-events/${encodeURIComponent(eventId)}/read`, { method: "POST" }),
     remove: (id: string) => request<void>(`/triggers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tools: {
