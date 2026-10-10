@@ -82,6 +82,7 @@ export type AccountOverview = {
   channels: Array<{ id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
   reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
   jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string; deliveryError?: string; scheduleError?: string }>;
+  attentionPulse?: { lastOccurrence?: JobOccurrence };
   memory: MemoryFact[];
   memoryStatus?: "available" | "degraded";
   scratchpad: Array<{ key: string; content: string; updatedAt: string }>;
@@ -178,7 +179,8 @@ export type AutonomyLinks = { taskId?: string; missionId?: string; missionStepId
 export type AutonomyContextSnapshot = { capturedAt: number; objective: string; summary?: string; nextAction?: string; links?: AutonomyLinks; freshnessMs?: number; source?: string };
 export type Reminder = { id: string; text: string; runAt: string; status: "scheduled" | "waiting" | "paused" | "sent" | "cancelled" | "failed"; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; pollEverySeconds?: number; deliveryError?: string };
 export type Job = { id: string; text: string; cron: string; status: "active" | "paused" | "cancelled"; scheduleId?: string; createdAt: string; mode?: AutonomyMode; links?: AutonomyLinks; contextSnapshot?: AutonomyContextSnapshot; preconditions?: string[]; postconditions?: string[]; nextAction?: string; deliveryError?: string; scheduleError?: string };
-export type AttentionPulseRunEvidence = { state: "completed" | "waiting" | "blocked" | "failed" | "skipped"; dueWatches: number; watchesReconciled: number; pendingObservations: number; pendingCandidates: number; handled: boolean; delegated: number; approvalRequired: boolean; delivery: "dashboard" | "external" | "suppressed" | "none" };
+export type AttentionPulseWatchEvidence = { id: string; name: string; domain: string; status: "checked" | "failed" | "not_checked" | "scheduled"; summary?: string; error?: string; lastCheckedAt?: number; nextCheckAt?: number };
+export type AttentionPulseRunEvidence = { state: "completed" | "waiting" | "blocked" | "failed" | "skipped"; dueWatches: number; watchesReconciled: number; pendingObservations: number; pendingCandidates: number; handled: boolean; delegated: number; approvalRequired: boolean; delivery: "dashboard" | "external" | "suppressed" | "none"; runKind?: "scheduled" | "manual" | "first_run"; startedAt?: number; completedAt?: number; watchReports?: AttentionPulseWatchEvidence[]; nextCheckAt?: number; deliveryReason?: string };
 export type JobOccurrence = { id: string; jobId: string; occurrenceId: string; status: string; mode: AutonomyMode; result?: string; pulseEvidence?: AttentionPulseRunEvidence; nextAction?: string; waitReason?: string; error?: string; cost?: number; toolCalls?: number; startedAt?: string; completedAt?: string; createdAt: string; updatedAt: string; version: number };
 export type MemoryFact = { id: string; category: string; key: string; value: string; confidence: number; source?: string; sensitivity: "normal" | "sensitive"; projectId?: string; organizationId?: string; createdAt: string; updatedAt: string; expiresAt?: string; reviewAt?: string };
 export type ScratchpadNote = { key: string; content: string; updatedAt: string };
