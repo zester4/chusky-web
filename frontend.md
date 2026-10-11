@@ -185,16 +185,17 @@ status badges, cards, buttons, and a consistent Chusky visual system.
 - A verified web account must first be linked to its Telegram/Chusky workspace.
   This prevents an unlinked dashboard account from initiating calls in a
   separate session.
-- The page validates an E.164 destination and purpose, then creates a pending
-  `CHUCK_START_PHONE_CALL` approval. A separate **Approve and call** action
-  executes the exact stored request without asking a model to reinterpret it.
+- The page validates an E.164 destination and purpose, then calls the authenticated
+  `/v1/account/calls` route. The route validates ownership, provider readiness,
+  idempotency, and the exact call profile before starting the call; routine
+  validated outbound calls are not approval-gated.
 - Call history is account-scoped and masks phone numbers. Bland summaries are
   shown separately from the transcript; provider errors are reduced to a safe
   user-facing status while diagnostics remain server-side.
-- Each call request may include an editable representative profile (identity,
-  organization, purpose mode, tone, facts, communication guidance, and selected
-  read-only context capabilities). The exact profile is stored in the pending
-  approval and is shown before the owner approves dialing.
+- Each call request may include an editable personal or business representative
+  profile (identity, organization, purpose mode, tone, facts, communication
+  guidance, and selected read-only context capabilities). The exact profile is
+  passed to the owner-scoped voice runtime.
 
 ### Meeting, channel, app, and voice controls
 

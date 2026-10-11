@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, LoaderCircle, Phone, RefreshCw, ShieldCheck } from "lucide-react";
-import { chuskyApi, type CallCapability, type CallMode, type CallRecord, type CallTone } from "@/lib/chusky-api";
+import { chuskyApi, type CallCapability, type CallMode, type CallRecord, type CallRepresentation, type CallTone } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -21,6 +21,7 @@ export function CallsPage() {
   const [continuityFromCallId, setContinuityFromCallId] = useState("");
   const [identity, setIdentity] = useState("Chusky");
   const [organization, setOrganization] = useState("");
+  const [callProfile, setCallProfile] = useState<CallRepresentation>("personal");
   const [mode, setMode] = useState<CallMode>("general");
   const [tone, setTone] = useState<CallTone>("professional");
   const [opening, setOpening] = useState("");
@@ -44,7 +45,7 @@ export function CallsPage() {
   const requestCall = async () => {
     setBusy("request"); setError(undefined);
     try {
-      await chuskyApi.account.calls.request({ phoneNumber: normalizePhone(phoneNumber.trim()), purpose: purpose.trim(), ...(continuityFromCallId ? { continuityFromCallId } : {}), profile: { identity: identity.trim() || "Chusky", ...(organization.trim() ? { organization: organization.trim() } : {}), mode, tone, ...(opening.trim() ? { opening: opening.trim() } : {}), facts: facts.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), guardrails: guardrails.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), capabilities } });
+      await chuskyApi.account.calls.request({ phoneNumber: normalizePhone(phoneNumber.trim()), purpose: purpose.trim(), callProfile, ...(continuityFromCallId ? { continuityFromCallId } : {}), profile: { identity: identity.trim() || "Chusky", ...(organization.trim() ? { organization: organization.trim() } : {}), mode, tone, ...(opening.trim() ? { opening: opening.trim() } : {}), facts: facts.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), guardrails: guardrails.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), capabilities } });
       setPhoneNumber(""); setPurpose(""); setContinuityFromCallId(""); await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not place a call."); }
     finally { setBusy(undefined); }
@@ -91,6 +92,11 @@ export function CallsPage() {
                 </label>
                 <label className="block text-xs text-muted-foreground">Organization
                   <input value={organization} onChange={(event) => setOrganization(event.target.value)} maxLength={180} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" />
+                </label>
+                <label className="block text-xs text-muted-foreground">Representation
+                  <select value={callProfile} onChange={(event) => setCallProfile(event.target.value as CallRepresentation)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs">
+                    <option value="personal">Personal</option><option value="business">Business</option>
+                  </select>
                 </label>
                 <label className="block text-xs text-muted-foreground">Conversation mode
                   <select value={mode} onChange={(event) => setMode(event.target.value as CallMode)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs">

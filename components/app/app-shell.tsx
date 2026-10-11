@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { authClient } from "@/lib/auth-client";
 import { chuskyApi, type AccountOverview, type CompanyBranding, type HealthSnapshot } from "@/lib/chusky-api";
-import { useDashboardActivity, useLiveData } from "@/lib/live-sync";
+import { notifyChuskyDataChanged, useDashboardActivity, useLiveData } from "@/lib/live-sync";
 import { DASHBOARD_REFRESH_INTERVAL_MS, DASHBOARD_RETURN_REFRESH_COOLDOWN_MS, shouldPollDashboard, shouldRefreshAfterReturn } from "@/lib/polling-policy";
 import { Drawer, DrawerClose, DrawerContent } from "@/components/ui/drawer";
 import { TriggerLogo, triggerProviderBrand } from "./trigger-logo";
@@ -122,7 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session?.user?.id || typeof window === "undefined" || typeof window.EventSource === "undefined") return;
     const stream = new EventSource("/v1/account/notifications/stream");
-    const refresh = () => { void chuskyApi.account.get().then(setAccount).catch(() => undefined); };
+    const refresh = () => { notifyChuskyDataChanged(); void chuskyApi.account.get().then(setAccount).catch(() => undefined); };
     stream.addEventListener("notification", refresh);
     return () => { stream.removeEventListener("notification", refresh); stream.close(); };
   }, [session?.user?.id]);

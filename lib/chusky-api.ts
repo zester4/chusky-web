@@ -52,6 +52,7 @@ export type Approval = { id: string; status?: "pending" | "approved" | "denied" 
 export type ApprovalDecision = { id: string; status: "approved" | "denied" | "consumed"; text?: string; mission?: Record<string, unknown>; run?: Run };
 export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; runtimeState?: "healthy" | "degraded" | "reconnecting" | "ended"; summary?: string; outcome?: { title: string; summary: string; decisions: string[]; actionItems: { task: string; owner: string; dueDate?: string }[]; openQuestions: string[] }; outcomeStatus?: "pending" | "completed" | "failed"; error?: string; createdAt: string; updatedAt: string };
 export type CallControl = { action: "hangup" } | { action: "send_dtmf"; digits: string } | { action: "transfer"; phoneNumber: string };
+export type CallRepresentation = "personal" | "business";
 export type CallMode = "general" | "sales" | "onboarding" | "support" | "scheduling";
 export type CallTone = "professional" | "warm" | "direct" | "consultative";
 export type CallCapability = "memory_lookup" | "scratchpad_lookup" | "schedule_lookup" | "task_lookup" | "call_history";
@@ -435,7 +436,7 @@ export const chuskyApi = {
     updatePreferences: (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => request<VoiceSettings>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     calls: {
       list: () => request<{ available: boolean; provider: "twilio" | "bland" | null; data: CallRecord[] }>("/account/calls"),
-      request: (input: { phoneNumber: string; purpose: string; profile: CallProfile; continuityFromCallId?: string }) => request<CallRecord>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      request: (input: { phoneNumber: string; purpose: string; callProfile: CallRepresentation; profile: CallProfile; continuityFromCallId?: string }) => request<CallRecord>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
       control: (callId: string, input: CallControl) => request<CallRecord>(`/account/calls/${encodeURIComponent(callId)}/control`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     },
     projects: {
