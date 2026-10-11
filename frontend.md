@@ -96,10 +96,11 @@ history or connection state.
   `NEXT_PUBLIC_CHUSKY_MCP_URL` to the deployed MCP `/mcp` endpoint. The
   Organizations page shows a copyable MCP config for each selected project;
   it contains environment-variable placeholders, never a project key.
-- Optionally set `NEXT_PUBLIC_CHUSKY_CLI_SERVER_URL` to the public Chusky
-  backend origin. The Channels page then includes that origin in the copied
-  `chusky auth link` command; when it is blank, the CLI asks for the server
-  URL interactively.
+- The Devices page generates a direct CLI bearer token for the authenticated
+  dashboard owner. It is returned only by that creation response and held in
+  local page state for copying; the backend stores only the token hash. The
+  CLI accepts it with `chusky auth link --token <token>`. Telegram's one-time
+  `/cli link` pairing remains available as a fallback.
 - Standard, unencrypted X Direct Messages use separate OAuth user credentials:
   `X_USER_ACCESS_TOKEN`, or managed `X_CLIENT_ID` plus `X_REFRESH_TOKEN` and
   `X_ENCRYPTION_KEY`. Keep these in the backend deployment secret store. The
@@ -166,7 +167,7 @@ empty state; it does not fill resource pages with demo records.
 - `/app/memory` — saved memories and preferences
 - `/app/scratchpad` — private temporary notes
 - `/app/triggers` — external app triggers
-- `/app/workspace` — workspace information and usage
+- `/app/capabilities?tab=workspace` — private Daytona workspace information and usage (the legacy `/app/workspace` URL redirects here)
 - `/app/devices` — connected CLI/device sessions
 - `/app/settings` — account and product settings
 - `/app/calls` — approval-gated Twilio or Bland call requests, provider readiness, and safe call outcomes
@@ -231,8 +232,10 @@ status badges, cards, buttons, and a consistent Chusky visual system.
   does not fabricate voice options.
 - Connected apps show each owner-scoped Composio account with optional alias,
   allow adding another connection, and disconnect only after an explicit
-  confirmation. Device tokens are never exposed; the Devices page revokes a
-  selected CLI device through an opaque owner-scoped identifier.
+  confirmation. The Devices page can explicitly mint a new CLI token, shows
+  it only in the creation response/local page state, stores only its hash on
+  the backend, and revokes a selected CLI device through an opaque
+  owner-scoped identifier.
 
 ## Files added or changed
 
