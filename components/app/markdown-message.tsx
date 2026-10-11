@@ -24,7 +24,7 @@ import {
 } from "recharts";
 import mermaid from "mermaid";
 import type { Components } from "react-markdown";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 
 type ChartDatum = Record<string, string | number>;
 type ChartSpec = {
@@ -224,7 +224,15 @@ const components: Components = {
   a: ({ children, href, ...props }) => {
     const kind = mediaKindForSource(href, String(children));
     if (kind) return <MarkdownMedia kind={kind} source={href || ""} label={String(children)} />;
-    return <a className="break-words underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground" target="_blank" rel="noreferrer" href={href} {...props}>{children}</a>;
+    const external = /^https?:\/\//i.test(href || "");
+    const rawUrlLabel = String(children).trim().replace(/[.,!?;:)\]}]+$/, "");
+    const isBareUrl = external && rawUrlLabel.toLowerCase() === href?.trim().replace(/[.,!?;:)\]}]+$/, "").toLowerCase();
+    if (isBareUrl) {
+      let host = "External link";
+      try { host = new URL(href!).hostname.replace(/^www\./i, ""); } catch { /* Keep the safe generic label for malformed URLs. */ }
+      return <a className="my-0.5 inline-flex max-w-full items-center gap-1 rounded-md bg-foreground/[0.045] px-1.5 py-0.5 align-baseline font-medium text-foreground underline decoration-foreground/25 underline-offset-2 transition-colors hover:bg-foreground/[0.08] hover:decoration-foreground" href={href} target="_blank" rel="noopener noreferrer" title={href} aria-label={`Open ${host} in a new tab`} {...props}><span className="truncate">{host}</span><ExternalLink size={10} className="shrink-0" aria-hidden="true" /></a>;
+    }
+    return <a className="break-words underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground" href={href} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined} {...props}>{children}</a>;
   },
   hr: (props) => <hr className="my-3 border-foreground/10" {...props} />,
   strong: ({ children, ...props }) => <strong className="font-semibold" {...props}>{children}</strong>,

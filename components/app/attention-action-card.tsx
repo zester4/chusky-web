@@ -5,6 +5,12 @@ import type { TriggerEventActivity, TriggerEventAction } from "@/lib/chusky-api"
 import { TriggerLogo, triggerProviderBrand } from "@/components/app/trigger-logo";
 import { MarkdownMessage } from "./markdown-message";
 
+function eventMarkdown(content: string): string {
+  return content
+    .replace(/^\s*Event:\s*/i, "**Event:** ")
+    .replace(/\s+(High Read More|From|To|Subject|Preview|Read More):\s*/gi, "\n\n**$1:** ");
+}
+
 function providerName(slug: string): string {
   return triggerProviderBrand(slug).name;
 }
@@ -119,8 +125,8 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
         <span className="text-[9px] text-muted-foreground">·</span>
         <span className="truncate text-[10px] text-muted-foreground">{event.notificationStatus === "delivered" ? "Ready" : "Needs attention"}</span>
       </div>
-      <MarkdownMessage content={summary} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />
-      {!compact && event.result && <MarkdownMessage content={event.result} className="mt-1 line-clamp-3 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" />}
+      <MarkdownMessage content={eventMarkdown(summary)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />
+      {!compact && event.result && <MarkdownMessage content={eventMarkdown(event.result)} className="mt-1 line-clamp-3 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" />}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {actions.map((action, index) => <button key={action.id} type="button" onClick={() => activate(action)} className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${index === 0 ? "border-foreground/20 bg-foreground text-background hover:bg-foreground/85" : "border-foreground/15 bg-background text-foreground hover:border-foreground/35"}`}>
           {index === 0 ? <Check size={11} aria-hidden="true" /> : <ArrowUpRight size={11} aria-hidden="true" />}{action.label}
