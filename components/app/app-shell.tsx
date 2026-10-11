@@ -23,6 +23,7 @@ const primary: NavItem[] = [
   ["Approvals", "/app/approvals", ShieldCheck], ["Calls", "/app/calls", Phone], ["Autonomy", "/app/autonomy", Brain], ["Meetings", "/app/meetings", CalendarDays], ["Apps", "/app/apps", Plug], ["Channels", "/app/channels", Webhook], ["Capabilities", "/app/capabilities", Workflow], ["Tasks", "/app/tasks", ListChecks], ["Missions", "/app/missions", Repeat2],
 ];
 const work: NavItem[] = [
+  ["Triggers", "/app/triggers", Webhook],
   ["Organizations", "/app/organizations", Building2],
   // Temporarily hidden from the sidebar; the MCP page and route remain available.
   // ["MCP connections", "/app/mcp", "⌁"],
