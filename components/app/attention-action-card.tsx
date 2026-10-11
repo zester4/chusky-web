@@ -3,13 +3,71 @@
 import { ArrowUpRight, Check, CircleAlert, Plug, Sparkles } from "lucide-react";
 import type { TriggerEventActivity, TriggerEventAction } from "@/lib/chusky-api";
 import { TriggerLogo, triggerProviderBrand } from "@/components/app/trigger-logo";
+import { MarkdownMessage } from "./markdown-message";
 
 function providerName(slug: string): string {
   return triggerProviderBrand(slug).name;
 }
 
+function cleanText(value: string, max = 520): string {
+  return value
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, " ")
+    .replace(/<br\s*\/?>(?=\s*)/gi, "\n")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+function summaryField(lines: string[], keys: string[]): string | undefined {
+  const wanted = new Set(keys.map((key) => key.replace(/[^a-z0-9]/gi, "").toLowerCase()));
+  for (const line of lines) {
+    const separator = line.indexOf(":");
+    if (separator < 0) continue;
+    const key = line.slice(0, separator).replace(/[^a-z0-9]/gi, "").toLowerCase();
+    if (wanted.has(key)) return line.slice(separator + 1).trim();
+  }
+  return undefined;
+}
+
+function displaySummary(event: TriggerEventActivity): string {
+  const summary = event.summary.trim();
+  const lines = summary.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const looksLegacy = /(?:^|\n)(?:Trigger|Toolkit|Connection|message_text|message_id|inbox_message_id):/i.test(summary);
+  if (!looksLegacy) return summary;
+
+  const slug = event.slug.toUpperCase();
+  if (/gmail|googlemail|outlook|email/i.test(`${event.slug} ${summary}`)) {
+    const body = summaryField(lines, ["message_text", "messagetext", "body", "content", "html", "snippet", "preview"]);
+    const title = body?.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+    const subject = summaryField(lines, ["subject", "email_subject"]) || title;
+    const sender = summaryField(lines, ["from", "sender", "from_email", "sender_email"]);
+    const preview = body ? cleanText(body) : undefined;
+    return [
+      /NEW.*MESSAGE|MESSAGE/.test(slug) ? "New Gmail message" : "Gmail update",
+      ...(subject ? [`Subject: ${cleanText(subject, 180)}`] : []),
+      ...(sender ? [`From: ${cleanText(sender, 180)}`] : []),
+      ...(preview ? [`Preview: ${preview}`] : []),
+    ].join("\n");
+  }
+
+  const useful = lines.filter((line) => {
+    const key = line.split(":", 1)[0]?.trim() ?? "";
+    return !/^(trigger|toolkit|connection)$/i.test(key) && !/(^|_)(id|ids|uuid|connection|account|trigger)(_|$)/i.test(key);
+  }).map((line) => cleanText(line)).filter(Boolean).slice(0, 4);
+  return [providerName(event.slug), ...useful].join("\n");
+}
+
 function fallbackActions(event: TriggerEventActivity): TriggerEventAction[] {
-  const haystack = `${event.slug} ${event.summary} ${event.result ?? ""}`.toLowerCase();
+  const haystack = `${event.slug} ${event.summary} ${displaySummary(event)} ${event.result ?? ""}`.toLowerCase();
   if (event.slug.toLowerCase().includes("connected_account_expired") || event.slug.toLowerCase().includes("connected.account.expired") || haystack.includes("expired")) {
     return [{ id: "reconnect", label: "Reconnect", prompt: `Reconnect the ${providerName(event.slug)} account involved in this notification, then verify the connection before attempting any external action.` }];
   }
@@ -40,6 +98,7 @@ export function attentionActions(event: TriggerEventActivity): TriggerEventActio
 
 export function AttentionActionCard({ event, onAction, compact = false }: { event: TriggerEventActivity; onAction?: (action: TriggerEventAction) => void; compact?: boolean }) {
   const actions = attentionActions(event);
+  const summary = displaySummary(event);
   const ProviderIcon = event.status === "failed" || event.notificationStatus === "failed" ? CircleAlert : event.actions?.length ? Sparkles : Plug;
   const activate = (action: TriggerEventAction) => {
     if (onAction) { onAction(action); return; }
@@ -57,8 +116,8 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
         <span className="text-[9px] text-muted-foreground">·</span>
         <span className="truncate text-[10px] text-muted-foreground">{event.notificationStatus === "delivered" ? "Ready" : "Needs attention"}</span>
       </div>
-      <p className={`mt-1 break-words font-medium leading-5 ${compact ? "text-[11px]" : "text-xs"}`}>{event.summary}</p>
-      {!compact && event.result && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">{event.result}</p>}
+      <MarkdownMessage content={summary} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />
+      {!compact && event.result && <MarkdownMessage content={event.result} className="mt-1 line-clamp-3 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" />}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {actions.map((action, index) => <button key={action.id} type="button" onClick={() => activate(action)} className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${index === 0 ? "border-foreground/20 bg-foreground text-background hover:bg-foreground/85" : "border-foreground/15 bg-background text-foreground hover:border-foreground/35"}`}>
           {index === 0 ? <Check size={11} aria-hidden="true" /> : <ArrowUpRight size={11} aria-hidden="true" />}{action.label}

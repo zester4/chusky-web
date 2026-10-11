@@ -94,7 +94,7 @@ export type AccountOverview = {
   telegramLink: { linked: boolean };
   deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; durationMs?: number; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
-export type AttentionCandidate = { id: string; candidateType: string; reason: string; proposedAction?: string; providerSlug?: string; suggestedActions?: Array<{ id: string; label: string; prompt: string }>; score: number; createdAt: string };
+export type AttentionCandidate = { id: string; candidateType: string; reason: string; proposedAction?: string; providerSlug?: string; sourceTriggerEventId?: string; suggestedActions?: Array<{ id: string; label: string; prompt: string }>; score: number; createdAt: string };
 export type FluxVoice = { id: string; name: string; accent: string };
 export type BlandVoice = { id: string; name: string; description?: string };
 export type LiveVoicePreferences = { twilio?: string; meetings?: string; bland?: { id: string; name: string } };
