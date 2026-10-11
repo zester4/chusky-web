@@ -192,7 +192,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       setAccount((current) => current ? { ...current, triggerEvents: current.triggerEvents.map((item) => item.id === eventId ? { ...item, needsAttention: false, webReadAt: new Date().toISOString() } : item) } : current);
     }).catch(() => undefined);
     const thread = event?.webThreadId ? `&thread=${encodeURIComponent(event.webThreadId)}` : "";
-    router.push(`/app/chat?triggerEvent=${encodeURIComponent(eventId)}${thread}`);
+    router.push(`/app/chat?triggerEvent=${encodeURIComponent(eventId)}&attentionSource=elena${thread}`);
   };
   const toggleCollapsed = () => setCollapsed((current) => {
     const next = !current;

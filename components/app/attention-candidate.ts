@@ -1,5 +1,7 @@
 export function attentionCandidateChatHref(candidateId: string, actionId?: string): string {
-  const query = new URLSearchParams({ new: "1", candidate: candidateId });
+  // Elena suggestions are a handoff into the owner's current conversation.
+  // Do not add `new=1`: ChatPage uses that flag to create a fresh thread.
+  const query = new URLSearchParams({ candidate: candidateId, attentionSource: "elena" });
   if (actionId) {
     query.set("candidateAction", actionId);
     query.set("auto", "1");
