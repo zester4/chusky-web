@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Activity, ArrowUpRight, BellRing, CheckCircle2, ChevronDown, Pause, Play, RefreshCw } from "lucide-react";
 import { chuskyApi, type AccountOverview, type AttentionPulsePreferences, type AutonomyReconcileResult, type AutonomySnapshot, type DeveloperProject, type JobOccurrence } from "@/lib/chusky-api";
 import { Button, Card, PageHeading, Status } from "./app-shell";
@@ -114,11 +115,13 @@ function PulseTab({ pulse, snapshot, overview, occurrence, running, saving, mess
 }
 
 export function AutonomyPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<"pulse" | "autonomy">("pulse");
   const [mode, setMode] = useState<"personal" | "business">("personal");
   const [snapshot, setSnapshot] = useState<AutonomySnapshot>();
   const [pulse, setPulse] = useState<AttentionPulsePreferences>();
   const [overview, setOverview] = useState<AccountOverview>();
+  const [elenaEnabled, setElenaEnabled] = useState<boolean>();
   const [occurrence, setOccurrence] = useState<JobOccurrence>();
   const [projects, setProjects] = useState<DeveloperProject[]>([]);
   const [projectId, setProjectId] = useState<string>();
@@ -136,7 +139,15 @@ export function AutonomyPage() {
     const sequence = ++requestSequence.current;
     setLoading(true); setError(undefined); setPulseError(undefined);
     try {
-      const [next, pulseResult, overviewResult] = await Promise.all([mode === "business" && projectId ? chuskyApi.account.autonomy.businessQueue(projectId) : chuskyApi.account.autonomy.queue(mode), chuskyApi.attentionPulse.get().catch(() => undefined), chuskyApi.account.get().catch(() => undefined)]);
+      const overviewResult = await chuskyApi.account.get().catch(() => undefined);
+      if (overviewResult?.features?.attentionPulse === false) {
+        setOverview(overviewResult);
+        setElenaEnabled(false);
+        router.replace("/app");
+        return;
+      }
+      setElenaEnabled(overviewResult?.features?.attentionPulse);
+      const [next, pulseResult] = await Promise.all([mode === "business" && projectId ? chuskyApi.account.autonomy.businessQueue(projectId) : chuskyApi.account.autonomy.queue(mode), chuskyApi.attentionPulse.get().catch(() => undefined)]);
       if (sequence !== requestSequence.current) return;
       setSnapshot(next); setPulse(pulseResult); setOverview(overviewResult);
       if (!pulseResult) setPulseError("Pulse settings could not be loaded. The autonomy queue is still available.");
@@ -150,7 +161,7 @@ export function AutonomyPage() {
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [mode, projectId]);
+  }, [mode, projectId, router]);
   useEffect(() => { void load(); }, [load]);
   useLiveData(load);
   useEffect(() => {
@@ -196,6 +207,7 @@ export function AutonomyPage() {
   const resultNames = new Map((snapshot?.watches ?? []).map((watch) => [watch.id, watch.name]));
   const watchHealthCounts = snapshot?.watches.reduce((counts, watch) => { const status = watchHealth(watch, snapshot.generatedAt); counts[status] += 1; return counts; }, { current: 0, scheduled: 0, stale: 0, failed: 0, not_checked: 0 }) ?? { current: 0, scheduled: 0, stale: 0, failed: 0, not_checked: 0 };
 
+  if (elenaEnabled === false) return null;
   return <div className="min-w-0">
     <PageHeading eyebrow="Autonomy" title="Know what needs attention" description="Run Elena’s pulse, inspect monitoring coverage, and review the durable work waiting on you." action={<div className="flex flex-wrap gap-2"><Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>{tab === "autonomy" && <Button onClick={() => void reconcile()} disabled={running || loading}><RefreshCw size={13} className={running ? "animate-spin" : undefined} />{running ? "Checking…" : "Reconcile now"}</Button>}</div>} />
     <div className="mb-4 flex items-center gap-1 border-b border-foreground/10 pb-2" role="tablist" aria-label="Autonomy views">

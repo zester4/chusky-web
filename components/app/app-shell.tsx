@@ -182,7 +182,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const brandName = branding?.displayName || "Chusky";
   const accountName = session?.user?.name || session?.user?.email || "Your account";
   const attentionEvents = (account?.triggerEvents ?? []).filter((event) => event.needsAttention || ["pending", "failed", "unavailable"].includes(event.notificationStatus));
-  const pulseReceipt = account?.attentionPulse?.lastOccurrence;
+  const elenaEnabled = account?.features?.attentionPulse === true;
+  const pulseReceipt = elenaEnabled ? account?.attentionPulse?.lastOccurrence : undefined;
   const pulseNeedsAttention = Boolean(pulseReceipt);
   const attentionCount = (account?.approvals.length ?? 0) + (account?.attentionCandidates.length ?? 0) + attentionEvents.length + activityCount + (pulseNeedsAttention ? 1 : 0);
   const openTriggerEvent = (eventId: string) => {
@@ -199,7 +200,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     try { window.localStorage.setItem("chusky-sidebar-collapsed", String(next)); } catch { /* Storage can be unavailable in private browsing. */ }
     return next;
   });
-  const nav = (items: NavItem[]) => items.map(([label, href, Icon]) => (
+  const nav = (items: NavItem[]) => items.filter(([label]) => label !== "Autonomy" || elenaEnabled).map(([label, href, Icon]) => (
     <Link key={href} href={href} onClick={() => setOpen(false)} aria-label={label} title={collapsed ? label : undefined} className={cn("flex min-h-9 min-w-0 items-center gap-2 rounded-md py-1.5 text-[11px] transition-colors lg:min-h-0", collapsed ? "px-2.5 lg:justify-center lg:px-2" : "px-2.5", pathname === href ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground")}>
       <span className="flex w-5 shrink-0 items-center justify-center"><Icon size={14} strokeWidth={1.8} aria-hidden="true" /></span><span className={collapsed ? "lg:hidden" : undefined}>{label}</span>
       {label === "Approvals" && attentionCount > 0 && <span className={cn("ml-auto rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-black", collapsed && "lg:hidden")}>{attentionCount}</span>}

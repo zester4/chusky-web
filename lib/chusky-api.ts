@@ -77,6 +77,7 @@ export type ReliabilityHealth = { operation: string; windowMs: number; sampleCou
 export type OperatorTraceEvent = { id: string; ownerId: number; kind: string; type: string; at: number; correlationId?: string; parentId?: string; status?: string; summary: string; metadata?: Record<string, string | number | boolean | null> };
 export type Compensation = { id: string; ownerId: number; missionId?: string; missionStepId?: string; originalActionId: string; provider: string; objective: string; status: "pending" | "running" | "succeeded" | "failed" | "blocked" | "cancelled"; attempts: number; maxAttempts: number; idempotencyKey: string; createdAt: number; updatedAt: number; error?: string; resultSummary?: string; executionToolSlug?: string; externalReceiptId?: string; providerReceiptId?: string; verificationId?: string };
 export type AccountOverview = {
+  features?: { attentionPulse: boolean };
   model: string; voiceReplies: boolean; voicePreferences: LiveVoicePreferences;
   approvals: Array<{ id: string; toolSlug: string; request: string; status: string; missionId?: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
   attentionCandidates: AttentionCandidate[];
