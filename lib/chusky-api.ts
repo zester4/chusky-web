@@ -56,7 +56,6 @@ export type CallMode = "general" | "sales" | "onboarding" | "support" | "schedul
 export type CallTone = "professional" | "warm" | "direct" | "consultative";
 export type CallCapability = "memory_lookup" | "scratchpad_lookup" | "schedule_lookup" | "task_lookup" | "call_history";
 export type CallProfile = { identity: string; organization?: string; mode: CallMode; tone: CallTone; opening?: string; facts: string[]; guardrails: string[]; capabilities: CallCapability[] };
-export type CallApproval = { id: string; toolSlug: "CHUCK_START_PHONE_CALL"; args: { phoneNumber: string; purpose: string; profile: CallProfile; continuityFromCallId?: string }; status: "pending"; expiresAt: string };
 export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; organizationId?: string; createdAt: string; rotatedAt?: string; revokedAt?: string };
 export type CreatedDeveloperProject = DeveloperProject & { key: string };
 export type CompanyAgentTemplate = { slug: string; name: string; outcome: string; allowedTools: string[]; requireApproval: string[] };
@@ -436,7 +435,7 @@ export const chuskyApi = {
     updatePreferences: (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => request<VoiceSettings>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     calls: {
       list: () => request<{ available: boolean; provider: "twilio" | "bland" | null; data: CallRecord[] }>("/account/calls"),
-      request: (input: { phoneNumber: string; purpose: string; profile: CallProfile; continuityFromCallId?: string }) => request<CallApproval>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      request: (input: { phoneNumber: string; purpose: string; profile: CallProfile; continuityFromCallId?: string }) => request<CallRecord>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
       control: (callId: string, input: CallControl) => request<CallRecord>(`/account/calls/${encodeURIComponent(callId)}/control`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     },
     projects: {
