@@ -5,24 +5,24 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.9383 0.0042 236.4993);
-  --foreground: oklch(0.3211 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.3211 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.3211 0 0);
+  --background: oklch(0.948 0.016 78);
+  --foreground: oklch(0.29 0.025 48);
+  --card: oklch(0.978 0.012 78);
+  --card-foreground: oklch(0.29 0.025 48);
+  --popover: oklch(0.978 0.012 78);
+  --popover-foreground: oklch(0.29 0.025 48);
   --primary: #e05d38;
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.967 0.0029 264.5419);
-  --secondary-foreground: oklch(0.4461 0.0263 256.8018);
-  --muted: oklch(0.9846 0.0017 247.8389);
-  --muted-foreground: oklch(0.551 0.0234 264.3637);
-  --accent: oklch(0.9119 0.0222 243.8174);
-  --accent-foreground: oklch(0.3791 0.1378 265.5222);
+  --secondary: oklch(0.915 0.025 72);
+  --secondary-foreground: oklch(0.37 0.045 52);
+  --muted: oklch(0.929 0.018 78);
+  --muted-foreground: oklch(0.5 0.035 55);
+  --accent: oklch(0.9 0.06 72);
+  --accent-foreground: oklch(0.34 0.08 46);
   --destructive: oklch(0.6368 0.2078 25.3313);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9022 0.0052 247.8822);
-  --input: oklch(0.97 0.0029 264.542);
+  --border: oklch(0.855 0.03 75);
+  --input: oklch(0.925 0.018 78);
   --ring: oklch(0.6397 0.172 36.4421);
   --chart-1: oklch(0.7156 0.0605 248.6845);
   --chart-2: #e05d38;
@@ -30,13 +30,13 @@
   --chart-4: oklch(0.5016 0.0849 259.4902);
   --chart-5: oklch(0.4241 0.0952 264.0306);
   --radius: 0.75rem;
-  --sidebar: oklch(0.903 0.0046 258.3257);
-  --sidebar-foreground: oklch(0.3211 0 0);
+  --sidebar: oklch(0.915 0.022 76);
+  --sidebar-foreground: oklch(0.29 0.025 48);
   --sidebar-primary: oklch(0.6397 0.172 36.4421);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.9119 0.0222 243.8174);
-  --sidebar-accent-foreground: oklch(0.3791 0.1378 265.5222);
-  --sidebar-border: oklch(0.9276 0.0058 264.5313);
+  --sidebar-accent: oklch(0.9 0.06 72);
+  --sidebar-accent-foreground: oklch(0.34 0.08 46);
+  --sidebar-border: oklch(0.875 0.028 75);
   --sidebar-ring: oklch(0.6397 0.172 36.4421);
   --chusky-amber: #e05d38;
   --chusky-amber-rgb: 224 93 56;
@@ -265,6 +265,11 @@
 }
 
 @layer components {
+  .toolkit-logo-contrast {
+    border-radius: 0.4rem;
+    background: var(--foreground);
+  }
+
   .integration-orbit-badge {
     display: inline-flex;
     min-width: 4.75rem;
@@ -274,7 +279,7 @@
     border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
     border-radius: 9999px;
     padding: 0.7rem 0.85rem;
-    background: color-mix(in srgb, var(--background) 90%, white);
+    background: color-mix(in srgb, var(--background) 90%, var(--card));
     box-shadow: 0 10px 24px rgb(var(--depth-shadow-rgb) / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.72);
     color: var(--foreground);
     transition: transform 180ms ease, box-shadow 180ms ease;
@@ -324,7 +329,7 @@
     isolation: isolate;
     background:
       radial-gradient(circle at 18% -8%, rgb(var(--chusky-amber-rgb) / 0.055), transparent 26rem),
-      linear-gradient(180deg, color-mix(in srgb, var(--background) 97%, white), var(--background) 26rem);
+      linear-gradient(180deg, color-mix(in srgb, var(--background) 97%, var(--card)), var(--background) 26rem);
   }
 
   .app-depth-root .app-shell > aside,
@@ -1211,7 +1216,7 @@
 
   .app-shell .app-card {
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), var(--card));
+      linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, var(--background)), var(--card));
     transition: border-color 180ms ease, box-shadow 180ms ease;
   }
 

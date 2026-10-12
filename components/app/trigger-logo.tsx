@@ -22,6 +22,17 @@ type LogoDefinition = TriggerProviderBrand & {
 // The assets are intentionally local so cards remain branded when a provider
 // response does not include toolkit metadata.
 const LOGO_DEFINITIONS: LogoDefinition[] = [
+  { aliases: ["americanairlines", "american_airlines"], name: "American Airlines", logo: "/logos/american-airlines.svg" },
+  { aliases: ["atandt", "att"], name: "AT&T", logo: "/logos/atandt.svg" },
+  { aliases: ["chrome", "googlechrome", "google_chrome"], name: "Chrome", logo: "/logos/chrome.svg" },
+  { aliases: ["claudecode", "claude_code"], name: "Claude Code", logo: "/logos/claudecode.svg" },
+  { aliases: ["claude", "anthropic"], name: "Claude", logo: "/logos/claude-color.svg" },
+  { aliases: ["codex", "openaicodex", "openai_codex"], name: "Codex", logo: "/logos/codex.svg" },
+  { aliases: ["cursor"], name: "Cursor", logo: "/logos/cursor-color.svg" },
+  { aliases: ["hermesagent", "hermes_agent", "hermes"], name: "Hermes Agent", logo: "/logos/hermesagent.svg" },
+  { aliases: ["openclaw", "open_claw"], name: "OpenClaw", logo: "/logos/openclaw.svg" },
+  { aliases: ["composio"], name: "Composio", logo: "/logos/composio.svg" },
+  { aliases: ["pdf", "portable_document_format"], name: "PDF", logo: "/logos/pdf.svg" },
   { aliases: ["googlecalendar", "google_calendar", "calendar"], name: "Google Calendar", logo: "/logos/google-calendar.svg" },
   { aliases: ["googledrive", "google_drive", "drive"], name: "Google Drive", logo: "/logos/google-drive.svg" },
   { aliases: ["googledocs", "google_docs"], name: "Google Docs", logo: "/logos/google-docs.svg" },

@@ -7,8 +7,10 @@ export function ToolkitLogo({ name, logo, size = 40 }: { name: string; logo?: st
   const [failed, setFailed] = useState(false);
   const isAppTile = size >= 32;
   const imageSize = isAppTile ? Math.round(size * 0.8) : size;
+  const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const needsContrast = normalizedName === "composio";
   return <span
-    className={`flex shrink-0 items-center justify-center overflow-hidden ${isAppTile ? "rounded-lg bg-foreground/[0.04] text-sm font-medium" : "text-[10px] font-medium text-muted-foreground"}`}
+    className={`flex shrink-0 items-center justify-center overflow-hidden ${isAppTile ? "rounded-lg bg-foreground/[0.04] text-sm font-medium" : "text-[10px] font-medium text-muted-foreground"} ${needsContrast ? "toolkit-logo-contrast" : ""}`}
     style={{ width: size, height: size }}
     aria-hidden="true"
   >
