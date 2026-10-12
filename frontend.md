@@ -460,6 +460,56 @@ exposing the private Oracle `CHUSKY_PROJECT_KEY` or any scoped developer
 - `src/index.ts` — mounts `/v1` when Better Auth is enabled in both local
   polling and hosted webhook modes.
 
+### Structured chat run progress
+
+The chat page's structured progress card is backed by the SDK run contract; it
+is not limited to client-side placeholder state. Backend run snapshots now
+include an optional `progress` projection, and
+`POST /v1/threads/:threadId/runs/stream` emits a matching `run.progress`
+NDJSON event whenever the projection changes. The same event is persisted in
+the owner-scoped run event history, so a reconnect can recover progress from
+`GET /v1/threads/:threadId/runs/:runId` or
+`GET /v1/threads/:threadId/runs/:runId/events?after=<timestamp>`.
+The stream also carries bounded `run.tool_activity` and
+`run.subagent_activity` lifecycle events for the expandable execution details.
+
+The shared shape is:
+
+```ts
+type RunProgress = {
+  phase: "planning" | "researching" | "acting" | "waiting" | "completed";
+  title: string;
+  detail?: string;
+  provider?: string;
+  progress?: number;
+  requiresApproval?: boolean;
+  evidence?: Array<{
+    id?: string;
+    label: string;
+    detail?: string;
+    kind?: "source" | "artifact" | "step" | "note";
+    href?: string;
+  }>;
+};
+```
+
+Runs start in `planning`, move to `researching` or `acting` from the
+policy-owned status and safe tool/subagent lifecycle metadata, move to
+`waiting` for approval or a blocked continuation, and finish in `completed`
+or a bounded attention state when the run is cancelled or fails. Generated
+artifacts are exposed as safe artifact evidence; raw tool arguments, provider
+payloads, credentials, prompts, and unverified results are never placed in
+the progress contract.
+
+The backend normalizes and bounds every projection before streaming or
+persisting it, keeps the latest projection on the run record, and preserves
+owner isolation through the existing SDK run/session boundary. Older runs and
+legacy providers remain supported: when no structured event exists, the
+frontend derives a truthful fallback from the existing run status and tool
+activity instead of inventing provider work. The frontend should therefore
+prefer the run snapshot's `progress` field and `run.progress` events, while
+retaining that fallback for historical or partially upgraded records.
+
 Chat already uses the first-party file intent/upload/verification flow. The
 dashboard can list developer webhooks but still lacks a dedicated webhook
 management workspace and audit-event browser. Runtime failure counters are
