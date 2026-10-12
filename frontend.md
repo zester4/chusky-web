@@ -214,9 +214,16 @@ status badges, cards, buttons, and a consistent Chusky visual system.
   provider capability levels, healthy/degraded/reconnecting/voice-unavailable
   state, bounded turn and latency counters, sanitized lifecycle timeline,
   language/keyterm configuration, and the post-meeting owner-review package.
+  Proactive meetings also show a provisional live mission brief with the
+  current summary, decisions, open questions, commitments, and next move. This
+  is the semantic continuity checkpoint, not a retained/searchable transcript
+  or provider-action receipt.
   The UI does not offer live escalation; when a meeting identifies a material
   risk, the agent finishes within its granted authority and the owner receives
   the review after the meeting.
+- Personal meeting joins default to proactive copilot participation; the owner
+  can choose addressed-only behavior. Selecting a shared room loads that room's
+  configured behavior before join.
 - The meeting representative profile edits the existing account-scoped profile
   through `/v1/meetings/profile`: role, objective, communication style,
   approved knowledge, authority guidance, exact connected-app tool slugs,
