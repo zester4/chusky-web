@@ -71,18 +71,16 @@ export function presentToolActivities(activities: ToolActivity[]): PresentedTool
         summary: "Try the request again. If it keeps failing, contact support.",
       }];
     }
-    if (successfulDiscoveryTools.has(activity.toolSlug) && hiddenSetupStatuses.has(activity.status)) return [];
     if (successfulDiscoveryTools.has(activity.toolSlug)) {
       const actionLabel = activity.toolSlug === "COMPOSIO_SEARCH_TOOLS"
-        ? "Couldn’t find the right connected capability"
-        : "Couldn’t load the connected action details";
+        ? "Search connected tools"
+        : "Load connected tool details";
       return [{
         ...activity,
-        toolSlug: "CHUCK_COMPOSIO_DISCOVERY",
-        toolkitName: "Chusky",
-        actionLabel,
-        message: actionLabel,
-        summary: "Try the request again. If it keeps failing, refresh your connected apps and retry.",
+        toolkitName: activity.toolkitName || "Composio",
+        toolkitLogo: activity.toolkitLogo || "/logos/composio.svg",
+        actionLabel: activity.actionLabel || actionLabel,
+        message: activity.message || actionLabel,
       }];
     }
     if (!activity.batchActions?.length) return [{ ...activity, status: activity.status }];
