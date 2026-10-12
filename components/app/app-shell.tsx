@@ -286,9 +286,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const openTriggerEvent = (eventId: string) => {
     const event = account?.triggerEvents.find((item) => item.id === eventId);
     setAttentionOpen(false);
+    const readAt = new Date().toISOString();
+    setAccount((current) => current ? { ...current, triggerEvents: current.triggerEvents.map((item) => item.id === eventId ? { ...item, needsAttention: false, webReadAt: readAt } : item) } : current);
     void chuskyApi.triggers.markEventRead(eventId).then(() => {
-      setAccount((current) => current ? { ...current, triggerEvents: current.triggerEvents.map((item) => item.id === eventId ? { ...item, needsAttention: false, webReadAt: new Date().toISOString() } : item) } : current);
-    }).catch(() => undefined);
+      notifyChuskyDataChanged();
+    }).catch(() => {
+      // Restore the unread item if the durable read-state write failed.
+      setAccount((current) => current ? { ...current, triggerEvents: current.triggerEvents.map((item) => item.id === eventId ? { ...item, needsAttention: true, webReadAt: undefined } : item) } : current);
+      notifyChuskyDataChanged();
+    });
     const currentThreadFromUrl = pathname === "/app/chat" && typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("thread") || undefined
       : undefined;

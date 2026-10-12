@@ -33,6 +33,20 @@ function cleanText(value: string, max = 520): string {
     .slice(0, max);
 }
 
+function reportPreview(value: string): string {
+  const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const outcomeLines = lines.filter((line) => /^(?:classification|decision|report|what i (?:did|handled)|outcome|draft|needs attention|needs your attention|blocker):/i.test(line));
+  const selected = outcomeLines.length ? outcomeLines.slice(0, 3) : lines.slice(0, 3);
+  let preview = selected.join("\n");
+  if (preview.length > 620) {
+    preview = preview.slice(0, 620);
+    const unfinishedLink = Math.max(preview.lastIndexOf("["), preview.lastIndexOf("](")) > preview.lastIndexOf(")");
+    if (unfinishedLink) preview = preview.slice(0, Math.max(preview.lastIndexOf("["), preview.lastIndexOf("](")));
+    preview = `${preview.trimEnd()}…`;
+  }
+  return preview;
+}
+
 function summaryField(lines: string[], keys: string[]): string | undefined {
   const wanted = new Set(keys.map((key) => key.replace(/[^a-z0-9]/gi, "").toLowerCase()));
   for (const line of lines) {
@@ -111,13 +125,14 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
   const summary = displaySummary(event);
   const statusLabel = event.status === "queued" || event.status === "running" ? "Chusky is handling this" : event.status === "awaiting_approval" ? "Approval needed" : event.status === "failed" ? "Handling failed" : "Handled";
   const outcome = event.result || (event.status === "queued" || event.status === "running" ? "Chusky is processing this event." : event.status === "awaiting_approval" ? "Chusky paused because this action needs your approval." : event.status === "failed" ? "Chusky could not complete this event." : undefined);
+  const preview = outcome ? reportPreview(outcome) : undefined;
   const ProviderIcon = event.status === "failed" || event.notificationStatus === "failed" ? CircleAlert : event.actions?.length ? Sparkles : Plug;
   const activate = (action: TriggerEventAction) => {
     if (onAction) { onAction(action); return; }
     // Continue in the owner's existing conversation. `new=1` is reserved for
     // the explicit New conversation control; trigger results belong to Chusky,
     // not to the Attention Pulse suggestion flow.
-    const query = new URLSearchParams({ draft: action.prompt, triggerEvent: event.id, triggerAction: action.id, auto: "1" });
+    const query = new URLSearchParams({ triggerEvent: event.id, triggerAction: action.id, auto: "1" });
     window.location.assign(`/app/chat?${query.toString()}`);
   };
   return <article className={`group flex min-w-0 items-start gap-2.5 border border-foreground/10 bg-foreground/[0.025] ${compact ? "rounded-md px-3 py-2.5" : "rounded-xl px-3.5 py-3 sm:px-4 sm:py-3.5"}`}>
@@ -131,11 +146,12 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
         <span className="text-[9px] text-muted-foreground">·</span>
         <span className="truncate text-[10px] text-muted-foreground">{statusLabel}</span>
       </div>
-      {outcome && <MarkdownMessage content={eventMarkdown(outcome)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />}
+      {outcome && <MarkdownMessage content={eventMarkdown(preview || outcome)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />}
       {event.status === "completed" && event.notificationStatus === "failed" && <p className="mt-1 text-[9px] text-amber-800">The result is saved here; owner notification delivery needs checking.</p>}
       {event.status === "completed" && event.notificationStatus === "unknown" && <p className="mt-1 text-[9px] text-amber-800">The result is saved here; delivery status could not be confirmed.</p>}
       {event.status === "completed" && event.notificationStatus === "unavailable" && <p className="mt-1 text-[9px] text-muted-foreground">The result is saved here; no Telegram destination is linked.</p>}
       {!outcome && <MarkdownMessage content={eventMarkdown(summary)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />}
+      {outcome && preview !== outcome && <details className="mt-2 border-t border-foreground/10 pt-1.5"><summary className="cursor-pointer text-[10px] text-muted-foreground">View full handling report</summary><MarkdownMessage content={eventMarkdown(outcome)} className="mt-1 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /></details>}
       {!compact && <details className="mt-2 border-t border-foreground/10 pt-1.5"><summary className="cursor-pointer text-[10px] text-muted-foreground">View original {providerName(event.slug)} event details</summary><MarkdownMessage content={eventMarkdown(summary)} className="mt-1 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /></details>}
       {actions.length > 0 && <div className="mt-2.5 flex flex-wrap gap-1.5">
         {actions.map((action, index) => <button key={action.id} type="button" onClick={() => activate(action)} className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${index === 0 ? "border-foreground/20 bg-foreground text-background hover:bg-foreground/85" : "border-foreground/15 bg-background text-foreground hover:border-foreground/35"}`}>
