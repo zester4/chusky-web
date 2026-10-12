@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Shared Composio branding used by Connected Apps and chat activity. */
 export function ToolkitLogo({ name, logo, size = 40 }: { name: string; logo?: string; size?: number }) {
   const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [logo, name]);
   const isAppTile = size >= 32;
   const imageSize = isAppTile ? Math.round(size * 0.8) : size;
   const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, "");

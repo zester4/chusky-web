@@ -39,7 +39,7 @@ import { AppShellContext } from "./app-shell";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
-import { TriggerLogoGroup, triggerProviderBrand } from "./trigger-logo";
+import { TriggerLogoGroup, resolveProviderBrand, triggerProviderBrand } from "./trigger-logo";
 import { AttentionActionCard, attentionActions } from "./attention-action-card";
 import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError } from "@/lib/error-copy";
 
@@ -221,8 +221,10 @@ function ActivityBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo, size =
   const isTreg = [toolkitSlug, toolkitName, toolSlug].some((value) => value?.split(/[_\s-]+/).some((part) => part.toLowerCase() === "treg"));
   if (isTreg) return <ToolkitLogo name="Treg" logo="/logos/treg.svg" size={size} />;
   if (toolSlug?.startsWith("CHUCK_")) return <img src="/brand/chusky-logo.png" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
-  if (toolkitName || toolkitLogo) return <ToolkitLogo name={toolkitName || "Connected app"} logo={toolkitLogo} size={size} />;
-  if (toolSlug?.startsWith("COMPOSIO_")) return <ToolkitLogo name="Composio" logo="/logos/composio.svg" size={size} />;
+  const brand = resolveProviderBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo });
+  if (brand.logo || toolkitName || toolkitSlug || toolkitLogo || toolSlug?.startsWith("COMPOSIO_")) {
+    return <ToolkitLogo name={brand.name} logo={brand.logo} size={size} />;
+  }
   return <PlugZap size={size - 2} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
 }
 

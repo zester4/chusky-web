@@ -108,6 +108,21 @@ export function triggerProviderBrand(slug: string): TriggerProviderBrand {
   return { name: provider.charAt(0).toUpperCase() + provider.slice(1).toLowerCase() };
 }
 
+const genericProviderNames = new Set(["", "connected app", "unknown", "toolkit"]);
+
+/** Resolve stable local branding before falling back to provider metadata. */
+export function resolveProviderBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo }: { toolSlug?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string }): TriggerProviderBrand {
+  const candidates = [toolkitName, toolkitSlug, toolSlug].filter((value): value is string => Boolean(value?.trim()));
+  const brands = candidates.map((candidate) => triggerProviderBrand(candidate));
+  const localBrand = brands.find((brand) => Boolean(brand.logo));
+  const namedBrand = brands.find((brand) => !genericProviderNames.has(brand.name.trim().toLowerCase()));
+  const providedName = toolkitName?.trim();
+  const name = providedName && !genericProviderNames.has(providedName.toLowerCase())
+    ? providedName
+    : localBrand?.name || namedBrand?.name || "Connected app";
+  return { name, logo: localBrand?.logo || toolkitLogo };
+}
+
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const mentionTerms = LOGO_DEFINITIONS.flatMap((definition) => [definition.name, ...definition.aliases]
   .filter((term) => term.length >= 3)
