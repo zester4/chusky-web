@@ -33,7 +33,7 @@ import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
-import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
+import { coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
 import { Shimmer } from "@/components/ai-elements/shimmer";
@@ -41,7 +41,6 @@ import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
 import { TriggerLogoGroup, triggerProviderBrand } from "./trigger-logo";
 import { AttentionActionCard, attentionActions } from "./attention-action-card";
-import { AgentProgressCard } from "./agent-progress-card";
 import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError } from "@/lib/error-copy";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
@@ -118,6 +117,7 @@ const progressProviderForActivities = (activities: RunToolActivity[]) => {
 function progressFromRun(run: Run): RunProgress {
   if (run.progress) return run.progress;
   const activities = runActivities(run);
+  const providerActivity = [...activities].reverse().find((activity) => activity.toolkitName || activity.toolkitSlug || activity.toolSlug);
   const phase = progressPhaseForRun(run.status, activities);
   const completed = activities.filter((activity) => activity.status === "completed").length;
   const visibleEvidence = activities
@@ -153,13 +153,14 @@ function progressFromRun(run: Run): RunProgress {
     title,
     detail,
     ...(progressProviderForActivities(activities) ? { provider: progressProviderForActivities(activities) } : {}),
+    ...(providerActivity?.toolkitLogo ? { providerLogo: providerActivity.toolkitLogo } : {}),
     ...(run.status === "completed" ? { progress: 1 } : activities.length ? { progress: Math.min(0.92, Math.max(0.08, completed / activities.length)) } : {}),
     ...(run.status === "requires_approval" ? { requiresApproval: true } : {}),
     ...(visibleEvidence.length ? { evidence: visibleEvidence } : {}),
   };
 }
 
-function progressFromLiveActivity(current: RunProgress | undefined, activity: { status: RunToolActivity["status"] | RunSubagentActivity["status"] | "unknown"; actionLabel?: string; message?: string; summary?: string; toolkitName?: string; toolkitSlug?: string; toolSlug?: string }): RunProgress {
+function progressFromLiveActivity(current: RunProgress | undefined, activity: { status: RunToolActivity["status"] | RunSubagentActivity["status"] | "unknown"; actionLabel?: string; message?: string; summary?: string; toolkitName?: string; toolkitSlug?: string; toolkitLogo?: string; toolSlug?: string }): RunProgress {
   const waiting = activity.status === "approval_required";
   const failed = activity.status === "failed";
   return {
@@ -167,6 +168,7 @@ function progressFromLiveActivity(current: RunProgress | undefined, activity: { 
     title: waiting ? "Review the next action" : failed ? "This step needs attention" : activity.actionLabel || current?.title || "Working through your request",
     detail: waiting ? "Chusky paused safely before a consequential action. Review the approval below." : activity.summary || activity.message || current?.detail,
     ...(activity.toolkitName || activity.toolkitSlug || activity.toolSlug ? { provider: activity.toolkitName || activity.toolkitSlug || activity.toolSlug } : current?.provider ? { provider: current.provider } : {}),
+    ...(activity.toolkitLogo ? { providerLogo: activity.toolkitLogo } : current?.providerLogo ? { providerLogo: current.providerLogo } : {}),
     ...(waiting ? { requiresApproval: true } : failed ? {} : current?.requiresApproval ? { requiresApproval: false } : {}),
     ...(current?.progress !== undefined ? { progress: current.progress } : {}),
   };
@@ -240,22 +242,6 @@ function AttentionCandidateCard({ candidate, busyAction, onAction }: { candidate
   </article>;
 }
 
-function ActivityState({ activity, current }: { activity: PresentedToolActivity; current: boolean }) {
-  const label = activity.status === "started" ? current ? "In progress" : "No final result was recorded"
-    : activity.status === "completed" ? "Success"
-      : activity.status === "approval_required" ? "Waiting for approval"
-        : activity.status === "cancelled" ? "Cancelled"
-          : activity.status === "unknown" ? "Outcome unknown" : "Failed";
-  const icon = current ? <LoaderCircle size={13} className="animate-spin motion-reduce:animate-none" /> : activity.status === "started" ? <Clock4 size={13} />
-    : activity.status === "completed" ? <Check size={13} />
-      : activity.status === "approval_required" ? <ShieldCheck size={13} />
-        : activity.status === "cancelled" ? <Square size={11} />
-          : activity.status === "unknown" ? <Clock4 size={13} />
-              : <X size={13} />;
-  const tone = activity.status === "completed" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : activity.status === "approval_required" || activity.status === "unknown" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : activity.status === "failed" ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-foreground/5 text-muted-foreground";
-  return <span className={`inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] leading-4 ${tone}`}><span aria-hidden="true" className="shrink-0">{icon}</span>{label}</span>;
-}
-
 function ActivityMarker({ status, current, className = "" }: { status: PresentedToolActivity["status"] | RunSubagentActivity["status"]; current: boolean; className?: string }) {
   const icon = current || status === "started" ? <Clock4 size={14} className={current ? "animate-pulse" : undefined} />
     : status === "completed" ? <Check size={15} />
@@ -296,32 +282,36 @@ const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Recor
 // Strip decorative prefixes from progress copy while retaining the server's action text.
 const cleanActivityLabel = (value: string) => value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
 
+function CompactActivityStatus({ activity, current }: { activity: PresentedToolActivity; current: boolean }) {
+  const waiting = activity.status === "approval_required";
+  const failed = activity.status === "failed" || activity.status === "unknown";
+  const icon = current ? <LoaderCircle size={13} className="animate-spin motion-reduce:animate-none" />
+    : activity.status === "completed" ? <Check size={13} />
+      : waiting ? <ShieldCheck size={13} />
+        : failed ? <X size={13} />
+          : <Clock4 size={13} />;
+  const label = current ? "In progress" : activity.status === "completed" ? "Completed" : waiting ? "Waiting for approval" : failed ? "Failed" : activity.status === "cancelled" ? "Cancelled" : "Pending";
+  return <span className={`compact-execution-status ${current ? "is-active" : activity.status === "completed" ? "is-complete" : waiting || failed ? "is-attention" : ""}`} role="img" aria-label={label}>{icon}</span>;
+}
+
+const compactActivityLabel = (activity: PresentedToolActivity) => {
+  const value = cleanActivityLabel(activity.actionLabel || activity.message || formatToolLabel(activity.toolSlug));
+  return value.length > 74 ? `${value.slice(0, 71).trimEnd()}…` : value;
+};
+
+function CompactProgressRow({ progress }: { progress: RunProgress }) {
+  const provider = progress.provider ? triggerProviderBrand(progress.provider) : undefined;
+  const syntheticActivity = { toolSlug: progress.provider || "CHUCK_RUN", status: progress.phase === "completed" ? "completed" : progress.requiresApproval ? "approval_required" : "started", actionLabel: progress.title, message: progress.detail || progress.title, toolkitName: provider?.name, toolkitLogo: progress.providerLogo || provider?.logo } as PresentedToolActivity;
+  return <div className="compact-execution-list my-2" role="status" aria-label="Agent activity"><ol aria-label="Agent activity"><li className="compact-execution-row"><ActivityBrand toolSlug={syntheticActivity.toolSlug} toolkitName={syntheticActivity.toolkitName} toolkitLogo={syntheticActivity.toolkitLogo} size={19} /><span className="compact-execution-label">{compactActivityLabel(syntheticActivity)}</span><CompactActivityStatus activity={syntheticActivity} current={progress.phase !== "completed" && !progress.requiresApproval} /></li></ol></div>;
+}
+
 function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
-  return <ol aria-label="Tool activity" className="divide-y divide-foreground/[0.06]">
+  return <ol aria-label="Tool activity" className="compact-execution-rows">
     {activities.map((activity) => {
       const isCurrent = pending && activity.status === "started";
       const toolkit = lookupActivityToolkit(activity, toolkitCatalogue);
-      const detail = activityDetailSummary(activity.summary);
-      const attention = ["failed", "approval_required", "cancelled", "unknown"].includes(activity.status);
-      return <li key={activity.id} className="min-w-0 px-3 py-3 sm:px-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-foreground/[0.08] bg-background">
-            <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={17} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="break-words text-[13px] font-medium leading-5">{cleanActivityLabel(activity.actionLabel || activity.message)}</p>
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-              <span>{toolkit.name || (activity.toolSlug.startsWith("CHUCK_") ? "Chusky" : "Connected app")}</span>
-              {formatToolDuration(activity.durationMs) ? <span>{formatToolDuration(activity.durationMs)}</span> : null}
-              <ActivityState activity={activity} current={isCurrent} />
-            </div>
-            {attention ? <p className={`mt-1.5 text-[12px] leading-5 ${activity.status === "failed" ? "text-rose-700 dark:text-rose-300" : "text-amber-800 dark:text-amber-300"}`}>{activity.status === "approval_required" ? "Waiting for your approval to continue." : activity.status === "cancelled" ? "This action was cancelled before its outcome was confirmed." : activity.status === "unknown" ? "No confirmed outcome. Check the connected app before retrying." : activity.summary || "This step could not be completed."}</p> : detail ? <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{detail}</p> : null}
-            <details className="mt-1 text-[10px] text-muted-foreground">
-              <summary className="w-fit cursor-pointer rounded py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">Tool details</summary>
-              <code className="block break-all pb-1">{actionTokenForActivity(activity)}</code>
-            </details>
-          </div>
-        </div>
+      return <li key={activity.id} className="compact-execution-item">
+        <div className="compact-execution-row"><ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={19} /><span className="compact-execution-label">{compactActivityLabel(activity)}</span><CompactActivityStatus activity={activity} current={isCurrent} /></div>
         {activity.callId && subagentActivities?.length ? <SubagentTree activities={subagentActivities} parentToolCallId={activity.callId} live={pending} /> : null}
       </li>;
     })}
@@ -329,19 +319,8 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
 }
 
 function ActivityNarrative({ activities, subagentActivities, toolkitCatalogue, pending, progress }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean; progress?: RunProgress }) {
-  const needsApproval = activities.some((activity) => activity.status === "approval_required");
-  const needsAttention = activities.some((activity) => activity.status === "failed" || activity.status === "unknown");
-  const completed = activities.filter((activity) => activity.status === "completed").length;
-  const current = activities.findLast((activity) => activity.status === "started");
-  const fallback: RunProgress = {
-    phase: needsApproval ? "waiting" : pending ? "acting" : "completed",
-    title: needsApproval ? "Review the next action" : pending ? current?.actionLabel || current?.message || "Working through your request" : "Work completed",
-    detail: needsAttention ? "One or more steps need attention." : `${completed} of ${activities.length} steps confirmed.`,
-    ...(current?.toolkitName || current?.toolkitSlug || current?.toolSlug ? { provider: current.toolkitName || current.toolkitSlug || current.toolSlug } : {}),
-    ...(needsApproval ? { requiresApproval: true } : {}),
-    ...(activities.length ? { progress: pending ? Math.min(0.92, Math.max(0.08, completed / activities.length)) : 1 } : {}),
-  };
-  return <AgentProgressCard progress={progress || fallback} openDetails={pending || needsApproval || needsAttention} details={<div className="border-t border-foreground/[0.08]"><ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} /></div>} className="my-2" />;
+  if (!activities.length) return progress ? <CompactProgressRow progress={progress} /> : null;
+  return <div className="compact-execution-list my-2" role="status" aria-label="Agent activity"><ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} /></div>;
 }
 
 function SubagentTree({ activities, parentToolCallId, live }: { activities: RunSubagentActivity[]; parentToolCallId: string; live: boolean }) {
@@ -1660,7 +1639,7 @@ export function ChatPage() {
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/10 bg-background px-4 py-3 sm:px-5 sm:py-4 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
-                    {headlineActivity ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : item.progress ? <AgentProgressCard progress={item.progress} className="my-2" /> : null}
+                    {headlineActivity || (item.progress && item.progress.title !== "Preparing your request") ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
                     {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
