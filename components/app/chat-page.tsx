@@ -222,6 +222,7 @@ function ActivityBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo, size =
   if (isTreg) return <ToolkitLogo name="Treg" logo="/logos/treg.svg" size={size} />;
   if (toolSlug?.startsWith("CHUCK_")) return <img src="/brand/chusky-logo.png" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
   if (toolkitName || toolkitLogo) return <ToolkitLogo name={toolkitName || "Connected app"} logo={toolkitLogo} size={size} />;
+  if (toolSlug?.startsWith("COMPOSIO_")) return <ToolkitLogo name="Composio" logo="/logos/composio.svg" size={size} />;
   return <PlugZap size={size - 2} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
 }
 
@@ -274,8 +275,8 @@ const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Recor
   const toolkit = slug ? catalogue[slug] : undefined;
   return {
     slug: toolkit?.slug || activity.toolkitSlug || slug,
-    name: toolkit?.name || activity.toolkitName || slug,
-    logo: toolkit?.logo || activity.toolkitLogo,
+    name: activity.toolkitName || toolkit?.name || slug,
+    logo: activity.toolkitLogo || toolkit?.logo,
   };
 };
 
@@ -1639,7 +1640,7 @@ export function ChatPage() {
                   <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/10 bg-background px-4 py-3 sm:px-5 sm:py-4 [overflow-wrap:anywhere]"}>
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
-                    {headlineActivity || (item.progress && item.progress.title !== "Preparing your request") ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
+                    {headlineActivity || (item.progress && item.progress.title !== "Preparing your request" && !(item.progress.phase === "completed" && !item.progress.provider && !item.progress.providerLogo && !item.progress.evidence?.length)) ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
                     {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
