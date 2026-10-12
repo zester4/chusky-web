@@ -109,7 +109,7 @@ export function attentionActions(event: TriggerEventActivity): TriggerEventActio
 export function AttentionActionCard({ event, onAction, compact = false }: { event: TriggerEventActivity; onAction?: (action: TriggerEventAction) => void; compact?: boolean }) {
   const actions = attentionActions(event);
   const summary = displaySummary(event);
-  const statusLabel = event.status === "queued" || event.status === "running" ? "Chusky is handling this" : event.status === "awaiting_approval" ? "Approval needed" : event.status === "failed" ? "Handling failed" : event.notificationStatus === "failed" ? "Handled; report delivery failed" : "Handled";
+  const statusLabel = event.status === "queued" || event.status === "running" ? "Chusky is handling this" : event.status === "awaiting_approval" ? "Approval needed" : event.status === "failed" ? "Handling failed" : "Handled";
   const outcome = event.result || (event.status === "queued" || event.status === "running" ? "Chusky is processing this event." : event.status === "awaiting_approval" ? "Chusky paused because this action needs your approval." : event.status === "failed" ? "Chusky could not complete this event." : undefined);
   const ProviderIcon = event.status === "failed" || event.notificationStatus === "failed" ? CircleAlert : event.actions?.length ? Sparkles : Plug;
   const activate = (action: TriggerEventAction) => {
@@ -132,6 +132,9 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
         <span className="truncate text-[10px] text-muted-foreground">{statusLabel}</span>
       </div>
       {outcome && <MarkdownMessage content={eventMarkdown(outcome)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />}
+      {event.status === "completed" && event.notificationStatus === "failed" && <p className="mt-1 text-[9px] text-amber-800">The result is saved here; owner notification delivery needs checking.</p>}
+      {event.status === "completed" && event.notificationStatus === "unknown" && <p className="mt-1 text-[9px] text-amber-800">The result is saved here; delivery status could not be confirmed.</p>}
+      {event.status === "completed" && event.notificationStatus === "unavailable" && <p className="mt-1 text-[9px] text-muted-foreground">The result is saved here; no Telegram destination is linked.</p>}
       {!outcome && <MarkdownMessage content={eventMarkdown(summary)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />}
       {!compact && <details className="mt-2 border-t border-foreground/10 pt-1.5"><summary className="cursor-pointer text-[10px] text-muted-foreground">View original {providerName(event.slug)} event details</summary><MarkdownMessage content={eventMarkdown(summary)} className="mt-1 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /></details>}
       {actions.length > 0 && <div className="mt-2.5 flex flex-wrap gap-1.5">
