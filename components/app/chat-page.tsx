@@ -692,7 +692,7 @@ export function ChatPage() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, attentionTriggerEvent]);
 
   useEffect(() => {
     if (requestedDraft) setInput(requestedDraft);
@@ -1559,7 +1559,6 @@ export function ChatPage() {
             <div className="space-y-3.5 sm:space-y-4">
               {olderRunsCursor ? <div className="flex justify-center pb-1"><button type="button" onClick={() => void loadOlderRuns()} disabled={loadingOlderRuns} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-foreground/10 px-3 text-[10px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground disabled:opacity-50">{loadingOlderRuns ? <LoaderCircle size={12} className="animate-spin" /> : <ChevronDown size={12} className="rotate-180" />} {loadingOlderRuns ? "Loading older messages…" : "Load older messages"}</button></div> : null}
               {attentionCandidate ? <AttentionCandidateCard candidate={attentionCandidate} busyAction={attentionActionBusy} onAction={(action) => void activateAttentionAction(action)} /> : null}
-              {attentionTriggerEvent ? <AttentionActionCard event={attentionTriggerEvent} onAction={(action) => void activateTriggerAction(action)} /> : null}
               {account?.approvals?.filter((approval) => !messages.some((message) => message.approval?.id === approval.id)).map((approval) => <div key={approval.id} className="mx-auto flex w-full max-w-2xl items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50/80 px-3 py-3 text-amber-950 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-100" role="alert">
                 <ShieldCheck size={17} className="mt-0.5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
@@ -1603,6 +1602,7 @@ export function ChatPage() {
                   </div>
                 </div>;
               })}
+              {attentionTriggerEvent ? <AttentionActionCard event={attentionTriggerEvent} onAction={(action) => void activateTriggerAction(action)} /> : null}
               <div ref={endRef} />
             </div>
             </div>

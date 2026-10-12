@@ -99,12 +99,18 @@ function fallbackActions(event: TriggerEventActivity): TriggerEventAction[] {
 }
 
 export function attentionActions(event: TriggerEventActivity): TriggerEventAction[] {
+  // A completed event is a report, not a request for the owner to inspect work
+  // that Chusky has already finished. Keep fallback actions for unresolved or
+  // failed events only.
+  if (event.status === "completed") return [];
   return event.actions?.length ? event.actions : fallbackActions(event);
 }
 
 export function AttentionActionCard({ event, onAction, compact = false }: { event: TriggerEventActivity; onAction?: (action: TriggerEventAction) => void; compact?: boolean }) {
   const actions = attentionActions(event);
   const summary = displaySummary(event);
+  const statusLabel = event.status === "queued" || event.status === "running" ? "Chusky is handling this" : event.status === "awaiting_approval" ? "Approval needed" : event.status === "failed" ? "Handling failed" : event.notificationStatus === "failed" ? "Handled; report delivery failed" : "Handled";
+  const outcome = event.result || (event.status === "queued" || event.status === "running" ? "Chusky is processing this event." : event.status === "awaiting_approval" ? "Chusky paused because this action needs your approval." : event.status === "failed" ? "Chusky could not complete this event." : undefined);
   const ProviderIcon = event.status === "failed" || event.notificationStatus === "failed" ? CircleAlert : event.actions?.length ? Sparkles : Plug;
   const activate = (action: TriggerEventAction) => {
     if (onAction) { onAction(action); return; }
@@ -123,15 +129,16 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">{providerName(event.slug)}</span>
         <span className="text-[9px] text-muted-foreground">·</span>
-        <span className="truncate text-[10px] text-muted-foreground">{event.notificationStatus === "delivered" ? "Ready" : "Needs attention"}</span>
+        <span className="truncate text-[10px] text-muted-foreground">{statusLabel}</span>
       </div>
-      <MarkdownMessage content={eventMarkdown(summary)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />
-      {!compact && event.result && <MarkdownMessage content={eventMarkdown(event.result)} className="mt-1 line-clamp-3 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" />}
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
+      {outcome && <MarkdownMessage content={eventMarkdown(outcome)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />}
+      {!outcome && <MarkdownMessage content={eventMarkdown(summary)} className={`mt-1 ${compact ? "[&_p]:text-[11px]" : "[&_p]:text-xs"} [&_p]:my-0 [&_p]:leading-5 [&_ul]:my-0 [&_ol]:my-0 [&_pre]:my-1 [&_table]:my-1`} />}
+      {!compact && <details className="mt-2 border-t border-foreground/10 pt-1.5"><summary className="cursor-pointer text-[10px] text-muted-foreground">View original {providerName(event.slug)} event details</summary><MarkdownMessage content={eventMarkdown(summary)} className="mt-1 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /></details>}
+      {actions.length > 0 && <div className="mt-2.5 flex flex-wrap gap-1.5">
         {actions.map((action, index) => <button key={action.id} type="button" onClick={() => activate(action)} className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${index === 0 ? "border-foreground/20 bg-foreground text-background hover:bg-foreground/85" : "border-foreground/15 bg-background text-foreground hover:border-foreground/35"}`}>
           {index === 0 ? <Check size={11} aria-hidden="true" /> : <ArrowUpRight size={11} aria-hidden="true" />}{action.label}
         </button>)}
-      </div>
+      </div>}
     </div>
   </article>;
 }

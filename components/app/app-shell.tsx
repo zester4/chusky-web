@@ -72,7 +72,7 @@ function pulseReceiptAt(receipt: PulseReceipt): string | number | undefined {
   return receipt.completedAt || receipt.updatedAt || receipt.startedAt || receipt.createdAt;
 }
 
-function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCount, onClose, onOpenApprovals, onOpenPulse, onOpenTrigger }: {
+function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCount, onClose, onOpenApprovals, onOpenPulse, onOpenTrigger, onClearNotifications }: {
   account?: AccountOverview;
   attentionEvents: AccountOverview["triggerEvents"];
   pulseReceipt?: PulseReceipt;
@@ -81,16 +81,50 @@ function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCoun
   onOpenApprovals: () => void;
   onOpenPulse: () => void;
   onOpenTrigger: (eventId: string) => void;
+  onClearNotifications: () => Promise<number>;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState("");
   const candidates = account?.attentionCandidates ?? [];
   const hasPulseItem = Boolean(pulseReceipt);
+  const approvals = account?.approvals ?? [];
+  const hasMore = approvals.length > 3 || candidates.length > 4 || attentionEvents.length > 4;
+  const clearableCount = candidates.length + attentionEvents.length + Number(hasPulseItem);
+  const clearNotifications = async () => {
+    setClearing(true);
+    setClearError("");
+    try {
+      const failures = await onClearNotifications();
+      if (failures > 0) setClearError(`${failures} item${failures === 1 ? "" : "s"} could not be cleared. Try again.`);
+    } catch {
+      setClearError("Notifications could not be cleared. Try again.");
+    } finally {
+      setClearing(false);
+    }
+  };
   return <div role="dialog" aria-label="Notifications and approvals" className="absolute right-0 top-11 z-50 w-[min(25rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-foreground/10 bg-background/95 shadow-[0_18px_50px_rgb(0_0_0/0.14)] backdrop-blur-xl">
-    <div className="flex items-start justify-between gap-4 border-b border-foreground/10 bg-foreground/[0.025] px-4 py-3.5"><div><div className="flex items-center gap-2"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"><Bell size={12}/></span><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Attention center</p></div><p className="mt-2 text-xs font-medium">What needs your attention</p><p className="mt-0.5 text-[10px] text-muted-foreground">{attentionCount ? `${attentionCount} active item${attentionCount === 1 ? "" : "s"}` : "You’re clear for now"}</p></div><span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500"/>Live</span></div>
-    {account?.approvals.slice(0, 3).map((approval) => <button key={`approval-${approval.id}`} type="button" onClick={onOpenApprovals} className="group flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.05] focus-visible:outline-none"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10"><ShieldCheck size={14} className="text-amber-700"/></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">Approval required</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(approval.createdAt)}</span></span><MarkdownMessage content={approval.request || `Review ${approval.toolSlug} before it runs.`} className="mt-1 line-clamp-2 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /><span className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-amber-700">Review action <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5"/></span></span></button>)}
-    {candidates.slice(0, 4).map((candidate) => { const actions = candidate.suggestedActions?.length ? candidate.suggestedActions.slice(0, 2) : [fallbackAttentionCandidateAction]; return <div key={`candidate-${candidate.id}`} className="flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-background"><TriggerLogo slug={candidate.providerSlug || "chusky"} size={22}/></span><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">Elena has a suggestion</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(candidate.createdAt)}</span></div><MarkdownMessage content={candidate.reason} className="mt-1 line-clamp-3 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /><div className="mt-2 flex flex-wrap items-center gap-1.5">{actions.map((action) => <Link key={action.id} href={attentionCandidateChatHref(candidate.id, action.id)} onClick={onClose} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[9px] font-medium text-primary-foreground hover:bg-primary/90">{action.label}<ArrowRight size={10}/></Link>)}<Link href={attentionCandidateChatHref(candidate.id)} onClick={onClose} className="inline-flex items-center gap-1 rounded-md border border-foreground/12 px-2 py-1 text-[9px] font-medium text-foreground/75 hover:border-foreground/30">Open in Chat<ArrowRight size={10}/></Link></div></div></div>; })}
+    <div className="flex items-start justify-between gap-3 border-b border-foreground/10 bg-foreground/[0.025] px-3.5 py-3">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"><Bell size={12}/></span><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Attention center</p>
+          <button type="button" onClick={() => void clearNotifications()} disabled={!clearableCount || clearing} title="Clear trigger notifications and suggestions. Pending approvals stay until resolved." className="ml-1 inline-flex min-h-5 items-center rounded border border-foreground/15 px-1.5 font-mono text-[8px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Clear trigger notifications and suggestions">{clearing ? "Clearing" : "Clear"}</button>
+        </div>
+        <p className="mt-2 text-xs font-medium">What needs your attention</p><p className="mt-0.5 text-[10px] text-muted-foreground">{attentionCount ? `${attentionCount} active item${attentionCount === 1 ? "" : "s"}` : "You’re clear for now"}</p>
+      </div>
+    </div>
+    {hasMore && <div className="border-b border-foreground/10 px-3.5 py-1"><button type="button" onClick={() => setExpanded((current) => !current)} className="text-[9px] font-medium text-muted-foreground underline decoration-foreground/20 underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25">{expanded ? "Show fewer" : "See more"}</button></div>}
+    <div className="max-h-[min(55vh,25rem)] overflow-y-auto overscroll-contain [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1">
+    {approvals.slice(0, expanded ? 12 : 3).map((approval) => <button key={`approval-${approval.id}`} type="button" onClick={onOpenApprovals} className="group flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.05] focus-visible:outline-none"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10"><ShieldCheck size={14} className="text-amber-700"/></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">Approval required</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(approval.createdAt)}</span></span><MarkdownMessage content={approval.request || `Review ${approval.toolSlug} before it runs.`} className="mt-1 line-clamp-2 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /><span className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-amber-700">Review action <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5"/></span></span></button>)}
+    {candidates.slice(0, expanded ? 12 : 4).map((candidate) => { const actions = candidate.suggestedActions?.length ? candidate.suggestedActions.slice(0, 2) : [fallbackAttentionCandidateAction]; return <div key={`candidate-${candidate.id}`} className="flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-background"><TriggerLogo slug={candidate.providerSlug || "chusky"} size={22}/></span><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">Elena has a suggestion</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(candidate.createdAt)}</span></div><MarkdownMessage content={candidate.reason} className="mt-1 line-clamp-3 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /><div className="mt-2 flex flex-wrap items-center gap-1.5">{actions.map((action) => <Link key={action.id} href={attentionCandidateChatHref(candidate.id, action.id)} onClick={onClose} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[9px] font-medium text-primary-foreground hover:bg-primary/90">{action.label}<ArrowRight size={10}/></Link>)}<Link href={attentionCandidateChatHref(candidate.id)} onClick={onClose} className="inline-flex items-center gap-1 rounded-md border border-foreground/12 px-2 py-1 text-[9px] font-medium text-foreground/75 hover:border-foreground/30">Open in Chat<ArrowRight size={10}/></Link></div></div></div>; })}
     {hasPulseItem && pulseReceipt && <button type="button" onClick={onOpenPulse} className="group flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.05] focus-visible:outline-none"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10"><Bell size={15} className="text-emerald-700"/></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">{pulseReceiptTitle(pulseReceipt)}</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(pulseReceiptAt(pulseReceipt))}</span></span><MarkdownMessage content={pulseReceiptSummary(pulseReceipt)} className="mt-1 line-clamp-3 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /><span className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700">Open Pulse report <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5"/></span></span></button>}
-    {attentionEvents.slice(0, 4).map((event) => <button key={`trigger-${event.id}`} type="button" onClick={() => onOpenTrigger(event.id)} className="group flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.05] focus-visible:outline-none"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10"><TriggerLogo slug={event.slug || "chusky"} size={22}/></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">{triggerProviderBrand(event.slug || "chusky").name}</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(event.createdAt)}</span></span><MarkdownMessage content={event.summary} className="mt-1 line-clamp-2 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /><span className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700">Open in Chat <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5"/></span></span></button>)}
-    {!account?.approvals.length && !candidates.length && !attentionEvents.length && !hasPulseItem && <div className="px-4 py-8 text-center"><span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-foreground/[0.04] text-muted-foreground"><CheckCircle2 size={18}/></span><p className="mt-2 text-[11px] font-medium">Nothing needs your attention</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{account?.features?.attentionPulse === true ? "Elena will surface the next useful step here." : "Chusky will surface the next useful step here."}</p></div>}
+    {attentionEvents.slice(0, expanded ? 20 : 4).map((event) => {
+      const statusLabel = event.status === "running" || event.status === "queued" ? "Chusky is handling this" : event.status === "awaiting_approval" ? "Approval needed" : event.status === "failed" ? "Handling failed" : event.notificationStatus === "failed" ? "Handled; report delivery failed" : "Handled";
+      const display = event.result || (event.status === "running" || event.status === "queued" ? "Chusky is processing this event." : event.status === "awaiting_approval" ? "Chusky paused because this action needs your approval." : event.status === "failed" ? "Chusky could not complete this event." : event.summary);
+      return <button key={`trigger-${event.id}`} type="button" onClick={() => onOpenTrigger(event.id)} className="group flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.05] focus-visible:outline-none"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10"><TriggerLogo slug={event.slug || "chusky"} size={22}/></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">{triggerProviderBrand(event.slug || "chusky").name} · {statusLabel}</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(event.createdAt)}</span></span><MarkdownMessage content={display} className="mt-1 line-clamp-2 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" /><span className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700">Open activity <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5"/></span></span></button>;
+    })}
+    {!approvals.length && !candidates.length && !attentionEvents.length && !hasPulseItem && <div className="px-4 py-8 text-center"><span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-foreground/[0.04] text-muted-foreground"><CheckCircle2 size={18}/></span><p className="mt-2 text-[11px] font-medium">Nothing needs your attention</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{account?.features?.attentionPulse === true ? "Elena will surface the next useful step here." : "Chusky will surface the next useful step here."}</p></div>}
+    </div>
+    {clearError && <p className="border-t border-rose-500/15 bg-rose-500/[0.04] px-3.5 py-2 text-[9px] text-rose-700" role="alert">{clearError}</p>}
     <button type="button" onClick={onOpenApprovals} className="flex w-full items-center justify-between border-t border-foreground/10 bg-foreground/[0.018] px-4 py-3 text-[10px] font-medium transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/20">Open approvals and activity <ArrowRight size={13} /></button>
   </div>;
 }
@@ -106,9 +140,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<AccountOverview>();
   const [health, setHealth] = useState<HealthSnapshot>();
   const [branding, setBranding] = useState<CompanyBranding>();
-  const [activityCount, setActivityCount] = useState(0);
   const [attentionOpen, setAttentionOpen] = useState(false);
   const [chatHeader, setChatHeader] = useState<ChatHeader>();
+  const [dismissedPulseReceiptId, setDismissedPulseReceiptId] = useState<string>();
   const lastActivityRefreshAtRef = useRef(0);
   const dashboardLastActivityAtRef = useRef(0);
   const { data: session } = authClient.useSession();
@@ -158,7 +192,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (!active) return;
         since = activity.now;
         retryDelay = 30_000;
-        setActivityCount(activity.tasks.filter((task) => ["queued", "running", "blocked", "failed"].includes(task.status)).length);
         if (activity.attentionCandidates.length > 0 || activity.approvals.length > 0) {
           void chuskyApi.account.get().then(setAccount).catch(() => undefined);
         }
@@ -182,19 +215,78 @@ export function AppShell({ children }: { children: ReactNode }) {
   const startNewConversation = () => { setOpen(false); router.push(`/app/chat?new=1&nonce=${Date.now()}`); };
   const brandName = branding?.displayName || "Chusky";
   const accountName = session?.user?.name || session?.user?.email || "Your account";
-  const attentionEvents = (account?.triggerEvents ?? []).filter((event) => event.needsAttention || ["pending", "failed", "unavailable"].includes(event.notificationStatus));
+  // Read state controls whether a trigger remains in the notification center.
+  // Failed and approval-waiting runs remain available in Activity/Approvals.
+  const attentionEvents = (account?.triggerEvents ?? []).filter((event) => !event.webReadAt);
   const elenaEnabled = account?.features?.attentionPulse === true;
-  const pulseReceipt = elenaEnabled ? account?.attentionPulse?.lastOccurrence : undefined;
+  const latestPulseReceipt = elenaEnabled ? account?.attentionPulse?.lastOccurrence : undefined;
+  const pulseReceipt = latestPulseReceipt?.id === dismissedPulseReceiptId ? undefined : latestPulseReceipt;
   const pulseNeedsAttention = Boolean(pulseReceipt);
-  const attentionCount = (account?.approvals.length ?? 0) + (account?.attentionCandidates.length ?? 0) + attentionEvents.length + activityCount + (pulseNeedsAttention ? 1 : 0);
+  useEffect(() => {
+    if (!session?.user?.id || typeof window === "undefined") return;
+    try { setDismissedPulseReceiptId(window.localStorage.getItem(`chusky:attention:pulse-read:${session.user.id}`) || undefined); }
+    catch { setDismissedPulseReceiptId(undefined); }
+  }, [session?.user?.id]);
+  const attentionCount = (account?.approvals.length ?? 0) + (account?.attentionCandidates.length ?? 0) + attentionEvents.length + (pulseNeedsAttention ? 1 : 0);
+  const clearAttentionNotifications = async (): Promise<number> => {
+    const events = [...attentionEvents];
+    const candidates = [...(account?.attentionCandidates ?? [])];
+    const [eventResults, candidateResults] = await Promise.all([
+      Promise.allSettled(events.map((event) => chuskyApi.triggers.markEventRead(event.id))),
+      Promise.allSettled(candidates.map((candidate) => chuskyApi.account.dismissAttentionCandidate(candidate.id))),
+    ]);
+    const readAt = new Date().toISOString();
+    const readEventIds = new Set(events.filter((_, index) => eventResults[index]?.status === "fulfilled").map((event) => event.id));
+    const dismissedCandidateIds = new Set(candidates.filter((_, index) => candidateResults[index]?.status === "fulfilled").map((candidate) => candidate.id));
+    if (pulseReceipt) {
+      setDismissedPulseReceiptId(pulseReceipt.id);
+      try { window.localStorage.setItem(`chusky:attention:pulse-read:${session?.user?.id ?? "unknown"}`, pulseReceipt.id); } catch { /* The current view is still cleared if local storage is unavailable. */ }
+    }
+    setAccount((current) => current ? {
+      ...current,
+      triggerEvents: current.triggerEvents.map((event) => readEventIds.has(event.id) ? { ...event, needsAttention: false, webReadAt: readAt } : event),
+      attentionCandidates: current.attentionCandidates.filter((candidate) => !dismissedCandidateIds.has(candidate.id)),
+    } : current);
+    if (readEventIds.size || dismissedCandidateIds.size) notifyChuskyDataChanged();
+    return eventResults.filter((result) => result.status === "rejected").length + candidateResults.filter((result) => result.status === "rejected").length;
+  };
+  const openPulseReport = () => {
+    if (pulseReceipt) {
+      setDismissedPulseReceiptId(pulseReceipt.id);
+      try { window.localStorage.setItem(`chusky:attention:pulse-read:${session?.user?.id ?? "unknown"}`, pulseReceipt.id); } catch { /* The report remains available in Autonomy. */ }
+    }
+    setAttentionOpen(false);
+    router.push("/app/autonomy");
+  };
   const openTriggerEvent = (eventId: string) => {
     const event = account?.triggerEvents.find((item) => item.id === eventId);
     setAttentionOpen(false);
     void chuskyApi.triggers.markEventRead(eventId).then(() => {
       setAccount((current) => current ? { ...current, triggerEvents: current.triggerEvents.map((item) => item.id === eventId ? { ...item, needsAttention: false, webReadAt: new Date().toISOString() } : item) } : current);
     }).catch(() => undefined);
-    const thread = event?.webThreadId ? `&thread=${encodeURIComponent(event.webThreadId)}` : "";
-    router.push(`/app/chat?triggerEvent=${encodeURIComponent(eventId)}${thread}`);
+    const currentThreadFromUrl = pathname === "/app/chat" && typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("thread") || undefined
+      : undefined;
+    void (async () => {
+      // Keep the conversation the owner is already using. From another page,
+      // resume their latest active chat; the trigger projection is only a
+      // fallback when the account has no regular conversation yet.
+      let threadId = currentThreadFromUrl && currentThreadFromUrl !== "thr_trigger_updates" && currentThreadFromUrl !== event?.webThreadId
+        ? currentThreadFromUrl
+        : undefined;
+      if (!threadId) {
+        try {
+          const threads = (await chuskyApi.threads.list({ limit: 100, includeArchived: false })).data;
+          threadId = threads.find((thread) => thread.metadata.source !== "trigger-notifications")?.id;
+        } catch {
+          threadId = undefined;
+        }
+      }
+      threadId ||= event?.webThreadId;
+      const query = new URLSearchParams({ triggerEvent: eventId });
+      if (threadId) query.set("thread", threadId);
+      router.push(`/app/chat?${query.toString()}`, { scroll: false });
+    })();
   };
   const toggleCollapsed = () => setCollapsed((current) => {
     const next = !current;
@@ -216,7 +308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className={cn("border-t border-foreground/10 p-2.5", collapsed && "lg:p-2")}><div className={cn("mb-2 flex min-w-0 justify-end", collapsed && "lg:hidden")}><ThemeSwitcher /></div><div className={cn("flex min-w-0 items-center gap-2", collapsed && "lg:justify-center")}><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">{accountName.slice(0, 2).toUpperCase()}</span><span className={cn("min-w-0 flex-1 truncate text-[11px] font-medium", collapsed && "lg:hidden")}>{accountName}</span><button onClick={signOut} className={cn("inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-[10px] text-muted-foreground hover:bg-foreground/5 hover:text-foreground lg:min-h-9", collapsed && "lg:min-w-9 lg:px-0")} aria-label="Sign out" title="Sign out"><span className={collapsed ? "lg:hidden" : undefined}>Sign out</span><LogOut size={13} className={collapsed ? "hidden lg:block" : "hidden"}/></button></div></div>
     </aside>
       <Drawer open={open} onOpenChange={setOpen} direction="left"><DrawerContent className="h-full max-h-none w-[min(20rem,calc(100vw-1rem))] p-0"><div className="flex min-h-0 flex-1 flex-col overflow-hidden"><div className="flex h-14 items-center justify-between border-b border-foreground/10 px-4"><Link href="/app" className="flex items-center gap-2 font-display text-xl tracking-tight">{branding?.logoUrl ? <img src={branding.logoUrl} alt="" className="h-6 w-6 object-contain" /> : brandName}<span className="ml-1 align-top font-mono text-[9px] text-muted-foreground">TM</span></Link><DrawerClose asChild><button className="flex min-h-9 min-w-9 items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Close menu"><X size={18}/></button></DrawerClose></div><div className="p-3"><button type="button" onClick={startNewConversation} className="flex min-h-9 w-full items-center gap-2 border border-foreground/15 bg-background px-2.5 py-2 text-xs hover:border-foreground/40"><Plus size={14}/> New conversation</button></div><nav className="min-h-0 flex-1 overflow-y-auto px-2"><p className="px-2 pb-1.5 pt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Workspace</p>{nav(primary)}<p className="px-2 pb-1.5 pt-5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Automate</p>{nav(work)}<p className="px-2 pb-1.5 pt-5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Account</p>{nav([["Agent profile", "/app/onboarding", UserRound], ["Developer API", "/app/developer-api", Code2], ["Devices", "/app/devices", SquareTerminal], ["Settings", "/app/settings", Settings2]])}</nav><div className="m-3 border border-foreground/10 bg-foreground/[0.03] p-2"><div className="flex items-center gap-2 text-[10px] font-medium"><span className={cn("h-2 w-2 shrink-0 rounded-full", health?.ok ? "bg-emerald-500" : health ? "bg-amber-400" : "bg-foreground/25")}/><span>{health ? health.ok ? "All systems operational" : "System needs attention" : "Checking system status"}</span></div></div><div className="border-t border-foreground/10 p-3"><div className="mb-2 flex justify-end"><ThemeSwitcher /></div><div className="flex min-w-0 items-center gap-2"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">{accountName.slice(0, 2).toUpperCase()}</span><span className="min-w-0 flex-1 truncate text-[11px] font-medium">{accountName}</span><button onClick={signOut} className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md px-2 text-[10px] text-muted-foreground hover:bg-foreground/5 hover:text-foreground" aria-label="Sign out">Sign out</button></div></div></div></DrawerContent></Drawer>
-      <div className={cn("min-w-0 transition-[padding] duration-200", collapsed ? "lg:pl-[68px]" : "lg:pl-[232px]")}><header className="sticky top-0 z-20 flex h-11 items-center justify-between border-b border-foreground/10 bg-background/90 px-2.5 backdrop-blur-xl sm:h-14 sm:px-4 lg:px-6"><div className="flex min-w-0 items-center gap-2.5"><button onClick={() => setOpen(true)} className="flex min-h-9 min-w-9 items-center justify-center lg:hidden" aria-label="Open menu"><Menu size={17}/></button>{pathname === "/app/chat" && <div className="flex min-w-0 items-center gap-2"><h1 className="max-w-[calc(100vw-9rem)] truncate text-[11px] font-medium sm:max-w-[24rem]">{chatHeader?.title || "Chat"}</h1><span className={chatHeader?.status === "ready" ? "shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{chatHeader?.status === "ready" ? "Live" : chatHeader?.status === "offline" ? "Offline" : "Connecting"}</span></div>}</div><div className="relative"><button type="button" onClick={() => setAttentionOpen((current) => !current)} className={cn("relative flex min-h-9 min-w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25", attentionOpen && "bg-foreground/5 text-foreground")} aria-label={`Open notifications and approvals${attentionCount > 0 ? `, ${attentionCount} items` : ""}`} aria-expanded={attentionOpen}><Bell size={15}/>{attentionCount > 0 && <span className="absolute right-0 top-0 flex min-h-3.5 min-w-3.5 items-center justify-center rounded-full border-2 border-background bg-amber-400 px-1 text-[8px] font-bold leading-none text-black">{attentionCount > 99 ? "99+" : attentionCount}</span>}</button>{attentionOpen && <AttentionCenter account={account} attentionEvents={attentionEvents} pulseReceipt={pulseReceipt} attentionCount={attentionCount} onClose={() => setAttentionOpen(false)} onOpenApprovals={() => { setAttentionOpen(false); router.push("/app/approvals"); }} onOpenPulse={() => { setAttentionOpen(false); router.push("/app/autonomy"); }} onOpenTrigger={openTriggerEvent} />}</div></header><main className="mx-auto max-w-[1400px] min-w-0 px-2.5 py-2.5 sm:px-4 sm:py-6 lg:px-7 lg:py-8">{children}</main></div>
+      <div className={cn("min-w-0 transition-[padding] duration-200", collapsed ? "lg:pl-[68px]" : "lg:pl-[232px]")}><header className="sticky top-0 z-20 flex h-11 items-center justify-between border-b border-foreground/10 bg-background/90 px-2.5 backdrop-blur-xl sm:h-14 sm:px-4 lg:px-6"><div className="flex min-w-0 items-center gap-2.5"><button onClick={() => setOpen(true)} className="flex min-h-9 min-w-9 items-center justify-center lg:hidden" aria-label="Open menu"><Menu size={17}/></button>{pathname === "/app/chat" && <div className="flex min-w-0 items-center gap-2"><h1 className="max-w-[calc(100vw-9rem)] truncate text-[11px] font-medium sm:max-w-[24rem]">{chatHeader?.title || "Chat"}</h1><span className={chatHeader?.status === "ready" ? "shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{chatHeader?.status === "ready" ? "Live" : chatHeader?.status === "offline" ? "Offline" : "Connecting"}</span></div>}</div><div className="relative"><button type="button" onClick={() => setAttentionOpen((current) => !current)} className={cn("relative flex min-h-9 min-w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25", attentionOpen && "bg-foreground/5 text-foreground")} aria-label={`Open notifications and approvals${attentionCount > 0 ? `, ${attentionCount} items` : ""}`} aria-expanded={attentionOpen}><Bell size={15}/>{attentionCount > 0 && <span className="absolute right-0 top-0 flex min-h-3.5 min-w-3.5 items-center justify-center rounded-full border-2 border-background bg-amber-400 px-1 text-[8px] font-bold leading-none text-black">{attentionCount > 99 ? "99+" : attentionCount}</span>}</button>{attentionOpen && <AttentionCenter account={account} attentionEvents={attentionEvents} pulseReceipt={pulseReceipt} attentionCount={attentionCount} onClose={() => setAttentionOpen(false)} onOpenApprovals={() => { setAttentionOpen(false); router.push("/app/approvals"); }} onOpenPulse={openPulseReport} onOpenTrigger={openTriggerEvent} onClearNotifications={clearAttentionNotifications} />}</div></header><main className="mx-auto max-w-[1400px] min-w-0 px-2.5 py-2.5 sm:px-4 sm:py-6 lg:px-7 lg:py-8">{children}</main></div>
   </div></AppShellContext.Provider>;
 }
 

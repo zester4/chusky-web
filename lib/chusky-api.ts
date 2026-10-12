@@ -419,6 +419,7 @@ export const chuskyApi = {
   },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
+    dismissAttentionCandidate: (candidateId: string) => request<{ data: { candidate: AttentionCandidate } }>(`/account/attention-candidates/${encodeURIComponent(candidateId)}/dismiss`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     activateAttentionCandidate: (candidateId: string, actionId?: string) => request<{ candidate: AttentionCandidate; actionId?: string; alreadyActivated?: boolean }>(`/account/attention-candidates/${encodeURIComponent(candidateId)}/activate`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(actionId ? { actionId } : {}) }),
     export: () => request<Record<string, unknown>>("/account/export"),
     clearMemory: () => request<{ removed: number; message: string }>("/account/memory/clear", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
