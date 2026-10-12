@@ -1670,10 +1670,6 @@ export function ChatPage() {
             </div>
             </div>
 
-            <div className="chat-mobile-context xl:hidden">
-              <div className="flex min-w-0 items-center gap-2"><span className={`chat-mobile-context-dot ${isWorking ? "is-live" : ""}`} aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-xs font-medium">{latestAssistant?.progress?.title || "Conversation context"}</span><span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">{artifactCatalog.length} files</span></div>
-              <details><summary>Show context</summary><div className="chat-mobile-context-details"><span>{runModel || account?.model || "Agent model not selected"}</span>{visibleProviders.length ? <span>Using {visibleProviders.join(", ")}</span> : <span>No connected app used yet</span>}{latestAssistant?.progress?.detail ? <span>{latestAssistant.progress.detail}</span> : null}</div></details>
-            </div>
             <div className="shrink-0 pt-2 pb-[env(safe-area-inset-bottom)] sm:pt-4 sm:pb-0">
               <div data-chat-composer className="chat-composer rounded-2xl border border-foreground/10 bg-background">
                 <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/mpeg,audio/ogg,audio/wav,audio/mp4,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.md,.zip,.docx,.pptx,.xlsx,.mp3,.ogg,.oga,.wav,.m4a,.mp4,.webm" className="hidden" onChange={(event) => void selectFiles(event.target.files)} />

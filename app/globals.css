@@ -434,50 +434,6 @@
     color: color-mix(in srgb, #be123c 85%, var(--foreground));
   }
 
-  .chat-mobile-context {
-    display: grid;
-    gap: 0.35rem;
-    border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
-    padding: 0.55rem 0.75rem;
-    background: color-mix(in srgb, var(--background) 94%, var(--foreground));
-  }
-
-  .chat-mobile-context-dot {
-    height: 0.45rem;
-    width: 0.45rem;
-    flex: 0 0 auto;
-    border-radius: 999px;
-    background: var(--muted-foreground);
-  }
-
-  .chat-mobile-context-dot.is-live {
-    background: var(--chusky-amber);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--chusky-amber) 15%, transparent);
-  }
-
-  .chat-mobile-context details summary {
-    cursor: pointer;
-    color: var(--muted-foreground);
-    font-size: 0.625rem;
-    list-style: none;
-    text-align: right;
-  }
-
-  .chat-mobile-context details summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .chat-mobile-context-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.75rem;
-    padding-top: 0.35rem;
-    color: var(--muted-foreground);
-    font-size: 0.6875rem;
-    line-height: 1.1rem;
-  }
-
   .chat-loading-icon {
     display: inline-flex;
     height: 2rem;
