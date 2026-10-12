@@ -36,7 +36,7 @@ type ChartSpec = {
   series?: string[];
 };
 
-const chartColors = ["#f6a400", "#0891b2", "#334155", "#16a34a", "#db2777"];
+const chartColors = ["var(--chart-2)", "var(--chart-1)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 let mermaidReady = false;
 const mermaidParser = mermaid as unknown as { parse: (text: string, options?: { suppressErrors?: boolean }) => Promise<unknown> };
 
@@ -153,20 +153,23 @@ function normalizeMarkdownContent(content: string) {
 }
 
 function DataChart({ source }: { source: string }) {
+  const chartId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const spec = parseChart(source);
   if (!spec) return <pre className="my-2 max-w-full overflow-x-auto rounded-md border border-amber-500/25 bg-amber-500/10 p-2.5 font-mono text-[10px] leading-4 text-amber-800 dark:text-amber-200">{source}</pre>;
   const xKey = spec.xKey || (spec.data[0].name !== undefined ? "name" : "label");
   const series = chartKeys(spec);
   const data = spec.data.map((item, index) => ({ ...item, [xKey]: item[xKey] ?? `Item ${index + 1}` }));
-  const common = { data, margin: { top: 6, right: 8, left: -20, bottom: 0 } };
-  return <figure className="my-2 max-w-full overflow-hidden bg-background p-0">
-    {spec.title && <figcaption className="mb-1.5 text-[10px] font-medium text-foreground">{spec.title}</figcaption>}
-    <div className="h-44 min-w-0 w-full sm:h-48">
+  const common = { data, margin: { top: 10, right: 12, left: 4, bottom: 4 } };
+  const summary = `${spec.title ? `${spec.title}. ` : ""}${data.length} data points across ${series.join(", ")}.`;
+  return <figure className="chat-chart my-3 max-w-full overflow-hidden rounded-xl border border-foreground/10 bg-background p-3" aria-label={summary}>
+    <div className="mb-2 flex items-start justify-between gap-3"><figcaption className="text-xs font-semibold text-foreground">{spec.title || "Data overview"}</figcaption><span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{spec.type} chart</span></div>
+    <p className="sr-only">{summary}</p>
+    <div className="h-52 min-w-0 w-full sm:h-56">
       <ResponsiveContainer width="100%" height="100%">
-        {spec.type === "pie" ? <PieChart><Tooltip contentStyle={{ borderRadius: 6, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "none", fontSize: 11 }} /><Legend wrapperStyle={{ fontSize: 10, color: "var(--muted-foreground)" }} /><Pie data={data} dataKey={spec.valueKey || series[0]} nameKey={xKey} cx="50%" cy="50%" outerRadius="70%" paddingAngle={2}>{data.map((_, index) => <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />)}</Pie></PieChart>
-          : spec.type === "bar" ? <BarChart {...common}><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey={xKey} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><Tooltip contentStyle={{ borderRadius: 6, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "none", fontSize: 11 }} /><Legend wrapperStyle={{ fontSize: 10, color: "var(--muted-foreground)" }} />{series.map((key, index) => <Bar key={key} dataKey={key} fill={chartColors[index % chartColors.length]} radius={[3, 3, 0, 0]} maxBarSize={28} />)}</BarChart>
-          : spec.type === "area" ? <AreaChart {...common}><defs>{series.map((key, index) => <linearGradient key={key} id={`${idSafe(key)}-gradient`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={chartColors[index % chartColors.length]} stopOpacity={0.28} /><stop offset="95%" stopColor={chartColors[index % chartColors.length]} stopOpacity={0.02} /></linearGradient>)}</defs><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey={xKey} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><Tooltip contentStyle={{ borderRadius: 6, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "none", fontSize: 11 }} /><Legend wrapperStyle={{ fontSize: 10, color: "var(--muted-foreground)" }} />{series.map((key, index) => <Area key={key} type="monotone" dataKey={key} stroke={chartColors[index % chartColors.length]} fill={`url(#${idSafe(key)}-gradient)`} strokeWidth={1.5} />)}</AreaChart>
-          : <LineChart {...common}><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey={xKey} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><Tooltip contentStyle={{ borderRadius: 6, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "none", fontSize: 11 }} /><Legend wrapperStyle={{ fontSize: 10, color: "var(--muted-foreground)" }} />{series.map((key, index) => <Line key={key} type="monotone" dataKey={key} stroke={chartColors[index % chartColors.length]} strokeWidth={1.5} dot={{ r: 2 }} />)}</LineChart>}
+        {spec.type === "pie" ? <PieChart><Tooltip contentStyle={{ borderRadius: 8, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "var(--depth-floating-shadow)", fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11, color: "var(--muted-foreground)" }} /><Pie data={data} dataKey={spec.valueKey || series[0]} nameKey={xKey} cx="50%" cy="46%" outerRadius="64%" paddingAngle={2}>{data.map((_, index) => <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />)}</Pie></PieChart>
+          : spec.type === "bar" ? <BarChart {...common}><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey={xKey} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={34} /><Tooltip contentStyle={{ borderRadius: 8, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "var(--depth-floating-shadow)", fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11, color: "var(--muted-foreground)" }} />{series.map((key, index) => <Bar key={key} dataKey={key} fill={chartColors[index % chartColors.length]} radius={[4, 4, 0, 0]} maxBarSize={34} />)}</BarChart>
+          : spec.type === "area" ? <AreaChart {...common}><defs>{series.map((key, index) => <linearGradient key={key} id={`${chartId}-${idSafe(key)}-gradient`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={chartColors[index % chartColors.length]} stopOpacity={0.28} /><stop offset="95%" stopColor={chartColors[index % chartColors.length]} stopOpacity={0.02} /></linearGradient>)}</defs><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey={xKey} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={34} /><Tooltip contentStyle={{ borderRadius: 8, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "var(--depth-floating-shadow)", fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11, color: "var(--muted-foreground)" }} />{series.map((key, index) => <Area key={key} type="monotone" dataKey={key} stroke={chartColors[index % chartColors.length]} fill={`url(#${chartId}-${idSafe(key)}-gradient)`} strokeWidth={2} />)}</AreaChart>
+          : <LineChart {...common}><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey={xKey} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={34} /><Tooltip contentStyle={{ borderRadius: 8, backgroundColor: "var(--popover)", color: "var(--popover-foreground)", borderColor: "var(--border)", boxShadow: "var(--depth-floating-shadow)", fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11, color: "var(--muted-foreground)" }} />{series.map((key, index) => <Line key={key} type="monotone" dataKey={key} stroke={chartColors[index % chartColors.length]} strokeWidth={2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />)}</LineChart>}
       </ResponsiveContainer>
     </div>
   </figure>;
@@ -254,16 +257,16 @@ const components: Components = {
     return <code className={`rounded bg-foreground/[0.07] px-1 py-0.5 font-mono text-[0.88em] ${className || ""}`} {...props}>{children}</code>;
   },
   pre: ({ children }) => <>{children}</>,
-  table: ({ children, ...props }) => <div className="my-3 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-foreground/10 bg-background shadow-sm"><table className="w-max min-w-full border-separate border-spacing-0 text-left text-[10px] leading-4 [font-variant-numeric:tabular-nums] sm:text-[11px]" {...props}>{children}</table></div>,
+  table: ({ children, ...props }) => <div className="chat-data-table my-3 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-foreground/10 bg-background shadow-sm"><table className="w-max min-w-full border-separate border-spacing-0 text-left text-[11px] leading-5 [font-variant-numeric:tabular-nums] sm:text-xs" {...props}>{children}</table></div>,
   thead: ({ children, ...props }) => <thead className="bg-foreground/[0.045]" {...props}>{children}</thead>,
   tbody: ({ children, ...props }) => <tbody className="[&>tr:nth-child(even)]:bg-foreground/[0.018] [&>tr:last-child>td]:border-b-0" {...props}>{children}</tbody>,
   tr: ({ children, ...props }) => <tr className="transition-colors hover:bg-foreground/[0.035]" {...props}>{children}</tr>,
-  th: ({ children, ...props }) => <th className="max-w-[18rem] whitespace-normal border-b border-foreground/10 px-3 py-2 text-left font-medium uppercase tracking-[0.04em] leading-4 text-foreground sm:px-3.5" {...props}>{children}</th>,
+  th: ({ children, ...props }) => <th scope="col" className="sticky top-0 max-w-[18rem] whitespace-normal border-b border-foreground/10 bg-foreground/[0.045] px-3 py-2.5 text-left font-semibold leading-4 text-foreground sm:px-3.5" {...props}>{children}</th>,
   td: ({ children, ...props }) => <td className="min-w-[7.5rem] max-w-[24rem] border-b border-foreground/10 px-3 py-2.5 align-top leading-5 [overflow-wrap:break-word] [word-break:normal] sm:px-3.5" {...props}>{children}</td>,
 };
 
 export function MarkdownMessage({ content, streaming = false, className = "" }: { content: string; streaming?: boolean; className?: string }) {
-  return <div aria-live={streaming ? "polite" : undefined} className={`markdown-message min-w-0 break-words tabular-nums text-foreground [&_.katex-display]:my-2 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[0.9em] ${streaming ? "[&>p:last-child]:after:ml-0.5 [&>p:last-child]:after:inline-block [&>p:last-child]:after:animate-pulse [&>p:last-child]:after:content-['▍'] [&>p:last-child]:after:text-chusky-amber motion-reduce:[&>p:last-child]:after:animate-none" : ""} ${className}`}>
+  return <div className={`markdown-message min-w-0 max-w-[72ch] break-words tabular-nums text-foreground [&_.katex-display]:my-2 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:py-1 [&_.katex]:text-[0.9em] ${streaming ? "[&>p:last-child]:after:ml-0.5 [&>p:last-child]:after:inline-block [&>p:last-child]:after:animate-pulse [&>p:last-child]:after:content-['▍'] [&>p:last-child]:after:text-chusky-amber motion-reduce:[&>p:last-child]:after:animate-none" : ""} ${className}`}>
     <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={components}>{normalizeMarkdownContent(content)}</ReactMarkdown>
   </div>;
 }
