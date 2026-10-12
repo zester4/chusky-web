@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ACTIVE_RUN_RECOVERY_INTERVAL_MS, DASHBOARD_IDLE_TIMEOUT_MS, DASHBOARD_REFRESH_INTERVAL_MS, DASHBOARD_RETURN_REFRESH_COOLDOWN_MS, shouldPollDashboard, shouldRefreshAfterReturn } from "../lib/polling-policy";
+import { ACTIVE_MISSION_REFRESH_INTERVAL_MS, ACTIVE_RUN_RECOVERY_INTERVAL_MS, DASHBOARD_IDLE_TIMEOUT_MS, DASHBOARD_REFRESH_INTERVAL_MS, DASHBOARD_RETURN_REFRESH_COOLDOWN_MS, shouldPollDashboard, shouldRefreshAfterReturn } from "../lib/polling-policy";
 
 test("dashboard refreshes use a bounded background cadence", () => {
   assert.equal(DASHBOARD_REFRESH_INTERVAL_MS, 60_000);
   assert.ok(DASHBOARD_REFRESH_INTERVAL_MS >= 30_000);
+  assert.equal(ACTIVE_MISSION_REFRESH_INTERVAL_MS, 15_000);
+  assert.ok(ACTIVE_MISSION_REFRESH_INTERVAL_MS < DASHBOARD_REFRESH_INTERVAL_MS);
 });
 
 test("dashboard polling pauses when hidden or unattended", () => {

@@ -5,6 +5,9 @@
  */
 export const DASHBOARD_REFRESH_INTERVAL_MS = 60_000;
 
+/** More frequent, still bounded refreshes while durable missions can transition. */
+export const ACTIVE_MISSION_REFRESH_INTERVAL_MS = 15_000;
+
 /** Stop background refreshes when a dashboard has been left unattended. */
 export const DASHBOARD_IDLE_TIMEOUT_MS = 120_000;
 

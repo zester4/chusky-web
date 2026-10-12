@@ -6,12 +6,25 @@ import { chuskyApi, type Mission, type MissionDoctor, type MissionProof, type Mi
 import { AppShellContext, Button, Card, PageHeading, Status } from "./app-shell";
 import { useLiveData } from "@/lib/live-sync";
 import { MarkdownMessage } from "./markdown-message";
+import { ACTIVE_MISSION_REFRESH_INTERVAL_MS, DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 
 const tone = (status: Mission["status"]): "green" | "amber" | "gray" => status === "completed" ? "green" : ["blocked", "failed", "paused", "waiting"].includes(status) ? "amber" : "gray";
 const date = (value: number) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 const short = (value: string, max = 180) => value.length > max ? `${value.slice(0, max - 1)}…` : value;
 const label = (value: string) => value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (character) => character.toUpperCase());
-type MissionDetail = { mission: Mission; proof?: MissionProof; doctor?: MissionDoctor; events: Mission["events"] };
+type MissionDetail = { mission: Mission; proof?: MissionProof; doctor?: MissionDoctor; events: Mission["events"]; unavailable?: string[] };
+
+function missionContinuation(mission: Mission, timerDue = false): string {
+  if (mission.status === "waiting" && mission.waiting?.kind === "timer") {
+    const step = mission.waiting.stepId ? mission.steps.find((item) => item.id === mission.waiting?.stepId) : undefined;
+    const active = step && step.status === "running" && mission.activeStepIds?.includes(step.id);
+    if (mission.waiting.stepId && !active) return "Saved timer continuation needs repair; its step is no longer active.";
+    const dueAt = mission.waiting.runAt;
+    const timing = dueAt ? timerDue ? "Timer is due; waiting for the worker to resume" : `Timer target ${date(dueAt)}` : "Timer due time unavailable";
+    return `${timing}${step ? ` · Next: ${step.title}` : ""}`;
+  }
+  return mission.nextAction || mission.checkpoint || short(mission.objective, 180);
+}
 
 function EvidenceStatus({ verified, verifiedBy }: { verified: boolean; verifiedBy?: string }) {
   return <span className={`inline-flex max-w-full items-center gap-1 rounded-full px-2 py-1 text-[9px] font-medium ${verified ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-800 dark:text-amber-200"}`}>
@@ -142,15 +155,23 @@ export function MissionsPage() {
     setDetailBusy(mission.id);
     setDetailError(undefined);
     try {
-      const [fresh, proof, doctor, events] = await Promise.all([
+      const [freshResult, proofResult, doctorResult, eventsResult] = await Promise.allSettled([
         chuskyApi.missions.get(mission.id),
-        chuskyApi.missions.proof(mission.id).catch(() => undefined),
-        chuskyApi.missions.doctor(mission.id).catch(() => undefined),
-        chuskyApi.missions.events(mission.id, 5000).catch(() => ({ data: mission.events })),
+        chuskyApi.missions.proof(mission.id),
+        chuskyApi.missions.doctor(mission.id),
+        chuskyApi.missions.events(mission.id, 5000),
       ]);
+      if (freshResult.status === "rejected") throw freshResult.reason;
+      const fresh = freshResult.value;
+      const unavailable = [
+        ...(proofResult.status === "rejected" ? ["evidence proof"] : []),
+        ...(doctorResult.status === "rejected" ? ["runtime diagnosis"] : []),
+        ...(eventsResult.status === "rejected" ? ["durable event history"] : []),
+      ];
       if (requestId !== detailRequestRef.current || selectedMissionRef.current !== mission.id) return;
       setMissions((current) => current.map((item) => item.id === fresh.id ? fresh : item));
-      setSelected({ mission: fresh, proof, doctor, events: events.data });
+      setSelected({ mission: fresh, proof: proofResult.status === "fulfilled" ? proofResult.value : undefined, doctor: doctorResult.status === "fulfilled" ? doctorResult.value : undefined, events: eventsResult.status === "fulfilled" ? eventsResult.value.data : [], unavailable });
+      setDetailError(undefined);
     } catch (cause) {
       if (requestId !== detailRequestRef.current || selectedMissionRef.current !== mission.id) return;
       setDetailError(cause instanceof Error ? cause.message : "Mission details could not be loaded.");
@@ -185,7 +206,7 @@ export function MissionsPage() {
   useLiveData(async () => {
     await load();
     if (selected && selectedMissionRef.current === selected.mission.id) await loadDetail(selected.mission);
-  });
+  }, missions.some((mission) => !["completed", "cancelled", "failed"].includes(mission.status)) ? ACTIVE_MISSION_REFRESH_INTERVAL_MS : DASHBOARD_REFRESH_INTERVAL_MS);
 
   const act = async (mission: Mission, action: "pause" | "resume" | "cancel" | "repair") => {
     setBusy(mission.id);
@@ -226,21 +247,22 @@ export function MissionsPage() {
     return <div key={mission.id} className="min-w-0 border-b border-foreground/10 p-3 last:border-0 sm:p-4">
       <button type="button" className="min-h-11 w-full min-w-0 text-left" onClick={() => toggleDetail(mission, isSelected)} disabled={detailBusy === mission.id && !isSelected} aria-expanded={isSelected} aria-controls={detailId}>
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2"><div className="min-w-0"><p className="text-xs font-medium leading-4">{mission.title}</p><p className="mt-1 font-mono text-[9px] leading-4 text-muted-foreground [overflow-wrap:anywhere]">{mission.id} · updated {date(mission.updatedAt)}</p></div><span className="flex items-center gap-2"><Status tone={tone(mission.status)}>{mission.status}</Status><ChevronDown size={13} className={`mt-1 shrink-0 text-muted-foreground transition-transform ${isSelected ? "rotate-180" : ""}`} aria-hidden="true" /></span></div>
-        <p className="mt-2 text-[11px] leading-[1.45rem] text-muted-foreground [overflow-wrap:anywhere]">{mission.nextAction || mission.checkpoint || short(mission.objective, 180)}</p>
-        <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground"><span>{mission.consumedSteps} slices</span><span>{mission.toolCalls} tool calls</span><span>${mission.cost.toFixed(4)}</span><span>{mission.steps.length} steps</span>{mission.activeStepIds?.length ? <span>{mission.activeStepIds.length} active branches</span> : null}</div>
+        <p className="mt-2 text-[11px] leading-[1.45rem] text-muted-foreground [overflow-wrap:anywhere]">{missionContinuation(mission)}</p>
+        <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground"><span>{mission.consumedSlices ?? 0} execution slices</span><span>{mission.toolCalls} tool calls</span><span>${mission.cost.toFixed(4)}</span><span>{mission.steps.length} steps</span>{mission.activeStepIds?.length ? <span>{mission.activeStepIds.length} active branches</span> : null}</div>
       </button>
       {isSelected && <div id={detailId} className="mission-detail-panel mt-3 min-w-0 space-y-3 border-t border-foreground/10 pt-3 text-[11px] text-muted-foreground sm:mt-4 sm:space-y-4 sm:pt-4">
+        {selected?.unavailable?.length ? <div role="status" className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-[10px] text-amber-900">Some mission details could not be refreshed: {selected.unavailable.join(", ")}. Refresh to retry; the sections are hidden rather than shown from an older snapshot.</div> : null}
         <details className="mission-disclosure group min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[10px] font-medium text-foreground [&::-webkit-details-marker]:hidden"><span>Objective and definition of done</span><ChevronDown size={13} aria-hidden="true" className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180" /></summary><div className="mission-markdown-panel mt-3 min-w-0 space-y-3"><div><p className="mb-1 text-[10px] font-medium text-foreground">Objective</p><MarkdownMessage className="mission-markdown" content={mission.objective} /></div><div><p className="mb-1 text-[10px] font-medium text-foreground">Definition of done</p><MarkdownMessage className="mission-markdown" content={mission.definitionOfDone} /></div></div></details>
         <MissionDoctorPanel doctor={doctor} />
-        {mission.waiting && <div className="flex min-w-0 items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 sm:p-3"><Timer size={14} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" /><p className="min-w-0 [overflow-wrap:anywhere]">Waiting for {mission.waiting.kind}{mission.waiting.provider ? ` from ${mission.waiting.provider}` : ""}{mission.waiting.providerEventId ? ` · ${mission.waiting.providerEventId}` : ""}</p></div>}
+        {mission.waiting && <div className="flex min-w-0 items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 sm:p-3"><Timer size={14} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" /><p className="min-w-0 [overflow-wrap:anywhere]">Waiting for {mission.waiting.kind}{mission.waiting.provider ? ` from ${mission.waiting.provider}` : ""}{mission.waiting.providerEventId ? ` · ${mission.waiting.providerEventId}` : ""}{mission.waiting.kind === "timer" ? ` · ${missionContinuation(mission, doctor?.waiting?.overdue)}` : mission.waiting.stepId ? ` · resumes ${mission.steps.find((step) => step.id === mission.waiting?.stepId)?.title ?? "an unresolved step"}` : ""}</p></div>}
         <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
           <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Verification</p><p className="mt-1 flex items-center gap-1.5 text-foreground">{mission.verification?.verified ? <CheckCircle2 size={13} aria-hidden="true" /> : <CircleAlert size={13} aria-hidden="true" />}{mission.verification?.verified ? "Verified" : "Not verified"}</p><p className="mt-1 text-[10px]">{mission.verification?.mode === "strict" ? "Strict evidence gate" : "Legacy completion mode"}</p>{mission.verification?.reason && <p className="mt-1 [overflow-wrap:anywhere]">{mission.verification.reason}</p>}</div>
           <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Budget</p><p className="mt-1 text-foreground">{mission.consumedSteps}/{mission.budget.maxSteps} plan steps</p><p className="mt-1 text-[10px] [overflow-wrap:anywhere]">{mission.consumedSlices ?? 0}/{mission.budget.maxSlices ?? "∞"} slices · {mission.toolCalls}/{mission.budget.maxToolCalls} tools</p><p className="mt-1 text-[10px] [overflow-wrap:anywhere]">${mission.cost.toFixed(4)} / ${mission.budget.maxCost.toFixed(4)}</p></div>
           <div className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Timing and proof</p><p className="mt-1 text-foreground">{mission.timing ? `${seconds(mission.timing.activeMs / 1000)} active` : "Timing unavailable"} · {mission.budget.durationMode ?? "wall_clock"}</p><p className="mt-1 flex items-center gap-1.5 text-foreground"><ShieldCheck size={13} aria-hidden="true" />{(proof?.evidence ?? mission.evidence ?? []).length} evidence records</p><p className="mt-1 text-[10px]">{eventList.length} durable events</p></div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="min-w-0 rounded-md border border-foreground/10 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Work window</p>{mission.workSchedule ? <><p className="mt-1 text-foreground">{mission.workSchedule.windowStart}–{mission.workSchedule.windowEnd} · {mission.workSchedule.timezone}</p><p className="mt-1 text-[10px]">{seconds(mission.workSchedule.dailyBudgetSeconds)} per day · wakes every {seconds(mission.workSchedule.cadenceSeconds)}</p></> : <p className="mt-1 text-[10px]">No daily window configured; the worker follows the mission’s durable timers and waits.</p>}</div>
-          <div className="min-w-0 rounded-md border border-foreground/10 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Continuation</p><p className="mt-1 break-words text-foreground">{mission.nextAction || "Continue from the saved checkpoint."}</p>{mission.budgetCeiling && <p className="mt-1 text-[10px]">Owner ceilings are active; policy changes remain bounded.</p>}</div>
+          <div className="min-w-0 rounded-md border border-foreground/10 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Work window</p>{mission.workSchedule ? <><p className="mt-1 text-foreground">{mission.workSchedule.windowStart}–{mission.workSchedule.windowEnd} · {mission.workSchedule.timezone}</p><p className="mt-1 text-[10px]">{seconds(mission.workSchedule.dailyBudgetSeconds)} per day · worker cadence {seconds(mission.workSchedule.cadenceSeconds)}</p></> : <p className="mt-1 text-[10px]">No daily window configured; the worker follows the mission’s durable timers and waits.</p>}</div>
+          <div className="min-w-0 rounded-md border border-foreground/10 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Continuation</p><p className="mt-1 break-words text-foreground">{missionContinuation(mission, doctor?.waiting?.overdue)}</p>{mission.budgetCeiling && <p className="mt-1 text-[10px]">Owner ceilings are active; policy changes remain bounded.</p>}</div>
         </div>
         <MissionControlForm mission={mission} disabled={busy === mission.id} onSave={(input) => saveControl(mission, input)} />
         <section className="min-w-0 space-y-2" aria-label="Mission steps and dependencies"><div className="flex items-center gap-2 text-foreground"><GitBranch size={13} aria-hidden="true" /><span className="font-medium">Step map</span><span className="text-[10px] text-muted-foreground">{mission.steps.length} steps · dependencies and active branches</span></div>
@@ -258,7 +280,7 @@ export function MissionsPage() {
         </section>
         {(proof?.evidence ?? mission.evidence ?? []).length > 0 && <details className="mission-disclosure group min-w-0 rounded-md border border-foreground/10 bg-foreground/[0.015] p-2.5 sm:p-3"><summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-medium text-foreground [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-1.5"><ChevronDown size={13} aria-hidden="true" className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />Evidence records</span><span className="rounded-full bg-foreground/[0.06] px-2 py-1 font-mono text-[9px] text-muted-foreground">{(proof?.evidence ?? mission.evidence ?? []).length}</span></summary><ul className="mt-3 space-y-2">{(proof?.evidence ?? mission.evidence ?? []).map((item) => <EvidenceRecord key={item.id} item={item} />)}</ul></details>}
         {eventList.length > 0 && <section className="min-w-0" aria-label="Recent activity"><div className="mb-2 flex items-baseline justify-between gap-2"><p className="font-medium text-foreground">Recent activity</p><span className="font-mono text-[9px] text-muted-foreground">{Math.min(eventList.length, 5)} shown</span></div><div className="space-y-2.5">{eventList.slice(-5).reverse().map((event) => <ActivityRecord key={event.id} event={event} />)}</div></section>}
-        <div className="flex flex-wrap gap-2 border-t border-foreground/10 pt-3">{["running", "waiting"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "pause")}>Pause</Button>}{["paused", "blocked", "failed"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "resume")}>Resume</Button>}{["blocked", "failed"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "repair")}>Repair and resume</Button>}{!["completed", "cancelled"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "cancel")}>Cancel</Button>}</div>
+        <div className="flex flex-wrap gap-2 border-t border-foreground/10 pt-3">{["running", "waiting"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "pause")}>Pause</Button>}{["paused", "blocked", "failed"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "resume")}>Resume</Button>}{(["blocked", "failed"].includes(mission.status) || (mission.status === "waiting" && doctor?.reasons.includes("mission_wait_step_mismatch"))) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "repair")}>Repair saved continuation</Button>}{!["completed", "cancelled"].includes(mission.status) && <Button secondary disabled={busy === mission.id} onClick={() => void act(mission, "cancel")}>Cancel</Button>}</div>
       </div>}
     </div>;
   };
