@@ -1,6 +1,7 @@
 {
   "name": "my-v0-project",
   "version": "0.1.0",
+  "packageManager": "pnpm@11.1.1",
   "private": true,
   "scripts": {
     "build": "next build --webpack",
