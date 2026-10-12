@@ -72,7 +72,7 @@ function pulseReceiptAt(receipt: PulseReceipt): string | number | undefined {
   return receipt.completedAt || receipt.updatedAt || receipt.startedAt || receipt.createdAt;
 }
 
-function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCount, onClose, onOpenApprovals, onOpenPulse, onOpenTrigger, onClearNotifications }: {
+function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCount, onClose, onOpenApprovals, onOpenPulse, onOpenTrigger, onOpenMission, onOpenMissionChat, onClearNotifications }: {
   account?: AccountOverview;
   attentionEvents: AccountOverview["triggerEvents"];
   pulseReceipt?: PulseReceipt;
@@ -81,6 +81,8 @@ function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCoun
   onOpenApprovals: () => void;
   onOpenPulse: () => void;
   onOpenTrigger: (eventId: string) => void;
+  onOpenMission: (missionId: string) => void;
+  onOpenMissionChat: () => void;
   onClearNotifications: () => Promise<number>;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -89,8 +91,9 @@ function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCoun
   const candidates = account?.attentionCandidates ?? [];
   const hasPulseItem = Boolean(pulseReceipt);
   const approvals = account?.approvals ?? [];
-  const hasMore = approvals.length > 3 || candidates.length > 4 || attentionEvents.length > 4;
-  const clearableCount = candidates.length + attentionEvents.length + Number(hasPulseItem);
+  const missionNotifications = (account?.missionNotifications ?? []).filter((item) => item.unread);
+  const hasMore = approvals.length > 3 || candidates.length > 4 || attentionEvents.length > 4 || missionNotifications.length > 4;
+  const clearableCount = candidates.length + attentionEvents.length + missionNotifications.length + Number(hasPulseItem);
   const clearNotifications = async () => {
     setClearing(true);
     setClearError("");
@@ -107,7 +110,7 @@ function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCoun
     <div className="flex items-start justify-between gap-3 border-b border-foreground/10 bg-foreground/[0.025] px-3.5 py-3">
       <div className="min-w-0">
         <div className="flex items-center gap-2"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"><Bell size={12}/></span><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Attention center</p>
-          <button type="button" onClick={() => void clearNotifications()} disabled={!clearableCount || clearing} title="Clear trigger notifications and suggestions. Pending approvals stay until resolved." className="ml-1 inline-flex min-h-5 items-center rounded border border-foreground/15 px-1.5 font-mono text-[8px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Clear trigger notifications and suggestions">{clearing ? "Clearing" : "Clear"}</button>
+          <button type="button" onClick={() => void clearNotifications()} disabled={!clearableCount || clearing} title="Clear unread mission and trigger updates and suggestions. Pending approvals stay until resolved." className="ml-1 inline-flex min-h-5 items-center rounded border border-foreground/15 px-1.5 font-mono text-[8px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Clear unread updates and suggestions">{clearing ? "Clearing" : "Clear"}</button>
         </div>
         <p className="mt-2 text-xs font-medium">What needs your attention</p><p className="mt-0.5 text-[10px] text-muted-foreground">{attentionCount ? `${attentionCount} active item${attentionCount === 1 ? "" : "s"}` : "You’re clear for now"}</p>
       </div>
@@ -120,9 +123,10 @@ function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCoun
     {attentionEvents.slice(0, expanded ? 20 : 4).map((event) => {
       const statusLabel = event.status === "running" || event.status === "queued" ? "Chusky is handling this" : event.status === "awaiting_approval" ? "Approval needed" : event.status === "failed" ? "Handling failed" : "Handled";
       const display = event.result || (event.status === "running" || event.status === "queued" ? "Chusky is processing this event." : event.status === "awaiting_approval" ? "Chusky paused because this action needs your approval." : event.status === "failed" ? "Chusky could not complete this event." : event.summary);
-      return <button key={`trigger-${event.id}`} type="button" onClick={() => onOpenTrigger(event.id)} className="group flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.05] focus-visible:outline-none"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10"><TriggerLogo slug={event.slug || "chusky"} size={22}/></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">{triggerProviderBrand(event.slug || "chusky").name} · {statusLabel}</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(event.createdAt)}</span></span><MarkdownMessage content={display} className="mt-1 line-clamp-2 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" />{event.status === "completed" && (event.notificationStatus === "failed" || event.notificationStatus === "unknown") && <span className="mt-1 block text-[9px] text-amber-800">Saved in dashboard · owner notification {event.notificationStatus === "unknown" ? "status unconfirmed" : "delivery needs checking"}</span>}<span className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700">Open activity <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5"/></span></span></button>;
+      return <button key={`trigger-${event.id}`} type="button" onClick={() => onOpenTrigger(event.id)} className="group flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.05] focus-visible:outline-none"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10"><TriggerLogo slug={event.slug || "chusky"} size={22}/></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-medium">{triggerProviderBrand(event.slug || "chusky").name} · {statusLabel}</span><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(event.createdAt)}</span></span><MarkdownMessage content={display} className="mt-1 line-clamp-2 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0" />{event.status === "completed" && (event.notificationStatus === "failed") && <span className="mt-1 block text-[9px] text-amber-800">Saved in dashboard · owner notification delivery needs checking</span>}<span className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700">Open activity <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5"/></span></span></button>;
     })}
-    {!approvals.length && !candidates.length && !attentionEvents.length && !hasPulseItem && <div className="px-4 py-8 text-center"><span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-foreground/[0.04] text-muted-foreground"><CheckCircle2 size={18}/></span><p className="mt-2 text-[11px] font-medium">Nothing needs your attention</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{account?.features?.attentionPulse === true ? "Elena will surface the next useful step here." : "Chusky will surface the next useful step here."}</p></div>}
+    {missionNotifications.slice(0, expanded ? 20 : 4).map((mission) => <div key={`mission-${mission.id}`} className="flex items-start gap-3 border-b border-foreground/10 px-4 py-3.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sky-500/20 bg-sky-500/10"><Workflow size={15} className="text-sky-700"/></span><div className="min-w-0 flex-1"><p className="text-[11px] font-medium">Mission {mission.status === "completed" ? "completed" : mission.status === "failed" ? "needs attention" : "cancelled"}</p><p className="mt-0.5 truncate text-[10px] text-foreground">{mission.title}</p><MarkdownMessage content={mission.summary} className="mt-1 line-clamp-2 text-muted-foreground [&_p]:my-0 [&_p]:text-[10px] [&_p]:leading-4 [&_ul]:my-0 [&_ol]:my-0"/><div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-medium"><button type="button" onClick={() => onOpenMission(mission.id)} className="inline-flex items-center gap-1 text-sky-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25">Open mission <ArrowRight size={10}/></button><button type="button" onClick={onOpenMissionChat} className="text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25">View chat update</button></div></div><span className="shrink-0 font-mono text-[8px] text-muted-foreground">{relativeTime(mission.updatedAt)}</span></div>)}
+    {!approvals.length && !candidates.length && !attentionEvents.length && !missionNotifications.length && !hasPulseItem && <div className="px-4 py-8 text-center"><span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-foreground/[0.04] text-muted-foreground"><CheckCircle2 size={18}/></span><p className="mt-2 text-[11px] font-medium">Nothing needs your attention</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{account?.features?.attentionPulse === true ? "Elena will surface the next useful step here." : "Chusky will surface the next useful step here."}</p></div>}
     </div>
     {clearError && <p className="border-t border-rose-500/15 bg-rose-500/[0.04] px-3.5 py-2 text-[9px] text-rose-700" role="alert">{clearError}</p>}
     <button type="button" onClick={onOpenApprovals} className="flex w-full items-center justify-between border-t border-foreground/10 bg-foreground/[0.018] px-4 py-3 text-[10px] font-medium transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/20">Open approvals and activity <ArrowRight size={13} /></button>
@@ -130,7 +134,7 @@ function AttentionCenter({ account, attentionEvents, pulseReceipt, attentionCoun
 }
 
 export type ChatHeader = { title: string; status: "loading" | "ready" | "offline" };
-export const AppShellContext = createContext<{ setChatHeader: (header?: ChatHeader) => void }>({ setChatHeader: () => undefined });
+export const AppShellContext = createContext<{ setChatHeader: (header?: ChatHeader) => void; missionToOpen?: string; setMissionToOpen: (missionId?: string) => void }>({ setChatHeader: () => undefined, setMissionToOpen: () => undefined });
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -142,7 +146,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [branding, setBranding] = useState<CompanyBranding>();
   const [attentionOpen, setAttentionOpen] = useState(false);
   const [chatHeader, setChatHeader] = useState<ChatHeader>();
+  const [missionToOpen, setMissionToOpen] = useState<string>();
   const [dismissedPulseReceiptId, setDismissedPulseReceiptId] = useState<string>();
+  const [missionToastId, setMissionToastId] = useState<string>();
   const lastActivityRefreshAtRef = useRef(0);
   const dashboardLastActivityAtRef = useRef(0);
   const { data: session } = authClient.useSession();
@@ -157,7 +163,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session?.user?.id || typeof window === "undefined" || typeof window.EventSource === "undefined") return;
     const stream = new EventSource("/v1/account/notifications/stream");
-    const refresh = () => { notifyChuskyDataChanged(); void chuskyApi.account.get().then(setAccount).catch(() => undefined); };
+    const refresh = (raw?: Event) => {
+      notifyChuskyDataChanged();
+      void chuskyApi.account.get().then(setAccount).catch(() => undefined);
+      if (raw instanceof MessageEvent) {
+        try { const data = JSON.parse(String(raw.data)) as { events?: Array<{ kind?: string; missionId?: string }> }; const mission = data.events?.find((event) => event.kind === "mission" && event.missionId); if (mission?.missionId) setMissionToastId(mission.missionId); } catch { /* Durable account polling remains the replay path. */ }
+      }
+    };
     stream.addEventListener("notification", refresh);
     return () => { stream.removeEventListener("notification", refresh); stream.close(); };
   }, [session?.user?.id]);
@@ -218,6 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Read state controls whether a trigger remains in the notification center.
   // Failed and approval-waiting runs remain available in Activity/Approvals.
   const attentionEvents = (account?.triggerEvents ?? []).filter((event) => !event.webReadAt);
+  const unreadMissionNotifications = (account?.missionNotifications ?? []).filter((item) => item.unread);
   const elenaEnabled = account?.features?.attentionPulse === true;
   const latestPulseReceipt = elenaEnabled ? account?.attentionPulse?.lastOccurrence : undefined;
   const pulseReceipt = latestPulseReceipt?.id === dismissedPulseReceiptId ? undefined : latestPulseReceipt;
@@ -227,17 +240,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     try { setDismissedPulseReceiptId(window.localStorage.getItem(`chusky:attention:pulse-read:${session.user.id}`) || undefined); }
     catch { setDismissedPulseReceiptId(undefined); }
   }, [session?.user?.id]);
-  const attentionCount = (account?.approvals.length ?? 0) + (account?.attentionCandidates.length ?? 0) + attentionEvents.length + (pulseNeedsAttention ? 1 : 0);
+  const attentionCount = (account?.approvals.length ?? 0) + (account?.attentionCandidates.length ?? 0) + attentionEvents.length + unreadMissionNotifications.length + (pulseNeedsAttention ? 1 : 0);
   const clearAttentionNotifications = async (): Promise<number> => {
     const events = [...attentionEvents];
     const candidates = [...(account?.attentionCandidates ?? [])];
-    const [eventResults, candidateResults] = await Promise.all([
+    const missions = [...unreadMissionNotifications];
+    const [eventResults, candidateResults, missionResults] = await Promise.all([
       Promise.allSettled(events.map((event) => chuskyApi.triggers.markEventRead(event.id))),
       Promise.allSettled(candidates.map((candidate) => chuskyApi.account.dismissAttentionCandidate(candidate.id))),
+      Promise.allSettled(missions.map((mission) => chuskyApi.missions.markNotificationRead(mission.id))),
     ]);
     const readAt = new Date().toISOString();
     const readEventIds = new Set(events.filter((_, index) => eventResults[index]?.status === "fulfilled").map((event) => event.id));
     const dismissedCandidateIds = new Set(candidates.filter((_, index) => candidateResults[index]?.status === "fulfilled").map((candidate) => candidate.id));
+    const readMissionIds = new Set(missions.filter((_, index) => missionResults[index]?.status === "fulfilled").map((mission) => mission.id));
     if (pulseReceipt) {
       setDismissedPulseReceiptId(pulseReceipt.id);
       try { window.localStorage.setItem(`chusky:attention:pulse-read:${session?.user?.id ?? "unknown"}`, pulseReceipt.id); } catch { /* The current view is still cleared if local storage is unavailable. */ }
@@ -246,10 +262,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       ...current,
       triggerEvents: current.triggerEvents.map((event) => readEventIds.has(event.id) ? { ...event, needsAttention: false, webReadAt: readAt } : event),
       attentionCandidates: current.attentionCandidates.filter((candidate) => !dismissedCandidateIds.has(candidate.id)),
+      missionNotifications: current.missionNotifications.map((mission) => readMissionIds.has(mission.id) ? { ...mission, unread: false } : mission),
     } : current);
-    if (readEventIds.size || dismissedCandidateIds.size) notifyChuskyDataChanged();
-    return eventResults.filter((result) => result.status === "rejected").length + candidateResults.filter((result) => result.status === "rejected").length;
+    if (readEventIds.size || dismissedCandidateIds.size || readMissionIds.size) notifyChuskyDataChanged();
+    return eventResults.filter((result) => result.status === "rejected").length + candidateResults.filter((result) => result.status === "rejected").length + missionResults.filter((result) => result.status === "rejected").length;
   };
+  const markMissionRead = (missionId: string) => {
+    void chuskyApi.missions.markNotificationRead(missionId).then(() => {
+      setAccount((current) => current ? { ...current, missionNotifications: current.missionNotifications.map((item) => item.id === missionId ? { ...item, unread: false } : item) } : current);
+      notifyChuskyDataChanged();
+    }).catch(() => undefined);
+  };
+  const openMission = (missionId: string) => { markMissionRead(missionId); setMissionToOpen(missionId); setAttentionOpen(false); router.push("/app/missions"); };
+  const openMissionChat = () => { for (const mission of unreadMissionNotifications) markMissionRead(mission.id); setMissionToastId(undefined); setAttentionOpen(false); router.push("/app/chat?thread=thr_mission_updates"); };
   const openPulseReport = () => {
     if (pulseReceipt) {
       setDismissedPulseReceiptId(pulseReceipt.id);
@@ -297,9 +322,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <Link key={href} href={href} onClick={() => setOpen(false)} aria-label={label} title={collapsed ? label : undefined} className={cn("flex min-h-9 min-w-0 items-center gap-2 rounded-md py-1.5 text-[11px] transition-colors lg:min-h-0", collapsed ? "px-2.5 lg:justify-center lg:px-2" : "px-2.5", pathname === href ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground")}>
       <span className="flex w-5 shrink-0 items-center justify-center"><Icon size={14} strokeWidth={1.8} aria-hidden="true" /></span><span className={collapsed ? "lg:hidden" : undefined}>{label}</span>
       {label === "Approvals" && attentionCount > 0 && <span className={cn("ml-auto rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-black", collapsed && "lg:hidden")}>{attentionCount}</span>}
+      {label === "Missions" && unreadMissionNotifications.length > 0 && <span className={cn("ml-auto rounded-full bg-sky-500 px-1.5 py-0.5 text-[10px] font-bold text-white", collapsed && "lg:hidden")}>{unreadMissionNotifications.length > 99 ? "99+" : unreadMissionNotifications.length}</span>}
     </Link>
   ));
-  return <AppShellContext.Provider value={{ setChatHeader }}><div className="app-shell min-h-svh text-foreground" style={branding?.backgroundColor ? { backgroundColor: branding.backgroundColor } : undefined}>
+  return <AppShellContext.Provider value={{ setChatHeader, missionToOpen, setMissionToOpen }}><div className="app-shell min-h-svh text-foreground" style={branding?.backgroundColor ? { backgroundColor: branding.backgroundColor } : undefined}>
     <aside className={cn("fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col overflow-hidden border-r border-foreground/10 bg-background transition-[transform,width] duration-200 lg:flex", collapsed && "lg:w-[68px]")}>
       <div className={cn("flex h-14 items-center border-b border-foreground/10 px-4", collapsed ? "justify-center lg:px-2" : "justify-between")}><Link href="/app" className="flex items-center gap-2 font-display text-xl tracking-tight" aria-label={`${brandName} home`} title={collapsed ? `${brandName} home` : undefined}><span className={collapsed ? "lg:hidden" : undefined}>{branding?.logoUrl ? <img src={branding.logoUrl} alt="" className="h-6 w-6 object-contain" /> : <>{brandName}<span className="ml-1 align-top font-mono text-[9px] text-muted-foreground">TM</span></>}</span><span className={collapsed ? "hidden lg:block" : "hidden"}>{brandName.slice(0, 1).toUpperCase()}</span></Link><div className="flex items-center gap-1"><button onClick={toggleCollapsed} className="hidden min-h-9 min-w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground lg:flex" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}</button><button onClick={() => setOpen(false)} className="lg:hidden" aria-label="Close menu"><X size={18}/></button></div></div>
       <div className="p-3"><button type="button" onClick={startNewConversation} aria-label="New conversation" title={collapsed ? "New conversation" : undefined} className={cn("flex min-h-10 w-full items-center gap-2 rounded-lg border border-foreground/15 bg-background px-2.5 py-2 text-xs hover:border-foreground/40 lg:min-h-9", collapsed && "lg:justify-center lg:px-0")}><Plus size={14}/><span className={collapsed ? "lg:hidden" : undefined}>New conversation</span><span className={cn("ml-auto font-mono text-[10px] text-muted-foreground", collapsed && "lg:hidden")}>⌘K</span></button></div>
@@ -308,7 +334,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className={cn("border-t border-foreground/10 p-2.5", collapsed && "lg:p-2")}><div className={cn("mb-2 flex min-w-0 justify-end", collapsed && "lg:hidden")}><ThemeSwitcher /></div><div className={cn("flex min-w-0 items-center gap-2", collapsed && "lg:justify-center")}><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">{accountName.slice(0, 2).toUpperCase()}</span><span className={cn("min-w-0 flex-1 truncate text-[11px] font-medium", collapsed && "lg:hidden")}>{accountName}</span><button onClick={signOut} className={cn("inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-[10px] text-muted-foreground hover:bg-foreground/5 hover:text-foreground lg:min-h-9", collapsed && "lg:min-w-9 lg:px-0")} aria-label="Sign out" title="Sign out"><span className={collapsed ? "lg:hidden" : undefined}>Sign out</span><LogOut size={13} className={collapsed ? "hidden lg:block" : "hidden"}/></button></div></div>
     </aside>
       <Drawer open={open} onOpenChange={setOpen} direction="left"><DrawerContent className="h-full max-h-none w-[min(20rem,calc(100vw-1rem))] p-0"><div className="flex min-h-0 flex-1 flex-col overflow-hidden"><div className="flex h-14 items-center justify-between border-b border-foreground/10 px-4"><Link href="/app" className="flex items-center gap-2 font-display text-xl tracking-tight">{branding?.logoUrl ? <img src={branding.logoUrl} alt="" className="h-6 w-6 object-contain" /> : brandName}<span className="ml-1 align-top font-mono text-[9px] text-muted-foreground">TM</span></Link><DrawerClose asChild><button className="flex min-h-9 min-w-9 items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Close menu"><X size={18}/></button></DrawerClose></div><div className="p-3"><button type="button" onClick={startNewConversation} className="flex min-h-9 w-full items-center gap-2 border border-foreground/15 bg-background px-2.5 py-2 text-xs hover:border-foreground/40"><Plus size={14}/> New conversation</button></div><nav className="min-h-0 flex-1 overflow-y-auto px-2"><p className="px-2 pb-1.5 pt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Workspace</p>{nav(primary)}<p className="px-2 pb-1.5 pt-5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Automate</p>{nav(work)}<p className="px-2 pb-1.5 pt-5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Account</p>{nav([["Agent profile", "/app/onboarding", UserRound], ["Developer API", "/app/developer-api", Code2], ["Devices", "/app/devices", SquareTerminal], ["Settings", "/app/settings", Settings2]])}</nav><div className="m-3 border border-foreground/10 bg-foreground/[0.03] p-2"><div className="flex items-center gap-2 text-[10px] font-medium"><span className={cn("h-2 w-2 shrink-0 rounded-full", health?.ok ? "bg-emerald-500" : health ? "bg-amber-400" : "bg-foreground/25")}/><span>{health ? health.ok ? "All systems operational" : "System needs attention" : "Checking system status"}</span></div></div><div className="border-t border-foreground/10 p-3"><div className="mb-2 flex justify-end"><ThemeSwitcher /></div><div className="flex min-w-0 items-center gap-2"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] text-background">{accountName.slice(0, 2).toUpperCase()}</span><span className="min-w-0 flex-1 truncate text-[11px] font-medium">{accountName}</span><button onClick={signOut} className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md px-2 text-[10px] text-muted-foreground hover:bg-foreground/5 hover:text-foreground" aria-label="Sign out">Sign out</button></div></div></div></DrawerContent></Drawer>
-      <div className={cn("min-w-0 transition-[padding] duration-200", collapsed ? "lg:pl-[68px]" : "lg:pl-[232px]")}><header className="sticky top-0 z-20 flex h-11 items-center justify-between border-b border-foreground/10 bg-background/90 px-2.5 backdrop-blur-xl sm:h-14 sm:px-4 lg:px-6"><div className="flex min-w-0 items-center gap-2.5"><button onClick={() => setOpen(true)} className="flex min-h-9 min-w-9 items-center justify-center lg:hidden" aria-label="Open menu"><Menu size={17}/></button>{pathname === "/app/chat" && <div className="flex min-w-0 items-center gap-2"><h1 className="max-w-[calc(100vw-9rem)] truncate text-[11px] font-medium sm:max-w-[24rem]">{chatHeader?.title || "Chat"}</h1><span className={chatHeader?.status === "ready" ? "shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{chatHeader?.status === "ready" ? "Live" : chatHeader?.status === "offline" ? "Offline" : "Connecting"}</span></div>}</div><div className="relative"><button type="button" onClick={() => setAttentionOpen((current) => !current)} className={cn("relative flex min-h-9 min-w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25", attentionOpen && "bg-foreground/5 text-foreground")} aria-label={`Open notifications and approvals${attentionCount > 0 ? `, ${attentionCount} items` : ""}`} aria-expanded={attentionOpen}><Bell size={15}/>{attentionCount > 0 && <span className="absolute right-0 top-0 flex min-h-3.5 min-w-3.5 items-center justify-center rounded-full border-2 border-background bg-amber-400 px-1 text-[8px] font-bold leading-none text-black">{attentionCount > 99 ? "99+" : attentionCount}</span>}</button>{attentionOpen && <AttentionCenter account={account} attentionEvents={attentionEvents} pulseReceipt={pulseReceipt} attentionCount={attentionCount} onClose={() => setAttentionOpen(false)} onOpenApprovals={() => { setAttentionOpen(false); router.push("/app/approvals"); }} onOpenPulse={openPulseReport} onOpenTrigger={openTriggerEvent} onClearNotifications={clearAttentionNotifications} />}</div></header><main className="mx-auto max-w-[1400px] min-w-0 px-2.5 py-2.5 sm:px-4 sm:py-6 lg:px-7 lg:py-8">{children}</main></div>
+      <div className={cn("min-w-0 transition-[padding] duration-200", collapsed ? "lg:pl-[68px]" : "lg:pl-[232px]")}><header className="sticky top-0 z-20 flex h-11 items-center justify-between border-b border-foreground/10 bg-background/90 px-2.5 backdrop-blur-xl sm:h-14 sm:px-4 lg:px-6"><div className="flex min-w-0 items-center gap-2.5"><button onClick={() => setOpen(true)} className="flex min-h-9 min-w-9 items-center justify-center lg:hidden" aria-label="Open menu"><Menu size={17}/></button>{pathname === "/app/chat" && <div className="flex min-w-0 items-center gap-2"><h1 className="max-w-[calc(100vw-9rem)] truncate text-[11px] font-medium sm:max-w-[24rem]">{chatHeader?.title || "Chat"}</h1><span className={chatHeader?.status === "ready" ? "shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-emerald-800" : "shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-amber-800"}>{chatHeader?.status === "ready" ? "Live" : chatHeader?.status === "offline" ? "Offline" : "Connecting"}</span></div>}</div><div className="relative"><button type="button" onClick={() => setAttentionOpen((current) => !current)} className={cn("relative flex min-h-9 min-w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25", attentionOpen && "bg-foreground/5 text-foreground")} aria-label={`Open notifications and approvals${attentionCount > 0 ? `, ${attentionCount} items` : ""}`} aria-expanded={attentionOpen}><Bell size={15}/>{attentionCount > 0 && <span className="absolute right-0 top-0 flex min-h-3.5 min-w-3.5 items-center justify-center rounded-full border-2 border-background bg-amber-400 px-1 text-[8px] font-bold leading-none text-black">{attentionCount > 99 ? "99+" : attentionCount}</span>}</button>{attentionOpen && <AttentionCenter account={account} attentionEvents={attentionEvents} pulseReceipt={pulseReceipt} attentionCount={attentionCount} onClose={() => setAttentionOpen(false)} onOpenApprovals={() => { setAttentionOpen(false); router.push("/app/approvals"); }} onOpenPulse={openPulseReport} onOpenTrigger={openTriggerEvent} onOpenMission={openMission} onOpenMissionChat={openMissionChat} onClearNotifications={clearAttentionNotifications} />}</div></header><main className="mx-auto max-w-[1400px] min-w-0 px-2.5 py-2.5 sm:px-4 sm:py-6 lg:px-7 lg:py-8">{children}</main></div>
+    {missionToastId && <div role="status" className="fixed bottom-3 right-3 z-[60] flex max-w-[min(26rem,calc(100vw-1.5rem))] items-center gap-3 rounded-lg border border-sky-500/25 bg-background p-3 shadow-lg"><span className="min-w-0 flex-1 text-[11px] leading-4">A mission has finished. Its result is saved in chat and Missions.</span><button type="button" onClick={openMissionChat} className="min-h-8 shrink-0 rounded-md bg-foreground px-2.5 text-[10px] font-medium text-background">View chat update</button><button type="button" onClick={() => setMissionToastId(undefined)} className="flex size-8 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground" aria-label="Dismiss mission update"><X size={14}/></button></div>}
   </div></AppShellContext.Provider>;
 }
 

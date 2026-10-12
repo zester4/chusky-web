@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import { CheckCircle2, ChevronDown, CircleAlert, GitBranch, HeartPulse, RefreshCw, ShieldCheck, Timer } from "lucide-react";
 import { chuskyApi, type Mission, type MissionDoctor, type MissionProof, type MissionWorkSchedule, type OutcomePackage } from "@/lib/chusky-api";
-import { Button, Card, PageHeading, Status } from "./app-shell";
+import { AppShellContext, Button, Card, PageHeading, Status } from "./app-shell";
 import { useLiveData } from "@/lib/live-sync";
 import { MarkdownMessage } from "./markdown-message";
 
@@ -118,6 +118,7 @@ function MissionControlForm({ mission, onSave, disabled }: { mission: Mission; o
 }
 
 export function MissionsPage() {
+  const { missionToOpen, setMissionToOpen } = useContext(AppShellContext);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selected, setSelected] = useState<MissionDetail>();
   const [offline, setOffline] = useState(false);
@@ -125,6 +126,7 @@ export function MissionsPage() {
   const [detailBusy, setDetailBusy] = useState<string>();
   const [detailError, setDetailError] = useState<string>();
   const [outcomes, setOutcomes] = useState<OutcomePackage[]>([]);
+  const [closedExpanded, setClosedExpanded] = useState(false);
   const selectedMissionRef = useRef<string | undefined>(undefined);
   const detailRequestRef = useRef(0);
 
@@ -134,7 +136,7 @@ export function MissionsPage() {
     catch { setOffline(true); }
   };
 
-  const loadDetail = async (mission: Mission) => {
+  const loadDetail = useCallback(async (mission: Mission) => {
     const requestId = ++detailRequestRef.current;
     selectedMissionRef.current = mission.id;
     setDetailBusy(mission.id);
@@ -155,7 +157,7 @@ export function MissionsPage() {
     } finally {
       if (requestId === detailRequestRef.current) setDetailBusy(undefined);
     }
-  };
+  }, []);
 
   const toggleDetail = (mission: Mission, isSelected: boolean) => {
     if (isSelected) {
@@ -170,6 +172,16 @@ export function MissionsPage() {
   };
 
   useEffect(() => { void load(); void chuskyApi.outcomes.list().then((result) => setOutcomes(result.data)).catch(() => setOutcomes([])); }, []);
+  useEffect(() => {
+    if (!missionToOpen) return;
+    const mission = missions.find((item) => item.id === missionToOpen);
+    if (!mission) return;
+    setClosedExpanded(true);
+    void loadDetail(mission).then(() => window.setTimeout(() => {
+      document.getElementById(`mission-details-${mission.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 50));
+    setMissionToOpen(undefined);
+  }, [missionToOpen, missions, loadDetail, setMissionToOpen]);
   useLiveData(async () => {
     await load();
     if (selected && selectedMissionRef.current === selected.mission.id) await loadDetail(selected.mission);
@@ -262,7 +274,7 @@ export function MissionsPage() {
     {offline ? <Card className="p-5 text-xs text-muted-foreground">Missions could not be loaded. Check the backend connection and retry.</Card> : <>
       <Card className="mb-3 sm:mb-4">
         <div className="grid gap-3 border-b border-foreground/10 p-3 sm:grid-cols-3 sm:p-4"><div><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">In progress</p><p className="mt-1 text-lg font-medium">{active.length}</p><p className="text-[10px] text-muted-foreground">Queued or running</p></div><div><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Needs a decision</p><p className="mt-1 text-lg font-medium">{needsAttention.length}</p><p className="text-[10px] text-muted-foreground">Waiting, blocked, paused, or failed</p></div><div><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Closed</p><p className="mt-1 text-lg font-medium">{closed.length}</p><p className="text-[10px] text-muted-foreground">Completed or cancelled</p></div></div>
-        {missions.length ? <>{renderGroup("Active work", "Current execution and scheduled work", active, "No missions are queued or running.")}{renderGroup("Needs attention", "Waiting states and recoverable or paused work", needsAttention, "No mission currently needs a decision.")}{closed.length > 0 && <details className="border-t border-foreground/10"><summary className="cursor-pointer px-3 py-3 text-[10px] font-medium sm:px-4">Recently closed ({closed.length})</summary>{closed.map(renderMission)}</details>}</> : <p className="p-5 text-xs text-muted-foreground">No autonomous missions yet. Start one from Chat or the API when work should continue beyond one turn.</p>}
+        {missions.length ? <>{renderGroup("Active work", "Current execution and scheduled work", active, "No missions are queued or running.")}{renderGroup("Needs attention", "Waiting states and recoverable or paused work", needsAttention, "No mission currently needs a decision.")}{closed.length > 0 && <details className="border-t border-foreground/10" open={closedExpanded} onToggle={(event) => setClosedExpanded(event.currentTarget.open)}><summary className="cursor-pointer px-3 py-3 text-[10px] font-medium sm:px-4">Recently closed ({closed.length})</summary>{closed.map(renderMission)}</details>}</> : <p className="p-5 text-xs text-muted-foreground">No autonomous missions yet. Start one from Chat or the API when work should continue beyond one turn.</p>}
       </Card>
       {outcomes.length > 0 && <details className="mb-4 rounded-lg border border-foreground/10 bg-background"><summary className="cursor-pointer px-3 py-3 text-[11px] font-medium sm:px-4">Outcome templates <span className="ml-1 font-normal text-muted-foreground">{outcomes.length} governed packages · planning starts in Chat</span></summary><div className="grid gap-2 border-t border-foreground/10 p-3 md:grid-cols-2 xl:grid-cols-3 sm:p-4">{outcomes.map((outcome) => <article key={outcome.slug} className="min-w-0 rounded-md border border-foreground/10 p-2.5 sm:p-3"><p className="text-xs font-medium">{outcome.name}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{short(outcome.description, 130)}</p><div className="mt-2 flex flex-wrap gap-1.5 text-[9px] text-muted-foreground"><span className="rounded-sm border border-foreground/10 px-1.5 py-0.5">{outcome.department}</span><span className="rounded-sm border border-foreground/10 px-1.5 py-0.5">{outcome.evidenceRequired.length} evidence rules</span><span className="rounded-sm border border-foreground/10 px-1.5 py-0.5">{outcome.approvalPolicy}</span></div></article>)}</div></details>}
     </>}

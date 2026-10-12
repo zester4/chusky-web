@@ -657,6 +657,10 @@ export function ChatPage() {
           chuskyApi.threads.runs(current.id, { limit: 50 }),
           chuskyApi.artifacts.list({ limit: 100 }).catch(() => ({ data: [] as Artifact[] })),
         ]);
+        if (current.metadata.source === "mission-notifications") {
+          const missionIds = [...new Set(runs.data.flatMap((run) => typeof run.metadata?.missionId === "string" ? [run.metadata.missionId] : []))];
+          if (missionIds.length) void Promise.allSettled(missionIds.map((missionId) => chuskyApi.missions.markNotificationRead(missionId))).then(notifyChuskyDataChanged);
+        }
         if (active) {
           setArtifactCatalog(artifactPage.data);
           const threadMessages: Message[] = [];
