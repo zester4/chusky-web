@@ -86,6 +86,26 @@ function displaySummary(event: TriggerEventActivity): string {
   return [providerName(event.slug), ...useful].join("\n");
 }
 
+/** Build a display-only summary for the trigger context sent as a chat run input. */
+export function triggerContextDisplay(input: string): string | undefined {
+  if (!input.startsWith("This is a verified Chusky trigger result being continued in the current conversation.")) return undefined;
+
+  const slug = input.match(/^Chusky trigger event:\s*(.+)$/m)?.[1]?.trim();
+  const savedSummary = input.match(/^Saved event summary:\s*([\s\S]*?)(?=\n\n(?:Saved result|I selected:))/m)?.[1]?.trim();
+  if (!slug || !savedSummary) return "**Verified trigger event**\n\nChusky is continuing from the saved event details.";
+
+  const summary = savedSummary
+    .replace(/^\[Trigger [^\]]+\]\s*/i, "")
+    .replace(/(^|\n)Received:\s*[a-f0-9-]{12,}\s*(?=\n|$)/gi, "$1")
+    .trim();
+  if (!summary) return `### ${providerName(slug)} event`;
+
+  // Provider content is untrusted data. MarkdownMessage renders it as text and
+  // gives bare URLs compact host labels; agent-only instructions and results
+  // remain in the actual run input, not in the user's visible message.
+  return `### ${providerName(slug)} event\n\n${eventMarkdown(summary)}`;
+}
+
 function fallbackActions(event: TriggerEventActivity): TriggerEventAction[] {
   const haystack = `${event.slug} ${event.summary} ${displaySummary(event)} ${event.result ?? ""}`.toLowerCase();
   if (event.slug.toLowerCase().includes("connected_account_expired") || event.slug.toLowerCase().includes("connected.account.expired") || haystack.includes("expired")) {

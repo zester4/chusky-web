@@ -40,7 +40,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
 import { TriggerLogoGroup, resolveProviderBrand, triggerProviderBrand } from "./trigger-logo";
-import { AttentionActionCard, attentionActions } from "./attention-action-card";
+import { AttentionActionCard, attentionActions, triggerContextDisplay } from "./attention-action-card";
 import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError } from "@/lib/error-copy";
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
@@ -53,6 +53,7 @@ type Message = {
   runId?: string;
   historyCommitted?: boolean;
   historyContent?: string;
+  displayText?: string;
   statusText?: string;
   progress?: RunProgress;
   tool?: string;
@@ -204,13 +205,14 @@ const runStatusText = (run: Run) => {
 
 async function runMessagePair(run: Run, artifactCatalog: Artifact[]): Promise<{ user?: Message; assistant: Message }> {
   const userHistoryContent = `${run.input || "Attached file(s)"}${run.attachments?.length ? `\n[Attachments: ${run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
+  const triggerDisplayText = typeof run.metadata?.triggerEventId === "string" ? triggerContextDisplay(run.input) : undefined;
   const approval = run.status === "requires_approval" && run.approvalId
     ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
     : undefined;
   const active = run.status === "queued" || run.status === "running";
   const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
   return {
-    user: run.input || run.attachments?.length ? { role: "user", text: run.input || "Attached file(s)", time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent } : undefined,
+    user: run.input || run.attachments?.length ? { role: "user", text: run.input || "Attached file(s)", ...(triggerDisplayText ? { displayText: triggerDisplayText } : {}), time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent } : undefined,
     assistant: { role: "assistant", runId: run.id, text: output, progress: progressFromRun(run), activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
   };
 }
@@ -1351,7 +1353,8 @@ export function ChatPage() {
     setController(abort);
     setInput("");
     setAttachments([]);
-    const outgoing: Message = { role: "user", text: text || (attachmentOverride ? "Voice message" : "Attached file(s)"), time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size, previewUrl, downloadUrl }) => ({ id, name, contentType, size, previewUrl, downloadUrl })) };
+    const triggerDisplayText = typeof metadataOverride?.triggerEventId === "string" ? triggerContextDisplay(text) : undefined;
+    const outgoing: Message = { role: "user", text: text || (attachmentOverride ? "Voice message" : "Attached file(s)"), ...(triggerDisplayText ? { displayText: triggerDisplayText } : {}), time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size, previewUrl, downloadUrl }) => ({ id, name, contentType, size, previewUrl, downloadUrl })) };
     const initialProgress: RunProgress = { phase: "planning", title: "Preparing your request", detail: "Chusky is organizing the right context before it acts." };
     setMessages((current) => editingMessageIndex === undefined ? [...current, outgoing, { role: "assistant", text: "", pending: true, progress: initialProgress }] : [...current.slice(0, editingMessageIndex), outgoing, { role: "assistant", text: "", pending: true, progress: initialProgress }]);
     setEditingMessageIndex(undefined);
@@ -1638,12 +1641,19 @@ export function ChatPage() {
               {messages.map((item, index) => {
                 const visibleActivities = item.activities?.length ? presentToolActivities(item.activities) : [];
                 const headlineActivity = visibleActivities.find((activity) => item.pending && activity.status === "started") || visibleActivities[0];
-                return <div key={`${item.role}-${index}`} className={item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : containsVisualBlock(item.text) ? "group relative w-full max-w-3xl" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
-                  <div className={item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/10 bg-background px-4 py-3 sm:px-5 sm:py-4 [overflow-wrap:anywhere]"}>
+                const isTriggerContext = item.role === "user" && Boolean(item.displayText);
+                const visibleUserText = item.displayText || item.text;
+                return <div key={`${item.role}-${index}`} className={isTriggerContext ? "group relative ml-auto w-full max-w-[min(94%,42rem)]" : item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : containsVisualBlock(item.text) ? "group relative w-full max-w-3xl" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
+                  <div className={isTriggerContext ? "relative w-full min-w-0 break-words rounded-xl border border-foreground/10 bg-background px-3 py-3 shadow-sm [overflow-wrap:anywhere]" : item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/10 bg-background px-4 py-3 sm:px-5 sm:py-4 [overflow-wrap:anywhere]"}>
+                    {isTriggerContext && <div className="mb-2 flex items-center gap-2 border-b border-foreground/10 pb-2">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-foreground/10 bg-foreground/[0.025]"><TriggerLogoGroup text={item.displayText!} size={22} /></span>
+                      <span className="min-w-0 flex-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Trigger event</span>
+                      <span className="shrink-0 font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span>
+                    </div>}
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
                     {headlineActivity || (item.progress && item.progress.title !== "Preparing your request" && !(item.progress.phase === "completed" && !item.progress.provider && !item.progress.providerLogo && !item.progress.evidence?.length)) ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
-                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
+                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
@@ -1653,8 +1663,8 @@ export function ChatPage() {
                     {item.approval && <div className="approval-card mt-4"><div className="approval-card-header"><span className="approval-card-icon"><TriggerLogoGroup text={item.approval.toolSlug} slugs={[item.approval.toolSlug]} size={26} /></span><div className="min-w-0 flex-1"><p className="approval-card-eyebrow"><ShieldCheck size={12} aria-hidden="true" /> Approval required</p><h3 className="approval-card-title">Review before Chusky continues</h3></div></div><p className="approval-card-request">{item.approval.request || `Chusky is waiting to run ${item.approval.toolSlug}.`}</p><div className="approval-card-meta"><span>{triggerProviderBrand(item.approval.toolSlug).name}</span>{formatApprovalExpiry(item.approval.expiresAt) ? <span>Expires {formatApprovalExpiry(item.approval.expiresAt)}</span> : null}</div><div className="approval-card-actions"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="approval-primary">{item.approval.deciding ? "Updating…" : "Approve action"}</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="approval-secondary">Deny</button></div></div>}
                     {item.text ? <div className={`absolute -bottom-4 right-2 z-10 flex items-center gap-0.5 rounded-lg border border-foreground/10 bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
                       {item.role === "user" ? <>
-                        <button type="button" onClick={() => void copyMessage(index, item.text)} className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}</button>
-                        <button type="button" onClick={() => editMessage(index, item.text)} className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-foreground/5 hover:text-foreground" aria-label="Edit message" title="Edit"><Pencil size={12} /></button>
+                        <button type="button" onClick={() => void copyMessage(index, visibleUserText)} className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}</button>
+                        {!item.displayText && <button type="button" onClick={() => editMessage(index, item.text)} className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-foreground/5 hover:text-foreground" aria-label="Edit message" title="Edit"><Pencil size={12} /></button>}
                       </> : <>
                         <button type="button" onClick={() => void setMessageFeedback(index, "positive")} disabled={feedbackBusyRunId === item.runId} className={`flex h-8 w-8 items-center justify-center rounded-md hover:bg-foreground/5 hover:text-foreground ${item.feedback === "positive" ? "text-emerald-600" : ""}`} aria-label={item.feedback === "positive" ? "Remove positive feedback" : "Mark message helpful"} aria-pressed={item.feedback === "positive"} title="Helpful"><ThumbsUp size={12} fill={item.feedback === "positive" ? "currentColor" : "none"} /></button>
                         <button type="button" onClick={() => void setMessageFeedback(index, "negative")} disabled={feedbackBusyRunId === item.runId} className={`flex h-8 w-8 items-center justify-center rounded-md hover:bg-foreground/5 hover:text-foreground ${item.feedback === "negative" ? "text-rose-600" : ""}`} aria-label={item.feedback === "negative" ? "Remove negative feedback" : "Mark message not helpful"} aria-pressed={item.feedback === "negative"} title="Not helpful"><ThumbsDown size={12} fill={item.feedback === "negative" ? "currentColor" : "none"} /></button>
