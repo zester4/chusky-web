@@ -33,10 +33,9 @@ import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
-import { coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
+import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
 import { AppShellContext } from "./app-shell";
-import { Shimmer } from "@/components/ai-elements/shimmer";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
 import { TriggerLogoGroup, resolveProviderBrand, triggerProviderBrand } from "./trigger-logo";
@@ -85,7 +84,6 @@ type ChatPageCache = {
 const chatPageCache = new Map<string, ChatPageCache>();
 const CHAT_RETURN_CACHE_MAX_AGE_MS = 30_000;
 
-const formatToolLabel = (tool?: string) => tool ? tool.replace(/^(CHUCK|COMPOSIO)_/i, "").replaceAll("_", " ").toLowerCase() : "working";
 const formatToolDuration = (durationMs?: number) => {
   if (durationMs === undefined || !Number.isFinite(durationMs)) return "";
   return durationMs < 1000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1000).toFixed(1)} s`;
@@ -131,6 +129,7 @@ function progressFromRun(run: Run): RunProgress {
       ...(activity.toolkitName || activity.toolkitSlug ? { detail: activity.toolkitName || activity.toolkitSlug } : {}),
     }));
   const action = [...activities].reverse().find((activity) => activity.status === "started" || activity.status === "approval_required");
+  const savedProgressText = stripGenericProgressText(runProgressText(run) || "") || undefined;
   const title = run.status === "requires_approval"
     ? "Review the next action"
     : run.status === "completed"
@@ -139,7 +138,7 @@ function progressFromRun(run: Run): RunProgress {
         ? "This run needs attention"
         : run.status === "cancelled"
           ? "Run cancelled"
-          : runProgressText(run) || action?.actionLabel || action?.message || (phase === "planning" ? "Preparing your request" : phase === "researching" ? "Researching your request" : "Working through your request");
+          : (action ? activityTitle(action) : undefined) || savedProgressText || (phase === "planning" ? "Preparing your request" : phase === "researching" ? "Researching the request" : "Executing the next action");
   const detail = run.status === "requires_approval"
     ? "Chusky paused safely before a consequential action. Review the request below."
     : run.status === "completed"
@@ -164,10 +163,16 @@ function progressFromRun(run: Run): RunProgress {
 function progressFromLiveActivity(current: RunProgress | undefined, activity: { status: RunToolActivity["status"] | RunSubagentActivity["status"] | "unknown"; actionLabel?: string; message?: string; summary?: string; toolkitName?: string; toolkitSlug?: string; toolkitLogo?: string; toolSlug?: string }): RunProgress {
   const waiting = activity.status === "approval_required";
   const failed = activity.status === "failed";
+  const title = activityTitle(activity);
+  const detail = waiting
+    ? "Chusky paused safely before a consequential action. Review the approval below."
+    : failed
+      ? "This step needs attention; the run will report what was confirmed."
+      : activityDetailLine({ ...activity, status: activity.status === "waiting" ? "waiting" : activity.status }, activity.status === "started") || current?.detail;
   return {
     phase: waiting ? "waiting" : failed ? "waiting" : current?.phase === "completed" ? "acting" : current?.phase || "acting",
-    title: waiting ? "Review the next action" : failed ? "This step needs attention" : activity.actionLabel || current?.title || "Working through your request",
-    detail: waiting ? "Chusky paused safely before a consequential action. Review the approval below." : activity.summary || activity.message || current?.detail,
+    title,
+    detail,
     ...(activity.toolkitName || activity.toolkitSlug || activity.toolSlug ? { provider: activity.toolkitName || activity.toolkitSlug || activity.toolSlug } : current?.provider ? { provider: current.provider } : {}),
     ...(activity.toolkitLogo ? { providerLogo: activity.toolkitLogo } : current?.providerLogo ? { providerLogo: current.providerLogo } : {}),
     ...(waiting ? { requiresApproval: true } : failed ? {} : current?.requiresApproval ? { requiresApproval: false } : {}),
@@ -284,9 +289,6 @@ const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Recor
   };
 };
 
-// Strip decorative prefixes from progress copy while retaining the server's action text.
-const cleanActivityLabel = (value: string) => value.replace(/^[^\p{L}\p{N}]+/u, "").trim();
-
 function CompactActivityStatus({ activity, current }: { activity: PresentedToolActivity; current: boolean }) {
   const waiting = activity.status === "approval_required";
   const failed = activity.status === "failed" || activity.status === "unknown";
@@ -295,19 +297,23 @@ function CompactActivityStatus({ activity, current }: { activity: PresentedToolA
       : waiting ? <ShieldCheck size={13} />
         : failed ? <X size={13} />
           : <Clock4 size={13} />;
-  const label = current ? "In progress" : activity.status === "completed" ? "Completed" : waiting ? "Waiting for approval" : failed ? "Failed" : activity.status === "cancelled" ? "Cancelled" : "Pending";
+  const label = activityStatusLabel(activity, current);
   return <span className={`compact-execution-status ${current ? "is-active" : activity.status === "completed" ? "is-complete" : waiting || failed ? "is-attention" : ""}`} role="img" aria-label={label}>{icon}</span>;
 }
 
-const compactActivityLabel = (activity: PresentedToolActivity) => {
-  const value = cleanActivityLabel(activity.actionLabel || activity.message || formatToolLabel(activity.toolSlug));
-  return value.length > 74 ? `${value.slice(0, 71).trimEnd()}…` : value;
-};
-
 function CompactProgressRow({ progress }: { progress: RunProgress }) {
+  if (progress.phase === "completed") return null;
   const provider = progress.provider ? triggerProviderBrand(progress.provider) : undefined;
-  const syntheticActivity = { toolSlug: progress.provider || "CHUCK_RUN", status: progress.phase === "completed" ? "completed" : progress.requiresApproval ? "approval_required" : "started", actionLabel: progress.title, message: progress.detail || progress.title, toolkitName: provider?.name, toolkitLogo: progress.providerLogo || provider?.logo } as PresentedToolActivity;
-  return <div className="compact-execution-list my-2" role="status" aria-label="Agent activity"><ol aria-label="Agent activity"><li className="compact-execution-row"><ActivityBrand toolSlug={syntheticActivity.toolSlug} toolkitName={syntheticActivity.toolkitName} toolkitLogo={syntheticActivity.toolkitLogo} size={19} /><span className="compact-execution-label">{compactActivityLabel(syntheticActivity)}</span><CompactActivityStatus activity={syntheticActivity} current={progress.phase !== "completed" && !progress.requiresApproval} /></li></ol></div>;
+  const current = !progress.requiresApproval;
+  const status = progress.requiresApproval || progress.phase === "waiting" ? "Waiting for approval" : current ? "Running" : "Pending";
+  return <div className="chat-progress-row" role="status" aria-label="Agent activity">
+    <ActivityBrand toolSlug={progress.provider || "CHUCK_RUN"} toolkitName={provider?.name} toolkitLogo={progress.providerLogo || provider?.logo} size={19} />
+    <div className="chat-progress-copy">
+      <p className="compact-execution-label">{progress.title}</p>
+      {progress.detail ? <p className="compact-execution-detail">{progress.detail}</p> : null}
+    </div>
+    <span className="compact-execution-state">{status}</span>
+  </div>;
 }
 
 function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
@@ -315,8 +321,18 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
     {activities.map((activity) => {
       const isCurrent = pending && activity.status === "started";
       const toolkit = lookupActivityToolkit(activity, toolkitCatalogue);
+      const displayActivity = { ...activity, toolkitSlug: activity.toolkitSlug || toolkit.slug, toolkitName: activity.toolkitName || toolkit.name, toolkitLogo: activity.toolkitLogo || toolkit.logo };
+      const title = activityTitle(displayActivity);
+      const detail = activityDetailLine(displayActivity, isCurrent);
       return <li key={activity.id} className="compact-execution-item">
-        <div className="compact-execution-row"><ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={19} /><span className="compact-execution-label">{compactActivityLabel(activity)}</span><CompactActivityStatus activity={activity} current={isCurrent} /></div>
+        <div className="compact-execution-row">
+          <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={19} />
+          <div className="compact-execution-copy">
+            <p className="compact-execution-label">{title}</p>
+            {detail ? <p className="compact-execution-detail">{detail}</p> : null}
+          </div>
+          <span className="compact-execution-status-wrap"><CompactActivityStatus activity={activity} current={isCurrent} /><span className="compact-execution-state">{activityStatusLabel(activity, isCurrent)}</span></span>
+        </div>
         {activity.callId && subagentActivities?.length ? <SubagentTree activities={subagentActivities} parentToolCallId={activity.callId} live={pending} /> : null}
       </li>;
     })}
@@ -332,7 +348,7 @@ function SubagentTree({ activities, parentToolCallId, live }: { activities: RunS
   const related = activities.filter((activity) => activity.parentToolCallId === parentToolCallId);
   const workers = [...new Map(related.filter((activity) => activity.kind === "worker").map((activity) => [activity.handoffId, activity])).values()];
   if (!workers.length) return null;
-  return <details className="chat-subagent-tree mt-2 rounded-lg border border-foreground/10 bg-foreground/[0.018] p-2.5 shadow-sm" open>
+  return <details className="chat-subagent-tree mt-2 pl-3" open>
     <summary className="cursor-pointer list-none text-[11px] font-medium leading-5 text-muted-foreground [&::-webkit-details-marker]:hidden">Coordinating {workers.length} {workers.length === 1 ? "specialist" : "specialists"}</summary>
     <ol className="chat-subagent-list mt-2 space-y-1.5 border-l border-foreground/15 pl-3">
       {workers.map((worker) => {
@@ -346,7 +362,7 @@ function SubagentTree({ activities, parentToolCallId, live }: { activities: RunS
             {steps.map((step) => <li key={step.activityId} className="chat-subagent-step relative flex min-w-0 items-start gap-2">
               <ActivityMarker status={step.status} current={live && step.status === "started"} className="chat-subagent-marker" />
               <ActivityBrand toolSlug={step.toolSlug} toolkitSlug={step.toolkitSlug} toolkitName={step.toolkitName} toolkitLogo={step.toolkitLogo} size={14} />
-              <div className="min-w-0 flex-1"><p className="text-[12px] leading-5">{step.actionLabel || step.message}</p><div className="text-[11px] leading-5 text-muted-foreground">{step.toolkitName || step.toolkitSlug || (step.toolSlug ? formatToolLabel(step.toolSlug) : "Chusky tool")} · {activityStatusText(step, live)}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
+              <div className="min-w-0 flex-1"><p className="text-[12px] leading-5">{activityTitle(step)}</p><div className="text-[11px] leading-5 text-muted-foreground">{activityDetailLine(step, live && step.status === "started")} · {activityStatusLabel(step, live && step.status === "started")}</div>{step.toolCallId && activities.some((child) => child.parentToolCallId === step.toolCallId && child.kind === "worker") ? <SubagentTree activities={activities} parentToolCallId={step.toolCallId} live={live} /> : null}</div>
             </li>)}
           </ol> : null}
         </li>;
@@ -406,8 +422,6 @@ const stripArtifactLinks = (content: string, artifacts: ChatArtifact[]) => {
   if (!artifacts.length) return content;
   return content.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (full, label) => artifactLinksInText(full, artifacts).length ? label : full);
 };
-const containsVisualBlock = (content: string) => /(?:```|~~~)/.test(content);
-
 function ArtifactCard({ artifact }: { artifact: ChatArtifact }) {
   const href = chuskyApi.artifacts.downloadHref(artifact.id);
   const isImage = artifact.contentType.startsWith("image/") || artifact.type === "image";
@@ -1643,17 +1657,17 @@ export function ChatPage() {
                 const headlineActivity = visibleActivities.find((activity) => item.pending && activity.status === "started") || visibleActivities[0];
                 const isTriggerContext = item.role === "user" && Boolean(item.displayText);
                 const visibleUserText = item.displayText || item.text;
-                return <div key={`${item.role}-${index}`} className={isTriggerContext ? "group relative ml-auto w-full max-w-[min(94%,42rem)]" : item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : containsVisualBlock(item.text) ? "group relative w-full max-w-3xl" : "group relative w-fit max-w-full"} onClick={() => setActiveMessageIndex(index)}>
-                  <div className={isTriggerContext ? "relative w-full min-w-0 break-words rounded-xl border border-foreground/10 bg-background px-3 py-3 shadow-sm [overflow-wrap:anywhere]" : item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : containsVisualBlock(item.text) ? "relative w-fit max-w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]" : "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/10 bg-background px-4 py-3 sm:px-5 sm:py-4 [overflow-wrap:anywhere]"}>
+                const visibleAssistantText = item.role === "assistant" ? stripGenericProgressText(stripArtifactLinks(item.text, item.artifacts || [])) : "";
+                return <div key={`${item.role}-${index}`} className={isTriggerContext ? "group relative ml-auto w-full max-w-[min(94%,42rem)]" : item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-full max-w-3xl"} onClick={() => setActiveMessageIndex(index)}>
+                  <div className={isTriggerContext ? "relative w-full min-w-0 break-words rounded-xl border border-foreground/10 bg-background px-3 py-3 shadow-sm [overflow-wrap:anywhere]" : item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : "relative w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]"}>
                     {isTriggerContext && <div className="mb-2 flex items-center gap-2 border-b border-foreground/10 pb-2">
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-foreground/10 bg-foreground/[0.025]"><TriggerLogoGroup text={item.displayText!} size={22} /></span>
                       <span className="min-w-0 flex-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Trigger event</span>
                       <span className="shrink-0 font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span>
                     </div>}
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
-                    {item.pending && <div className="mb-1.5 inline-flex max-w-full min-w-0 items-center gap-1.5 text-[10px] italic text-muted-foreground" aria-live="polite"><LoaderCircle size={11} className="shrink-0 animate-spin text-chusky-amber motion-reduce:animate-none" /><Shimmer className="min-w-0 truncate">{item.statusText || "Working…"}</Shimmer></div>}
-                    {headlineActivity || (item.progress && item.progress.title !== "Preparing your request" && !(item.progress.phase === "completed" && !item.progress.provider && !item.progress.providerLogo && !item.progress.evidence?.length)) ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
-                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? <MarkdownMessage content={stripArtifactLinks(item.text, item.artifacts || [])} streaming={item.pending} /> : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
+                    {headlineActivity || item.progress ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
+                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? visibleAssistantText ? <MarkdownMessage content={visibleAssistantText} streaming={item.pending} /> : null : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}

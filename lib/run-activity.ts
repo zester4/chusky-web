@@ -20,6 +20,90 @@ export type PresentedToolActivity = Omit<ToolActivity, "status" | "batchActions"
   parallelBatch?: boolean;
 };
 
+type ActivityCopy = {
+  toolSlug?: string;
+  toolkitSlug?: string;
+  toolkitName?: string;
+  actionLabel?: string;
+  message?: string;
+  summary?: string;
+  status: ToolActivity["status"] | "unknown" | "waiting";
+  durationMs?: number;
+};
+
+const cleanActivityCopy = (value?: string): string | undefined => {
+  const normalized = value?.replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s+/g, " ").trim();
+  return normalized || undefined;
+};
+
+const genericActivityCopy = /^(?:i['’]?m|i am)?\s*(?:taking care of that|working(?: through your request| on it)?|processing (?:your request|that|it)|handling (?:that|it)|running(?: now)?|one moment)[\s.!…]*$/i;
+
+const providerNameForActivity = (activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName">): string | undefined => {
+  const supplied = cleanActivityCopy(activity.toolkitName || activity.toolkitSlug);
+  if (supplied) return supplied.split(/[_\s-]+/).filter(Boolean).map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`).join(" ");
+  const slug = activity.toolSlug?.replace(/^(CHUCK|COMPOSIO|MCP)_/i, "");
+  const provider = slug?.split("_", 1)[0];
+  return provider ? provider.split(/[_-]+/).map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`).join(" ") : undefined;
+};
+
+const titleCaseActivityToken = (value: string) => value
+  .split(/[_\s-]+/)
+  .filter(Boolean)
+  .map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
+  .join(" ");
+
+/** Return the concrete action instead of generic model filler such as "I'm taking care of that". */
+export function activityTitle(activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName" | "actionLabel" | "message">): string {
+  const supplied = [activity.actionLabel, activity.message]
+    .map(cleanActivityCopy)
+    .find((value) => value && !genericActivityCopy.test(value));
+  const provider = providerNameForActivity(activity);
+  if (supplied && !genericActivityCopy.test(supplied)) {
+    if (!provider || supplied.toLowerCase().startsWith(`${provider.toLowerCase()} ·`) || supplied.toLowerCase().includes(provider.toLowerCase())) return supplied;
+    return `${provider} · ${supplied}`;
+  }
+
+  let token = activity.toolSlug?.replace(/^(CHUCK|COMPOSIO|MCP)_/i, "") || "step";
+  const toolkit = (activity.toolkitSlug || activity.toolkitName)?.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  if (toolkit && token.toUpperCase().startsWith(`${toolkit}_`)) token = token.slice(toolkit.length + 1);
+  const concrete = titleCaseActivityToken(token);
+  return provider && concrete !== "Step" ? `${provider} · ${concrete}` : concrete;
+}
+
+/** Remove only exact model filler lines; never rewrite the saved answer or tool details. */
+export function stripGenericProgressText(value: string): string {
+  return value
+    .split(/\r?\n/)
+    .filter((line) => {
+      const candidate = line.replace(/^\s*(?:[-*•>]\s+)?/, "").trim();
+      return !genericActivityCopy.test(candidate);
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function activityStatusLabel(activity: Pick<ActivityCopy, "status" | "durationMs">, current = false): string {
+  if (current) return "Running";
+  if (activity.status === "completed") return activity.durationMs !== undefined && Number.isFinite(activity.durationMs) ? `Done · ${activity.durationMs < 1000 ? `${Math.round(activity.durationMs)} ms` : `${(activity.durationMs / 1000).toFixed(1)} s`}` : "Done";
+  if (activity.status === "approval_required") return "Needs approval";
+  if (activity.status === "failed" || activity.status === "unknown") return "Needs attention";
+  if (activity.status === "cancelled") return "Cancelled";
+  if (activity.status === "waiting") return "Waiting";
+  return "Incomplete";
+}
+
+/** Keep the exact step visible without repeating a generic label or mechanical provider receipt. */
+export function activityDetailLine(activity: ActivityCopy, current = false): string | undefined {
+  const title = activityTitle(activity);
+  const summary = activityDetailSummary(activity.summary);
+  if (summary && summary.toLowerCase() !== title.toLowerCase()) return summary;
+  const message = cleanActivityCopy(activity.message);
+  if (message && !genericActivityCopy.test(message) && message.toLowerCase() !== title.toLowerCase()) return message;
+  if (current) return "Running now";
+  return activityStatusLabel(activity);
+}
+
 const normalizedToolkit = (value: string) => value.replace(/[^a-z0-9]/gi, "").toLowerCase();
 
 /**
@@ -72,15 +156,14 @@ export function presentToolActivities(activities: ToolActivity[]): PresentedTool
       }];
     }
     if (successfulDiscoveryTools.has(activity.toolSlug)) {
-      const actionLabel = activity.toolSlug === "COMPOSIO_SEARCH_TOOLS"
-        ? "Search connected tools"
-        : "Load connected tool details";
+      if (hiddenSetupStatuses.has(activity.status)) return [];
       return [{
         ...activity,
         toolkitName: activity.toolkitName || "Composio",
         toolkitLogo: activity.toolkitLogo || "/logos/composio.svg",
-        actionLabel: activity.actionLabel || actionLabel,
-        message: activity.message || actionLabel,
+        actionLabel: activity.actionLabel || "Couldn’t find the right connected capability",
+        message: activity.message || "Couldn’t find the right connected capability",
+        summary: activity.summary || "Try the request again. If it keeps failing, check the connected app and its permissions.",
       }];
     }
     if (!activity.batchActions?.length) return [{ ...activity, status: activity.status }];

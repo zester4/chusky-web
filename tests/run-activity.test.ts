@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionTokenForActivity, activityDetailSummary, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
+import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
 
 const activity = (id: string, status: ToolActivity["status"], at: number, overrides: Partial<ToolActivity> = {}): ToolActivity => ({
   id,
@@ -192,4 +192,43 @@ test("compact rows omit mechanical result summaries but preserve a short safe de
   assert.equal(activityDetailSummary("Batch response received; individual outcome was not identified"), undefined);
   assert.equal(activityDetailSummary("Result returned"), undefined);
   assert.equal(activityDetailSummary("Jane Doe · warm HM note"), "Jane Doe · warm HM note");
+});
+
+test("chat activity presentation replaces generic filler with the concrete provider action", () => {
+  const current = {
+    ...activity("gmail-start", "started", 1, {
+      toolSlug: "GMAIL_FETCH_EMAILS",
+      toolkitSlug: "gmail",
+      toolkitName: "Gmail",
+      actionLabel: "I'm taking care of that...",
+      message: "I'm taking care of that...",
+    }),
+  };
+
+  assert.equal(activityTitle(current), "Gmail · Fetch Emails");
+  assert.equal(activityDetailLine(current, true), "Running now");
+  assert.equal(activityStatusLabel(current, true), "Running");
+});
+
+test("chat activity presentation prefers a meaningful message over generic action filler", () => {
+  const completed = activity("calendar-done", "completed", 1, {
+    toolSlug: "GOOGLECALENDAR_EVENTS_LIST",
+    toolkitName: "Google Calendar",
+    actionLabel: "I'm taking care of that...",
+    message: "Checking tomorrow's interview schedule",
+    summary: "Found 3 matching events",
+    durationMs: 1200,
+  });
+
+  assert.equal(activityTitle(completed), "Google Calendar · Checking tomorrow's interview schedule");
+  assert.equal(activityDetailLine(completed), "Found 3 matching events");
+  assert.equal(activityStatusLabel(completed), "Done · 1.2 s");
+});
+
+test("chat output removes only exact generic progress filler", () => {
+  assert.equal(
+    stripGenericProgressText("Working…\n\nI’m taking care of that…\n\nGoogle Maps · Search Businesses"),
+    "Google Maps · Search Businesses",
+  );
+  assert.equal(stripGenericProgressText("I’m taking care of that for your customers."), "I’m taking care of that for your customers.");
 });
