@@ -88,13 +88,17 @@ function displaySummary(event: TriggerEventActivity): string {
 
 /** Build a display-only summary for the trigger context sent as a chat run input. */
 export function triggerContextDisplay(input: string): string | undefined {
-  if (!input.startsWith("This is a verified Chusky trigger result being continued in the current conversation.")) return undefined;
+  const isContinuation = input.startsWith("This is a verified Chusky trigger result being continued in the current conversation.");
+  const continuationSlug = isContinuation ? input.match(/^Chusky trigger event:\s*(.+)$/m)?.[1]?.trim() : undefined;
+  const savedSummary = isContinuation
+    ? input.match(/^Saved event summary:\s*([\s\S]*?)(?=\n\n(?:Saved result|I selected:))/m)?.[1]?.trim()
+    : undefined;
+  const projectedTrigger = !isContinuation ? input.match(/^\[Trigger ([^\]]+)\]\s*([\s\S]*)$/i) : undefined;
+  const slug = continuationSlug || projectedTrigger?.[1]?.trim();
+  if (isContinuation && (!slug || !savedSummary)) return "**Verified trigger event**\n\nChusky is continuing from the saved event details.";
+  if (!slug || (!savedSummary && !projectedTrigger)) return undefined;
 
-  const slug = input.match(/^Chusky trigger event:\s*(.+)$/m)?.[1]?.trim();
-  const savedSummary = input.match(/^Saved event summary:\s*([\s\S]*?)(?=\n\n(?:Saved result|I selected:))/m)?.[1]?.trim();
-  if (!slug || !savedSummary) return "**Verified trigger event**\n\nChusky is continuing from the saved event details.";
-
-  const summary = savedSummary
+  const summary = (savedSummary || projectedTrigger?.[2] || "")
     .replace(/^\[Trigger [^\]]+\]\s*/i, "")
     .replace(/(^|\n)Received:\s*[a-f0-9-]{12,}\s*(?=\n|$)/gi, "$1")
     .trim();
