@@ -35,6 +35,7 @@ import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
 import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
+import { shouldUseChatReturnCache } from "@/lib/chat-cache-policy";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
@@ -82,8 +83,6 @@ type ChatPageCache = {
 // memory so returning from another dashboard tab does not re-read the whole
 // thread immediately. This is intentionally not persisted to Redis or storage.
 const chatPageCache = new Map<string, ChatPageCache>();
-const CHAT_RETURN_CACHE_MAX_AGE_MS = 30_000;
-
 const formatToolDuration = (durationMs?: number) => {
   if (durationMs === undefined || !Number.isFinite(durationMs)) return "";
   return durationMs < 1000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1000).toFixed(1)} s`;
@@ -672,7 +671,7 @@ export function ChatPage() {
     let active = true;
     const cacheKey = requestedThreadId ? `thread:${requestedThreadId}` : "latest";
     const cached = !requestedNew ? chatPageCache.get(cacheKey) : undefined;
-    if (cached && Date.now() - cached.cachedAt < CHAT_RETURN_CACHE_MAX_AGE_MS) {
+    if (cached && shouldUseChatReturnCache(cached.cachedAt)) {
       setThread(cached.thread);
       setMessages(cached.messages);
       setArtifactCatalog(cached.artifacts);

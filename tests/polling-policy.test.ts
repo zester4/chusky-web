@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { CHAT_RETURN_CACHE_MAX_AGE_MS, shouldUseChatReturnCache } from "../lib/chat-cache-policy";
 import { ACTIVE_MISSION_REFRESH_INTERVAL_MS, ACTIVE_RUN_RECOVERY_INTERVAL_MS, DASHBOARD_IDLE_TIMEOUT_MS, DASHBOARD_REFRESH_INTERVAL_MS, DASHBOARD_RETURN_REFRESH_COOLDOWN_MS, shouldPollDashboard, shouldRefreshAfterReturn } from "../lib/polling-policy";
 
 test("dashboard refreshes use a bounded background cadence", () => {
@@ -27,4 +28,12 @@ test("run recovery is bounded while remaining faster than dashboard refresh", ()
   assert.equal(ACTIVE_RUN_RECOVERY_INTERVAL_MS, 5_000);
   assert.ok(ACTIVE_RUN_RECOVERY_INTERVAL_MS >= 5_000);
   assert.ok(ACTIVE_RUN_RECOVERY_INTERVAL_MS < DASHBOARD_REFRESH_INTERVAL_MS);
+});
+
+test("chat returns reuse a recent in-memory timeline instead of refetching the thread", () => {
+  const now = 1_000_000;
+  assert.equal(CHAT_RETURN_CACHE_MAX_AGE_MS, 5 * 60_000);
+  assert.equal(shouldUseChatReturnCache(now - 1_000, now), true);
+  assert.equal(shouldUseChatReturnCache(now - CHAT_RETURN_CACHE_MAX_AGE_MS, now), false);
+  assert.equal(shouldUseChatReturnCache(now + 1, now), false);
 });
