@@ -6,9 +6,7 @@ import { TriggerLogo, triggerProviderBrand } from "@/components/app/trigger-logo
 import { MarkdownMessage } from "./markdown-message";
 
 function eventMarkdown(content: string): string {
-  return content
-    .replace(/^\s*Event:\s*/i, "**Event:** ")
-    .replace(/\s+(High Read More|From|To|Subject|Preview|Read More):\s*/gi, "\n\n**$1:** ");
+  return content.split(/\r?\n/).map((line) => line.replace(/^(Event|High Read More|From|To|Subject|Received|Preview|Read More):\s*/i, "**$1:** ")).join("\n\n");
 }
 
 function providerName(slug: string): string {
