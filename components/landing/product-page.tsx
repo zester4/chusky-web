@@ -63,7 +63,7 @@ export function ProductPageHero({ eyebrow, title, description, artwork }: Produc
                   <Activity className="h-3.5 w-3.5 text-chusky-amber" aria-hidden="true" />
                   Chusky at work
                 </div>
-                <span className="chusky-orbit absolute -right-3 bottom-8 h-12 w-12 rounded-full border-[7px] border-chusky-amber bg-[#10204a] shadow-[0_0_24px_rgba(246,164,0,0.65)]" aria-hidden="true" />
+                <span className="chusky-orbit absolute -right-3 bottom-8 h-12 w-12 rounded-full border-[7px] border-chusky-amber bg-[#10204a] shadow-[0_0_24px_color-mix(in_srgb,var(--chusky-amber)_65%,transparent)]" aria-hidden="true" />
                 <span className="absolute right-10 top-12 h-3 w-10 rotate-[-35deg] rounded-full bg-chusky-amber" aria-hidden="true" />
                 <span className="absolute right-5 top-[4.6rem] h-3 w-6 rotate-[-35deg] rounded-full bg-chusky-amber" aria-hidden="true" />
               </div>

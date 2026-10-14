@@ -60,7 +60,7 @@ export function BrowserSection() {
 
         <div data-motion-reveal data-motion-card className="relative mx-auto w-full max-w-2xl border border-foreground/15 bg-background p-3 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.45)] sm:p-5">
           <div className="flex items-center gap-2 border-b border-foreground/10 pb-3">
-            <span className="h-2 w-2 rounded-full bg-[#d8a22e]" />
+            <span className="h-2 w-2 rounded-full bg-chusky-amber" />
             <span className="h-2 w-2 rounded-full bg-foreground/15" />
             <span className="h-2 w-2 rounded-full bg-foreground/15" />
             <div className="ml-3 flex min-w-0 flex-1 items-center gap-2 border border-foreground/10 bg-background px-3 py-2 text-[10px] text-muted-foreground sm:text-xs">

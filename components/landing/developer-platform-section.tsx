@@ -85,7 +85,7 @@ export function DeveloperPlatformSection() {
             </div>
           </div>
           <div className="overflow-hidden border border-foreground/15 bg-[#111] text-sm text-[#f7f7f4] shadow-sm">
-            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3 font-mono text-[10px] text-white/50"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="h-2 w-2 rounded-full bg-amber-400" /><span className="h-2 w-2 rounded-full bg-emerald-400" /><span className="ml-2">server.ts</span></div>
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3 font-mono text-[10px] text-white/50"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="h-2 w-2 rounded-full bg-foreground/35" /><span className="h-2 w-2 rounded-full bg-emerald-400" /><span className="ml-2">server.ts</span></div>
             <pre className="overflow-x-auto p-5 text-[11px] leading-7 sm:p-6 sm:text-sm"><code>{`import { Chusky } from "@chusky/sdk";
 
 const chusky = new Chusky({
