@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Bell, Brain, Building2, CalendarDays, CheckCircle2, Code2, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessagesSquare, PanelLeftClose, PanelLeftOpen, Phone, Plug, Plus, Repeat2, Settings2, ShieldCheck, SquareTerminal, UserRound, Webhook, Workflow, X, type LucideIcon } from "lucide-react";
-import { createContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -151,32 +151,42 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [missionToastId, setMissionToastId] = useState<string>();
   const lastActivityRefreshAtRef = useRef(0);
   const dashboardLastActivityAtRef = useRef(0);
+  const accountRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const { data: session } = authClient.useSession();
   const dashboardLastActivityAt = useDashboardActivity();
+  const refreshAccount = useCallback(() => {
+    if (accountRefreshInFlightRef.current) return accountRefreshInFlightRef.current;
+    const request = chuskyApi.account.get()
+      .then(setAccount)
+      .catch(() => undefined)
+      .finally(() => { accountRefreshInFlightRef.current = null; });
+    accountRefreshInFlightRef.current = request;
+    return request;
+  }, []);
   useEffect(() => { dashboardLastActivityAtRef.current = dashboardLastActivityAt; }, [dashboardLastActivityAt]);
   useEffect(() => { if (pathname !== "/app/chat") setChatHeader(undefined); }, [pathname]);
   useEffect(() => {
     let active = true;
-    void Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]).then(([nextAccount, nextHealth]) => { if (active) { setAccount(nextAccount); setHealth(nextHealth); } }).catch(() => undefined);
+    void Promise.all([refreshAccount(), chuskyApi.health.get()]).then(([, nextHealth]) => { if (active) setHealth(nextHealth); }).catch(() => undefined);
     return () => { active = false; };
-  }, []);
+  }, [refreshAccount]);
   useEffect(() => {
     if (!session?.user?.id || typeof window === "undefined" || typeof window.EventSource === "undefined") return;
     const stream = new EventSource("/v1/account/notifications/stream");
     const refresh = (raw?: Event) => {
       notifyChuskyDataChanged();
-      void chuskyApi.account.get().then(setAccount).catch(() => undefined);
+      void refreshAccount();
       if (raw instanceof MessageEvent) {
         try { const data = JSON.parse(String(raw.data)) as { events?: Array<{ kind?: string; missionId?: string }> }; const mission = data.events?.find((event) => event.kind === "mission" && event.missionId); if (mission?.missionId) setMissionToastId(mission.missionId); } catch { /* Durable account polling remains the replay path. */ }
       }
     };
     stream.addEventListener("notification", refresh);
     return () => { stream.removeEventListener("notification", refresh); stream.close(); };
-  }, [session?.user?.id]);
+  }, [refreshAccount, session?.user?.id]);
   useLiveData(async () => {
     try {
-      const [nextAccount, nextHealth] = await Promise.all([chuskyApi.account.get(), chuskyApi.health.get()]);
-      setAccount(nextAccount); setHealth(nextHealth);
+      const [, nextHealth] = await Promise.all([refreshAccount(), chuskyApi.health.get()]);
+      setHealth(nextHealth);
     } catch { /* Keep the shell usable while the API recovers. */ }
   }, DASHBOARD_REFRESH_INTERVAL_MS);
   useEffect(() => {
@@ -205,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         since = activity.now;
         retryDelay = 30_000;
         if (activity.attentionCandidates.length > 0 || activity.approvals.length > 0) {
-          void chuskyApi.account.get().then(setAccount).catch(() => undefined);
+          void refreshAccount();
         }
       } catch {
         if (active) retryDelay = Math.min(retryDelay * 2, 5 * 60_000);
@@ -219,7 +229,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => { active = false; controller?.abort(); if (timer !== undefined) window.clearTimeout(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
-  }, []);
+  }, [refreshAccount]);
   useEffect(() => {
     try { setCollapsed(window.localStorage.getItem("chusky-sidebar-collapsed") === "true"); } catch { /* Storage can be unavailable in private browsing. */ }
   }, []);
