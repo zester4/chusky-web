@@ -131,10 +131,42 @@ function mediaKindForSource(source?: string, alt?: string): MediaKind | undefine
   return undefined;
 }
 
+function trimUrlPunctuation(value: string): string {
+  return value.trim().replace(/^[([{]+|[)\]},.!?;:]+$/g, "");
+}
+
+function compactMediaLabel(source: string, label: string | undefined, kind: MediaKind): string {
+  const cleanLabel = trimUrlPunctuation(label || "");
+  const cleanSource = trimUrlPunctuation(source);
+  const labelLooksLikeUrl = /^https?:\/\//i.test(cleanLabel) || /https?:\/\//i.test(cleanLabel);
+  const labelIsSource = cleanLabel.toLowerCase() === cleanSource.toLowerCase() || labelLooksLikeUrl;
+  if (cleanLabel && !labelIsSource && cleanLabel.length <= 120) return cleanLabel;
+  try {
+    const parsed = new URL(cleanSource, "https://chusky.local");
+    const filename = decodeURIComponent(parsed.pathname.split("/").pop() || "").trim();
+    if (filename && filename.includes(".") && filename.length <= 96) return filename;
+    return parsed.hostname.replace(/^www\./i, "");
+  } catch {
+    return kind === "image" ? "Image" : kind === "video" ? "Video" : "Audio";
+  }
+}
+
+function MediaCaption({ source, label, kind }: { source: string; label?: string; kind: MediaKind }) {
+  const displayLabel = compactMediaLabel(source, label, kind);
+  const actionLabel = kind === "image" ? "Open image" : kind === "video" ? "Open video" : "Open audio";
+  return <span className="flex min-w-0 items-center justify-between gap-3 border-t border-foreground/10 px-1 pt-1.5 text-[10px] text-muted-foreground">
+    <span className="min-w-0 truncate" title={displayLabel}>{displayLabel}</span>
+    <a href={source} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 font-medium text-foreground/75 underline decoration-foreground/20 underline-offset-2 hover:text-foreground" aria-label={`${actionLabel}: ${displayLabel}`}>
+      {actionLabel}<ExternalLink size={10} aria-hidden="true" />
+    </a>
+  </span>;
+}
+
 function MarkdownMedia({ kind, source, label }: { kind: MediaKind; source: string; label?: string }) {
-  if (kind === "image") return <span className="my-2 block max-w-full overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.025] p-1.5"><img src={source} alt={label || "Image from Chusky"} loading="lazy" decoding="async" className="max-h-[30rem] max-w-full rounded-md object-contain" />{label ? <span className="block px-1 py-1 text-[10px] text-muted-foreground">{label}</span> : null}</span>;
-  if (kind === "video") return <span className="my-2 block max-w-full overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.025] p-1.5"><video controls playsInline preload="metadata" className="max-h-[30rem] w-full rounded-md bg-black object-contain" aria-label={label || "Video from Chusky"}><source src={source} />Your browser cannot play this video.</video>{label ? <span className="block px-1 py-1 text-[10px] text-muted-foreground">{label}</span> : null}</span>;
-  return <span className="my-2 block max-w-full rounded-lg border border-foreground/10 bg-foreground/[0.025] p-2"><audio controls preload="metadata" className="w-full" aria-label={label || "Audio from Chusky"}><source src={source} />Your browser cannot play this audio.</audio>{label ? <span className="block px-1 pt-1 text-[10px] text-muted-foreground">{label}</span> : null}</span>;
+  const accessibleLabel = compactMediaLabel(source, label, kind);
+  if (kind === "image") return <span className="my-2 block max-w-full overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.025] p-1.5"><img src={source} alt={accessibleLabel} loading="lazy" decoding="async" className="max-h-[30rem] max-w-full rounded-md object-contain" /><MediaCaption source={source} label={label} kind={kind} /></span>;
+  if (kind === "video") return <span className="my-2 block max-w-full overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.025] p-1.5"><video controls playsInline preload="metadata" className="max-h-[30rem] w-full rounded-md bg-black object-contain" aria-label={accessibleLabel}><source src={source} />Your browser cannot play this video.</video><MediaCaption source={source} label={label} kind={kind} /></span>;
+  return <span className="my-2 block max-w-full rounded-lg border border-foreground/10 bg-foreground/[0.025] p-2"><audio controls preload="metadata" className="w-full" aria-label={accessibleLabel}><source src={source} />Your browser cannot play this audio.</audio><MediaCaption source={source} label={label} kind={kind} /></span>;
 }
 
 function normalizeMarkdownContent(content: string) {
@@ -245,7 +277,7 @@ const components: Components = {
     const source = typeof src === "string" ? src : undefined;
     const kind = mediaKindForSource(source, alt);
     if (kind === "video" || kind === "audio") return <MarkdownMedia kind={kind} source={source || ""} label={alt || undefined} />;
-    return <span className="my-2 block max-w-full overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.025] p-1.5"><img alt={alt || "Image from Chusky"} src={source} loading="lazy" decoding="async" className="max-h-[30rem] max-w-full rounded-md object-contain" {...props} />{alt ? <span className="block px-1 py-1 text-[10px] text-muted-foreground">{alt}</span> : null}</span>;
+    return <span className="my-2 block max-w-full overflow-hidden rounded-lg border border-foreground/10 bg-foreground/[0.025] p-1.5"><img alt={source ? compactMediaLabel(source, alt || undefined, "image") : alt || "Image from Chusky"} src={source} loading="lazy" decoding="async" className="max-h-[30rem] max-w-full rounded-md object-contain" {...props} />{source ? <MediaCaption source={source} label={alt || undefined} kind="image" /> : null}</span>;
   },
   code: ({ children, className, ...props }) => {
     const rawSource = String(children);
