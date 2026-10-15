@@ -5,8 +5,54 @@ import type { TriggerEventActivity, TriggerEventAction } from "@/lib/chusky-api"
 import { TriggerLogo, triggerProviderBrand } from "@/components/app/trigger-logo";
 import { MarkdownMessage } from "./markdown-message";
 
-function eventMarkdown(content: string): string {
-  return content.split(/\r?\n/).map((line) => line.replace(/^(Event|High Read More|From|To|Subject|Received|Preview|Read More):\s*/i, "**$1:** ")).join("\n\n");
+function providerUrl(value: string): string {
+  return value.trim().replace(/[)\]},.!?;:]+$/g, "");
+}
+
+function providerUrlLabel(value: string): string {
+  try { return new URL(providerUrl(value)).hostname.replace(/^www\./i, ""); }
+  catch { return "Open link"; }
+}
+
+function providerLink(value: string, image = false): string {
+  const url = providerUrl(value);
+  return image ? `![Image](${url})` : `[${providerUrlLabel(url)}](${url})`;
+}
+
+/** Normalize provider event prose before it reaches the shared Markdown renderer. */
+export function eventMarkdown(content: string): string {
+  let normalized = content.replace(/\r\n?/g, "\n").trim();
+
+  // Providers often serialize media as `View image: (url)` or `Follow image link: (url)`.
+  // Turn those forms into real Markdown media/links so URLs never become the visible UI.
+  normalized = normalized
+    .replace(/(?:View\s+image|Image)\s*:\s*\(\s*((?:!\[[^\]]*\]\([^)]+\)|\[[^\]]*\]\([^)]+\)|https?:\/\/[^\s)]+))\s*\)/gi, (_, value: string) => {
+      return /^https?:\/\//i.test(value) ? providerLink(value, true) : value;
+    })
+    .replace(/Follow\s+image\s+link\s*:\s*\(\s*((?:!\[[^\]]*\]\([^)]+\)|\[[^\]]*\]\([^)]+\)|https?:\/\/[^\s)]+))\s*\)/gi, (_, value: string) => {
+      return `Follow image link: ${/^https?:\/\//i.test(value) ? providerLink(value) : value}`;
+    })
+    .replace(/(?:View\s+image|Image)\s*:\s*\(\s*(https?:\/\/[^\s)]+)\s*\)/gi, (_, url: string) => providerLink(url, true))
+    .replace(/Follow\s+image\s+link\s*:\s*\(\s*(https?:\/\/[^\s)]+)\s*\)/gi, (_, url: string) => `Follow image link: ${providerLink(url)}`)
+    .replace(/(?<!\])\((https?:\/\/[^\s)]+)\)/gi, (_, url: string) => providerLink(url))
+    .replace(/(^|\n)\s*(https?:\/\/\S+)\s*(?=\n|$)/g, (_, prefix: string, url: string) => `${prefix}${providerLink(url, /\.(?:png|jpe?g|webp|gif|avif|svg)(?:[?#]|$)/i.test(url))}`);
+
+  // Split provider inline bullets and inline headings into Markdown blocks.
+  normalized = normalized
+    .replace(/\s*[-=_]{4,}\s*/g, " ")
+    .replace(/\s+(Event|From|To|Subject|Received|Preview|Read More|Caption):\s*/gi, "\n\n$1: ")
+    .replace(/\s+\*\s+(?=[A-Z0-9])/g, "\n\n- ")
+    .replace(/([^\n])\s+(#{2,6}\s+)/g, "$1\n\n$2")
+    .replace(/(#{2,6}\s+[^\n]+?)\s+(!\[[^\]]*\]\([^)]+\))/g, "$1\n\n$2")
+    .replace(/(^|\n)\s*[-=_]{4,}\s*(?=\n|$)/g, "$1")
+    .replace(/\n{3,}/g, "\n\n");
+
+  const lines = normalized.split("\n").map((line) => line.trim()).filter(Boolean);
+  return lines
+    .map((line) => line.replace(/^(Event|High Read More|From|To|Subject|Received|Preview|Read More|Caption|Follow image link):\s*/i, "**$1:** "))
+    .join("\n\n")
+    .replace(/(\*\*(?:Preview|Caption):\*\*)\s+(!\[[^\]]*\]\([^)]+\))/gi, "$1\n\n$2")
+    .replace(/\n\n(?=-\s)/g, "\n");
 }
 
 function providerName(slug: string): string {
