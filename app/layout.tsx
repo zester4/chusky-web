@@ -6,12 +6,12 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Chusky — Your virtual worker',
-  description: 'Chusky handles the work behind your conversations—calls, meetings, follow-ups, research, and actions across your tools.',
+  description: 'Give Chusky the goal and get the work back. It can research, work across your apps, handle calls and meetings, and keep longer tasks moving.',
   generator: 'v0.app',
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === 'production' ? 'https://chusky-web.vercel.app' : 'http://localhost:3000')),
   openGraph: {
     title: 'Chusky — Your virtual worker',
-    description: 'The call is not the job. The follow-up is. Give Chusky a task and get the outcome.',
+    description: 'Give Chusky the goal and get the work back. Research, apps, calls, meetings, and longer tasks—with your approval when it matters.',
     type: 'website',
     images: [
       {
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Chusky — Your virtual worker',
-    description: 'Talk to Chusky. Give it a task. Get the outcome.',
+    description: 'Give Chusky the goal. Get the work back.',
     images: ['/twitter-card.png'],
   },
 }

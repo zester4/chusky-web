@@ -7,12 +7,22 @@ import { BackgroundWorkSection, CallWorkSection, ControlSection, ConversationWor
 const apps = [
   { name: "Gmail", src: "/logos/gmail.svg" },
   { name: "Slack", src: "/logos/slack.svg" },
+  { name: "WhatsApp", src: "/logos/whatsapp.svg" },
+  { name: "Telegram", src: "/logos/telegram.svg" },
+  { name: "iMessage", src: "/logos/imessage.svg" },
+  { name: "X", src: "/logos/x-twitter.svg" },
   { name: "Notion", src: "/logos/notion.svg" },
   { name: "Google Calendar", src: "/logos/google-calendar.svg" },
+  { name: "Zoom", src: "/logos/zoom.svg" },
+  { name: "Google Meet", src: "/logos/google-meet.svg" },
+  { name: "Microsoft Teams", src: "/logos/microsoft-teams.svg" },
+  { name: "Webex", src: "/logos/webex.svg" },
   { name: "HubSpot", src: "/logos/hubspot.svg" },
   { name: "Salesforce", src: "/logos/salesforce.svg" },
   { name: "Box", src: "/logos/box.png" },
   { name: "Stripe", src: "/logos/stripe.svg" },
+  { name: "Twilio", src: "/logos/twilio.svg" },
+  { name: "MCP", src: "/logos/mcp.svg" },
 ];
 
 const questions = [
@@ -29,22 +39,22 @@ const questions = [
 export function HomepageSections() {
   return (
     <>
-      <CallWorkSection />
-      <ConversationWorkSection includeCallSummary={false} />
+      <TaskOutcomeLoopSection />
       <WorkChannelsSection />
 
       <section className={styles.connections} aria-labelledby="connections-title">
-        <div><p className={styles.eyebrow}>6,000+ tools through one connection</p><h2 id="connections-title">Does the work<br />in your tools.</h2></div>
+        <div><p className={styles.eyebrow}>6,000+ tools through one connection</p><h2 id="connections-title">Work across your<br />connected tools.</h2></div>
         <div className={styles.connectionsRight}>
-          <div className={styles.appNames}>{apps.map((app) => <span key={app.name}><Image src={app.src} alt="" width={24} height={24} className={styles.appLogo} />{app.name}</span>)}</div>
+          <div className={styles.appNames} aria-label="Connected tools and channels">{apps.map((app) => <span key={app.name} title={app.name}><Image src={app.src} alt={app.name} width={32} height={32} className={styles.appLogo} /></span>)}</div>
           <div className={styles.connectionNote}><p>Chusky can work across 6,000+ connected tools and take action within 1,000+ of them. Availability depends on your setup and permissions.</p><Link href="/integrations">Explore integrations <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
         </div>
       </section>
 
       <BackgroundWorkSection />
       <MissionLifecycleSection />
+      <CallWorkSection />
+      <ConversationWorkSection includeCallSummary={false} />
       <ControlSection />
-      <TaskOutcomeLoopSection />
 
       <section className={styles.editorial} aria-labelledby="less-switching-title">
         <div className={styles.sectionHeader}><p className={styles.eyebrow}>One worker. A longer thread.</p><span className={styles.sectionIndex}>Context / Action / Follow-through</span></div>
@@ -53,17 +63,17 @@ export function HomepageSections() {
           <div className={styles.editorialCopy}><p>A client agrees to a next step on a call. A deal changes in HubSpot. An important reply arrives while you’re in another meeting.</p><p>Chusky can meet that work where it happens and carry it forward. It can join the conversation, prepare the follow-up, update the right app, or keep a longer project on track—without asking you to reconnect the pieces every time.</p><Link href="/features" className={styles.textAction}>See what Chusky can do <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
         </div>
         <div className={styles.benefitRows}>
-          <article><span className={styles.rowLabel}>Where you work</span><h3>Meet the work there.</h3><p>Messages, meetings, phone calls, your browser, or a chat widget on your business website.</p></article>
-          <article><span className={styles.rowLabel}>When it matters</span><h3>Keep it moving.</h3><p>Scheduled check-ins, event-triggered tasks, and projects that continue over days or weeks.</p></article>
-          <article><span className={styles.rowLabel}>On your terms</span><h3>Keep your say.</h3><p>Budgets, a record of each run, and the owner’s approval for spending, deleting, and high-impact sends.</p></article>
+          <article><span className={styles.rowLabel}>Connected work</span><h3>Work across your connected tools.</h3><p>Messages, meetings, phone calls, your browser, or a chat widget on your business website.</p></article>
+          <article><span className={styles.rowLabel}>Proactive work</span><h3>Scheduled checks and follow-ups.</h3><p>Inbox and calendar checks, event-triggered tasks, and projects that continue over days or weeks.</p></article>
+          <article><span className={styles.rowLabel}>Owner control</span><h3>Approvals, budgets, and proof.</h3><p>Set limits for each run and review spending, deleting, permission changes, and high-impact sends before they happen.</p></article>
         </div>
         <p className={styles.integrationAccess}>Building with Chusky? Use the <Link href="/developers">API or TypeScript SDK</Link>, or connect compatible systems through <Link href="/mcp">MCP</Link> and <Link href="/api-reference#a2a">A2A</Link>.</p>
       </section>
 
       <section className={styles.deliverables} aria-labelledby="deliverables-title">
-          <div className={styles.deliverableCopy}><p className={styles.eyebrow}>Something to show for it</p><h2 id="deliverables-title" className={styles.sectionTitle}>A good answer.<br /><em>A useful thing.</em></h2><p>Turn research into a report, meeting decisions into a presentation, or a comparison into a spreadsheet. Get a PDF, DOCX, PPTX, or XLSX you can take into the next part of your day.</p><p>For work on the web, Chusky can navigate a page, fill a form, and check the result. It can divide a larger job into clear roles and carry the work between them.</p><Link href="/features#browser-and-agents" className={styles.textAction}>Explore browser and research work <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
+          <div className={styles.deliverableCopy}><p className={styles.eyebrow}>Research and deliverables</p><h2 id="deliverables-title" className={styles.sectionTitle}>Research, reports,<br /><em>and ready-to-use files.</em></h2><p>Turn research into a report, meeting decisions into a presentation, or a comparison into a spreadsheet. Get a PDF, DOCX, PPTX, or XLSX you can take into the next part of your day.</p><p>For work on the web, Chusky can navigate a page, fill a form, and check the result. It can divide a larger job into clear roles and carry the work between them.</p><Link href="/features#browser-and-agents" className={styles.textAction}>Explore browser and research work <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
         <div className={styles.fileLibrary}>
-          <div className={styles.libraryHeading}><FolderOpen size={20} strokeWidth={1.5} aria-hidden="true" /><h3>From thought to handoff</h3><span>File formats</span></div>
+          <div className={styles.libraryHeading}><FolderOpen size={20} strokeWidth={1.5} aria-hidden="true" /><h3>Ready-to-use deliverables</h3><span>File formats</span></div>
           {[
             ["Documents & reports", "PDF / DOCX", "Findings, context, and next steps."],
             ["Spreadsheets", "XLSX", "Organized data for the next decision."],
@@ -85,7 +95,7 @@ export function HomepageSections() {
 
       <section className={styles.faq} aria-labelledby="faq-title"><div><p className={styles.eyebrow}>Before you begin</p><h2 id="faq-title" className={styles.sectionTitle}>A few things<br /><em>worth knowing.</em></h2><Link href="/docs" className={styles.textAction}>Visit the documentation <ArrowUpRight size={17} aria-hidden="true" /></Link></div><div className={styles.faqList}>{questions.map(({ question, answer }) => <details key={question}><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div></section>
 
-      <section className={styles.closing} aria-labelledby="closing-title"><div className={styles.sectionHeader}><p className={styles.eyebrow}>Make room for the work that matters</p><span className={styles.sectionIndex}>Your next step</span></div><div className={styles.closingRow}><h2 id="closing-title">Start a<br /><em>paid pilot.</em></h2><div><p>The call. The meeting. The follow-up.<br />Give Chusky the outcome.</p><Link href="/contact" className={styles.primaryAction}>Book a pilot <ArrowUpRight size={18} aria-hidden="true" /></Link></div></div></section>
+      <section className={styles.closing} aria-labelledby="closing-title"><div className={styles.sectionHeader}><p className={styles.eyebrow}>Make room for the work that matters</p><span className={styles.sectionIndex}>Your next step</span></div><div className={styles.closingRow}><h2 id="closing-title">Start<br /><em>for free.</em></h2><div><p>One goal. The steps it takes.<br />The finished work back in your hands.</p><Link href="/sign-up" className={styles.primaryAction}>Start for Free <ArrowUpRight size={18} aria-hidden="true" /></Link></div></div></section>
     </>
   );
 }

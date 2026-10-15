@@ -72,9 +72,9 @@
 .heroFootnote > span:last-child { display: flex; flex-wrap: wrap; gap: 16px; }
 .connections { display: grid; grid-template-columns: .85fr 1.4fr; align-items: center; gap: 64px; padding: 48px 0; border-block: 1px solid var(--border); }
 .connections h2 { font-size: 20px; line-height: 1.4; margin-top: 12px; letter-spacing: -.025em; }
-.appNames { display: flex; flex-wrap: wrap; align-items: center; gap: 24px 32px; }
-.appNames > span { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.appLogo { filter: grayscale(1); width: 24px; height: 24px; object-fit: contain; }
+.appNames { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 20px; }
+.appNames > span { display: grid; place-items: center; width: 40px; height: 40px; }
+.appLogo { filter: grayscale(1); width: 30px; height: 30px; object-fit: contain; }
 :global(.dark) .appLogo { filter: grayscale(1) invert(.8); }
 .connectionNote { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; font-size: 11px; line-height: 1.6; color: var(--muted-foreground); }
 .connectionNote a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--foreground); }
@@ -140,7 +140,7 @@
   .requestBody { padding: 24px; }
   .editorialGrid, .processLayout, .faq { gap: 40px; }
   .deliverables { gap: 40px; padding: 32px; }
-  .appNames { gap: 20px; }
+  .appNames { gap: 16px; }
   .connectionNote { flex-wrap: wrap; gap: 0; }
 }
 @media (max-width: 760px) {
@@ -167,8 +167,7 @@
   .heroFootnote > span:last-child { gap: 10px; }
   .connections { grid-template-columns: 1fr; gap: 28px; padding-block: 32px; }
   .connections h2 { font-size: 23px; }
-  .appNames { gap: 20px 24px; }
-  .appNames > span { font-size: 13px; }
+  .appNames { gap: 14px 16px; }
   .editorial, .process { padding-block: 64px; }
   .editorialGrid, .processLayout { grid-template-columns: 1fr; gap: 24px; }
   .sectionTitle { font-size: 44px; }

@@ -9,20 +9,20 @@ export function HeroSection() {
       <div className={styles.heroHeading}>
         <p className={styles.eyebrow}>One virtual worker. The whole follow-through.</p>
         <h1 id="home-title" className={styles.heroTitle}>
-          The call is not the job.<br /><em>The follow-up is.</em>
+          Give Chusky the goal.<br /><em>Get the work back.</em>
         </h1>
         <div className={styles.heroIntro}>
-          <p>Chusky answers and makes your business calls, joins your meetings, and follows through on everything agreed, across phone, chat and your apps, with your approval on anything that matters.</p>
+          <p>Talk to Chusky where you already work. It can research, work across your apps, make and answer calls, join meetings, and keep the task moving—with your approval when it matters.</p>
           <div className={styles.actions}>
-            <Link href="/contact" className={styles.primaryAction}>Book a pilot <ArrowUpRight size={18} aria-hidden="true" /></Link>
-            <a href="#calls" className={styles.textAction}>See what it does <ArrowDown size={16} aria-hidden="true" /></a>
+            <Link href="/sign-up" className={styles.primaryAction}>Start for Free <ArrowUpRight size={18} aria-hidden="true" /></Link>
+            <a href="#work-in-practice" className={styles.textAction}>See what it does <ArrowDown size={16} aria-hidden="true" /></a>
           </div>
         </div>
       </div>
       <RequestExplorer />
       <div className={styles.heroFootnote}>
         <span>Talk to Chusky. Give it a task. Get the outcome.</span>
-        <span>Calls <span aria-hidden="true">/</span> Meetings <span aria-hidden="true">/</span> Follow-through</span>
+        <span>Research <span aria-hidden="true">/</span> Apps <span aria-hidden="true">/</span> Calls &amp; meetings <span aria-hidden="true">/</span> Follow-through</span>
       </div>
     </section>
   );

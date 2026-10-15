@@ -7,7 +7,7 @@ Grounding: product-owner brief supplied in this conversation. This is a messagin
 1. One agent wherever work happens: messages, meetings, business calls, the web, a terminal, and an embedded chat widget.
 2. Work that follows through after the conversation: agreed actions, scheduled checks, event-triggered tasks, and projects that keep their progress over days or weeks.
 
-Keep the approved homepage headline: “Give work a second brain.” Use everyday language and concrete jobs; describe technical details in developer documentation.
+Keep the approved homepage headline: “Give Chusky the goal. Get the work back.” Use everyday language and concrete jobs; describe technical details in developer documentation.
 
 ## Capabilities from the owner's brief
 

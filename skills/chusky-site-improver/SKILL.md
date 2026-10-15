@@ -231,47 +231,50 @@ Never:
 Use this exact hero:
 
 **Headline:**  
-The call is not the job. The follow-up is.
+Give Chusky the goal. Get the work back.
 
 **Subhead:**  
-Chusky answers and makes your business calls, joins your meetings, and follows through on everything agreed, across phone, chat and your apps, with your approval on anything that matters.
+Talk to Chusky where you already work. It can research, work across your apps, make and answer calls, join meetings, and keep the task moving—with your approval when it matters.
 
 **Primary button:**  
-Book a pilot
+Start for Free
 
 **Secondary button:**  
 See what it does
 
 Use these homepage sections in this exact order:
 
-1. **Calls, handled end to end.**  
-   Answers inbound calls, makes outbound ones, answers customer questions, confirms details, and follows up on what was agreed.
+1. **Talk. Assign. Get the outcome.**
+   Show the complete loop first: a person gives Chusky a goal, Chusky works across the required steps and tools, and returns with the finished work.
 
-2. **Meetings that turn into action.**  
-   Joins Zoom, Google Meet, Microsoft Teams and Webex, captures outcomes and next steps, and turns them into follow-up work.
-
-3. **Works where your customers already talk.**  
+2. **Works where your customers already talk.**
    Slack, WhatsApp, Telegram, iMessage, SMS, X, web chat, plus a chat widget for your own site.
 
-4. **Does the work in your tools.**  
+3. **Does the work in your tools.**
    Updates your CRM (HubSpot, Salesforce), sends email, books calendar time, and reaches thousands of apps through one connection.
 
-5. **Proactive, not just on command.**  
+4. **Proactive, not just on command.**
    Checks your inbox and calendar on a schedule, flags what needs doing, and gets it ready before you ask.
 
-6. **Runs work that takes days, not seconds.**  
+5. **Runs work that takes days, not seconds.**
    Multi-step jobs with a clear finish line, budgets and proof of what was done. Pause, resume or change course anytime.
 
-7. **You stay in control.**  
+6. **Calls, handled end to end.**
+   Answers inbound calls, makes outbound ones, answers customer questions, confirms details, and follows up on what was agreed.
+
+7. **Meetings that turn into action.**
+   Joins Zoom, Google Meet, Microsoft Teams and Webex, captures outcomes and next steps, and turns them into follow-up work.
+
+8. **You stay in control.**
    Spending, deleting, permission changes and high-impact messages wait for your yes. Every run has a budget and an audit trail, and nothing is marked done without a receipt from the provider.
 
 End with:
 
-**Start a paid pilot.**
+**Start for free.**
 
 ## 8. Homepage improvement direction
 
-When improving the homepage, make the “one virtual worker” idea clearer without changing the approved hero or section order.
+When improving the homepage, make the “one virtual worker” idea clear without changing the approved hero or section order. Lead with the complete goal-to-outcome loop before presenting calls, meetings, or another individual capability.
 
 Add clarity through supporting copy, section intros, and visual hierarchy:
 
@@ -279,7 +282,7 @@ Add clarity through supporting copy, section intros, and visual hierarchy:
 - Show that conversations can start on any channel.
 - Show that a task can become a call, meeting follow-up, research job, browser task, or app action.
 - Show that the outcome comes back to the customer in the same channel.
-- Keep calls prominent because they are a core built-in capability.
+- Keep calls prominent as a core built-in capability, but never let calls define the product or lead the hero.
 - Keep the “one worker, many capabilities” idea visible throughout.
 
 Example supporting line:
@@ -428,7 +431,7 @@ Before presenting a page, confirm:
 - Does it show that Chusky works across channels, meetings, browser, research, and tools?
 - Does it preserve the existing colors, fonts, spacing, and components?
 - Does it use only approved claims and integrations?
-- Is “Book a pilot” the clear primary action?
+- Is “Start for Free” the clear primary action?
 - Is the page easy to scan on mobile and desktop?
 - Are headings, buttons, forms, and links accessible?
 - Has the page been shown for approval before publishing?

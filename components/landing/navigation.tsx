@@ -16,7 +16,7 @@ const navLinks = [
   { name: "Docs", href: "/docs" },
 ];
 
-export function Navigation() {
+export function Navigation({ ctaLabel = "Book a pilot", ctaHref = "/contact" }: { ctaLabel?: string; ctaHref?: string }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -101,7 +101,7 @@ export function Navigation() {
               size="sm"
               className={`rounded-full bg-primary text-primary-foreground transition-all duration-500 hover:bg-primary/90 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
             >
-              <Link href="/contact">Book a pilot</Link>
+              <Link href={ctaHref}>{ctaLabel}</Link>
             </Button>
           </div>
 
@@ -174,7 +174,7 @@ export function Navigation() {
             <Button asChild
               className="h-10 flex-1 rounded-full bg-foreground text-sm text-background"
             >
-              <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>Book a pilot</Link>
+              <Link href={ctaHref} onClick={() => setIsMobileMenuOpen(false)}>{ctaLabel}</Link>
             </Button>
           </div>
         </div>
