@@ -55,6 +55,7 @@ type Message = {
   historyContent?: string;
   displayText?: string;
   statusText?: string;
+  openingText?: string;
   progress?: RunProgress;
   tool?: string;
   activities?: RunToolActivity[];
@@ -99,6 +100,7 @@ const runSubagentActivities = (run: Run): RunSubagentActivity[] => coalesceSubag
 })).map((activity) => ({ ...activity, type: "run.subagent_activity" as const }));
 const runDeltaText = (run: Run) => (run.events ?? []).filter((event) => event.type === "run.delta" && typeof event.text === "string").map((event) => event.text).join("");
 const runProgressText = (run: Run) => [...(run.events ?? [])].reverse().find((event) => event.type === "run.status" && typeof event.text === "string" && event.text.trim())?.text;
+const runOpeningText = (run: Run) => (run.events ?? []).find((event) => event.id.startsWith("evt_opening_") && event.type === "run.status")?.text;
 
 const progressPhaseForRun = (status: Run["status"], activities: RunToolActivity[]): RunProgressPhase => {
   if (status === "completed") return "completed";
@@ -217,7 +219,7 @@ async function runMessagePair(run: Run, artifactCatalog: Artifact[]): Promise<{ 
   const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
   return {
     user: run.input || run.attachments?.length ? { role: "user", text: run.input || "Attached file(s)", ...(triggerDisplayText ? { displayText: triggerDisplayText } : {}), time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent } : undefined,
-    assistant: { role: "assistant", runId: run.id, text: output, progress: progressFromRun(run), activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
+    assistant: { role: "assistant", runId: run.id, text: output, openingText: runOpeningText(run), progress: progressFromRun(run), activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
   };
 }
 const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + worker.slice(1);
@@ -889,6 +891,7 @@ export function ChatPage() {
         ...item,
         text,
         progress: progressFromRun(run),
+        openingText: runOpeningText(run) ?? item.openingText,
         activities: snapshotActivities.length ? snapshotActivities : item.activities,
         subagentActivities: snapshotSubagentActivities.length ? snapshotSubagentActivities : item.subagentActivities,
         artifacts,
@@ -1383,7 +1386,7 @@ export function ChatPage() {
           syncActiveRunId(typed.run.id);
           updateLastAssistant({ runId: typed.run.id, pending: true, progress: progressFromRun(typed.run) });
         } else if (typed.type === "run.progress") {
-          updateLastAssistant({ progress: typed.progress, pending: true, statusText: typed.progress.title });
+          updateLastAssistant((item) => ({ progress: typed.progress, pending: true, statusText: typed.progress.title, openingText: typed.progress.evidence?.find((entry) => entry.id === "turn-opening")?.detail ?? item.openingText }));
         } else if (typed.type === "run.status") {
           updateLastAssistant((item) => ({ pending: true, statusText: typed.text, tool: undefined, progress: item.progress || { phase: "researching", title: typed.text, detail: "Chusky is keeping the work visible while it continues." } }));
         } else if (typed.type === "run.delta") {
@@ -1665,6 +1668,7 @@ export function ChatPage() {
                       <span className="shrink-0 font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span>
                     </div>}
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
+                    {item.role === "assistant" && item.openingText ? <p className="mb-3 text-sm leading-6" aria-live="polite">{item.openingText}</p> : null}
                     {headlineActivity || item.progress ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
                     {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? visibleAssistantText ? <MarkdownMessage content={visibleAssistantText} streaming={item.pending} /> : null : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
