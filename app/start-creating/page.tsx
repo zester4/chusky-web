@@ -1,68 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Bot, MonitorCog, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ProductPageHero, ProductPageShell } from "@/components/landing/product-page";
+import { ArrowUpRight } from "lucide-react";
+import { ContentCard, ContentPage, ContentSection } from "@/components/landing/content-page";
+import styles from "@/components/landing/product-page.module.css";
 
-export const metadata: Metadata = {
-  title: "Start creating | Chusky AI Agent",
-  description: "Create a Chusky account and choose a first task for your agent.",
-};
+export const metadata: Metadata = { title: "Start creating | Chusky AI Agent", description: "Choose your first Chusky task: a meeting follow-up, business call, inbox check-in, or a longer project." };
 
 const startingPoints = [
-  {
-    icon: Bot,
-    title: "Start a conversation",
-    description: "Start in a conversation. Chusky can use native capabilities and the connected-app actions available to your account.",
-    href: "/sign-up",
-  },
-  {
-    icon: MonitorCog,
-    title: "Give your agent a computer",
-    description: "Computer and browser work is available when the workspace has its execution provider configured.",
-    href: "/features",
-  },
-  {
-    icon: Zap,
-    title: "Explore the tools",
-    description: "Review the supported app connections and learn how enabled actions, approvals, and durable workflows behave.",
-    href: "/features",
-  },
+  ["A conversation", "Give the meeting a next step.", "Ask Chusky to join the client meeting, capture the agreement, and prepare the follow-up. Connect the meeting provider and the apps that need the outcome.", "/features#meetings-and-calls", "Explore meetings and calls"],
+  ["A routine", "Give the inbox a second look.", "Set a schedule for Elena to check the inbox and calendar you choose. Decide what should be surfaced, prepared, or handled within your permission.", "/features#work-that-keeps-moving", "Explore scheduled work"],
+  ["A project", "Give the goal a working plan.", "Set the result you need, the steps, and the budget. Let a mission keep its place over days or weeks, with progress and evidence attached.", "/how-it-works#ongoing-work", "Explore longer projects"],
+  ["A practical task", "Give the browser a clear job.", "Have Chusky work through a website, fill a form, and check the result. Or turn a research question into a report, presentation, or spreadsheet.", "/features#browser-and-agents", "Explore browser work"],
 ];
 
 export default function StartCreatingPage() {
-  return (
-    <ProductPageShell>
-      <ProductPageHero
-        eyebrow="Start creating"
-        title={<>Start with a task.<br /><span className="text-muted-foreground">See what is enabled.</span></>}
-        description="Create your account, try a request in chat, then connect an app or provider only when your task needs it. Some capabilities require workspace setup."
-        artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky helping work move from idea to delivery" }}
-      />
-      <section className="py-14 sm:py-20 lg:py-32">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-12">
-          <div className="grid gap-px bg-foreground/10 md:grid-cols-3">
-            {startingPoints.map(({ icon: Icon, title, description, href }) => (
-              <Link key={title} href={href} className="group min-h-52 border border-transparent bg-background p-5 transition-colors hover:border-foreground sm:min-h-64 sm:p-8 lg:p-10">
-                <Icon className="mb-8 h-5 w-5 sm:mb-12 sm:h-6 sm:w-6" aria-hidden="true" />
-                <h2 className="mb-3 font-display text-2xl sm:mb-4 sm:text-3xl">{title}</h2>
-                <p className="mb-6 text-sm leading-relaxed text-muted-foreground sm:mb-8">{description}</p>
-                <span className="inline-flex items-center gap-2 text-sm font-medium">
-                  Learn more <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </span>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-10 flex flex-row flex-wrap items-center justify-center gap-2.5 sm:mt-16 sm:gap-3">
-            <Button asChild className="h-10 rounded-full bg-primary px-4 text-sm text-primary-foreground hover:bg-primary/90">
-              <Link href="/sign-in">I already have an account <ArrowRight className="w-4 h-4" /></Link>
-            </Button>
-            <Button asChild variant="outline" className="h-10 rounded-full px-4 text-sm">
-              <Link href="/features">See all features</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-    </ProductPageShell>
-  );
+  return <ContentPage eyebrow="Your first piece of work" title={<>Start with a job.<br /><span>See it move forward.</span></>} description="Create your account and choose one thing you would like off your mind. Bring in the channels and tools that task needs, then decide what Chusky can handle and what comes back for your review.">
+    <section><div className={styles.entryPoints}>{startingPoints.map(([label, title, description, href, action]) => <article className={styles.entryPoint} key={label}><div>{label}</div><h3>{title}</h3><div><p>{description}</p><Link href={href}>{action}<ArrowUpRight size={16} aria-hidden="true" /></Link></div></article>)}</div></section>
+    <ContentSection eyebrow="A better first request" title="Give it enough to do a useful job." description="Start with the outcome. A few clear details help Chusky choose the next step and know when to come back to you."><div className="grid sm:grid-cols-2"><ContentCard title="The result you want.">A follow-up ready to review, a customer record updated, or a report with a recommendation. Say what finished should look like.</ContentCard><ContentCard title="The context it needs.">Bring the conversation, a file, or the relevant app connection. Name the customer, meeting, or project the job belongs to.</ContentCard><ContentCard title="The room it has to work.">Set a budget for longer work. Say which tools belong in the task and what actions should wait for your review.</ContentCard><ContentCard title="The rhythm that fits.">Ask once, add a reminder, set up a recurring job, or enable a watch. Choose whether the task starts from you, a schedule, or an event.</ContentCard></div></ContentSection>
+    <ContentSection eyebrow="Ready for the next step" title="Bring one thing that needs doing." description="The workspace shows the connections and capabilities available to your account. Meetings, calls, and background work may need additional setup before the first task."><div className="flex flex-wrap gap-6"><Link href="/sign-up" className={styles.primaryAction}>Create an account <ArrowUpRight size={18} aria-hidden="true" /></Link><Link href="/sign-in" className={styles.secondaryAction}>I already have an account <ArrowUpRight size={16} aria-hidden="true" /></Link></div></ContentSection>
+  </ContentPage>;
 }

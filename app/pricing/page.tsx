@@ -12,9 +12,9 @@ export default function PricingPage() {
     <ProductPageShell>
       <ProductPageHero
         eyebrow="Plans and access"
-        title={<>Know what is<br /><span className="text-muted-foreground">actually available.</span></>}
+        title={<>Make room<br /><span>for better work.</span></>}
         description="Chusky does not publish plan prices or limits on this site. Sign in to see the usage and capabilities available to your workspace."
-        artwork={{ src: "/chusky/chusky-wave.png", alt: "Chusky mascot waving hello" }}
+
       />
       <PricingSection />
     </ProductPageShell>

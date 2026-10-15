@@ -13,8 +13,8 @@ export default function DevelopersPage() {
       <ProductPageHero
         eyebrow="For developers"
         title={<>Build the agent<br /><span className="text-muted-foreground">your stack needs.</span></>}
-        description="Integrate Chusky’s agent runtime behind your product with typed APIs, stable caller identity, run events, and scoped tool access."
-        artwork={{ src: "/chusky/chusky-developer.png", alt: "Chusky working with developer tools and connected infrastructure" }}
+        description="Bring 6,000+ tools, ongoing agent work, and human approvals behind your product. Use the API or SDK, embed chat on your business site, or connect another agent through MCP and A2A."
+
       />
       <DeveloperPlatformSection />
     </ProductPageShell>

@@ -5,27 +5,27 @@ import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Chusky AI Agent',
-  description: 'Chusky is an AI agent for connected app actions, files, and multi-step workflows with visible progress and owner approvals.',
+  title: 'Chusky — Your virtual worker',
+  description: 'Chusky handles the work behind your conversations—calls, meetings, follow-ups, research, and actions across your tools.',
   generator: 'v0.app',
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === 'production' ? 'https://chusky-web.vercel.app' : 'http://localhost:3000')),
   openGraph: {
-    title: 'Chusky AI Agent',
-    description: 'Chusky is an AI agent for connected app actions, files, and multi-step workflows with visible progress and owner approvals.',
+    title: 'Chusky — Your virtual worker',
+    description: 'The call is not the job. The follow-up is. Give Chusky a task and get the outcome.',
     type: 'website',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Chusky AI Agent — Your tools, on call.',
+        alt: 'A business owner handling a call while reviewing the next steps.',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Chusky AI Agent',
-    description: 'Connect tools and move work forward with Chusky.',
+    title: 'Chusky — Your virtual worker',
+    description: 'Talk to Chusky. Give it a task. Get the outcome.',
     images: ['/twitter-card.png'],
   },
 }

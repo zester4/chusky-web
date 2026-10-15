@@ -14,7 +14,7 @@ export function MascotStorySection() {
       <div className="mx-auto grid max-w-[1400px] items-center gap-7 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1fr)] lg:gap-14 lg:px-12">
         <div className="relative order-2 overflow-hidden rounded-[1.5rem] border border-foreground/10 bg-[#10182d] shadow-[0_20px_70px_-35px_rgba(7,15,35,0.7)] lg:order-1">
           <div className="relative aspect-[4/3]">
-            <Image src="/chusky/chusky-studio.png" alt="Chusky in a focused workspace" fill sizes="(max-width: 1024px) 100vw, 45vw" className="object-cover" />
+            <Image src="/images/chusky-call-follow-through.webp" alt="A business owner handling a call while reviewing the next steps" fill sizes="(max-width: 1024px) 100vw, 45vw" className="object-cover grayscale" />
           </div>
           <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-[#081126]/70 to-transparent" />
           <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#0c1530]/80 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur sm:bottom-5 sm:left-5">

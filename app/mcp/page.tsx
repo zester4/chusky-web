@@ -40,7 +40,7 @@ export default function McpLandingPage() {
         eyebrow="Model Context Protocol"
         title={<>Connect Chusky<br /><span className="text-muted-foreground">to the agents you use.</span></>}
         description="Connect an MCP host that supports remote Streamable HTTP to Chusky’s project-scoped tools. Caller identity and server-side policy scope the work; background continuation depends on production persistence and scheduling configuration."
-        artwork={{ src: "/chusky/chusky-developer.png", alt: "Chusky connecting an agent workspace to developer tools" }}
+
       />
 
       <section className="border-b border-foreground/10 py-14 sm:py-20 lg:py-28">
@@ -71,7 +71,7 @@ export default function McpLandingPage() {
             <Link href="/app/developer-api" className="mt-6 inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4">Create an API key in Chusky <ArrowRight className="h-4 w-4" /></Link>
           </div>
           <div className="overflow-hidden rounded-2xl border border-foreground/15 bg-background text-sm text-foreground shadow-sm">
-            <div className="flex items-center justify-between border-b border-foreground/10 px-4 py-3 font-mono text-[10px] text-muted-foreground"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="h-2 w-2 rounded-full bg-foreground/35" /><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="ml-2">mcp.json</span></div><span>server-side config</span></div>
+            <div className="flex items-center justify-between border-b border-foreground/10 px-4 py-3 font-mono text-[10px] text-muted-foreground"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-foreground/40" /><span className="h-2 w-2 rounded-full bg-foreground/35" /><span className="h-2 w-2 rounded-full bg-foreground/60" /><span className="ml-2">mcp.json</span></div><span>server-side config</span></div>
             <pre className="overflow-x-auto p-4 text-[11px] leading-6 sm:p-5 sm:text-xs"><code>{config}</code></pre>
           </div>
         </div>
@@ -95,7 +95,7 @@ export default function McpLandingPage() {
       <section className="py-14 sm:py-20 lg:py-28">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end lg:px-12">
           <div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">02 · Identity and safety</p><h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">The key opens the project. Identity scopes the work.</h2><p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">Send a stable, non-PII application identity in <code className="rounded bg-foreground/[0.06] px-1.5 py-0.5 font-mono text-xs">X-Chusky-User-Id</code>. Chusky uses it to keep conversations, files, connected accounts, approvals, and usage separated between callers.</p></div>
-          <div className="space-y-3">{["Never put a chsk_ key in browser code or a prompt.", "Do not use an email address or display name as the stable identity.", "Start with a read-only test before enabling external actions."].map((item) => <div key={item} className="flex items-start gap-3 rounded-xl border border-foreground/10 px-4 py-4 text-sm"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />{item}</div>)}</div>
+          <div className="space-y-3">{["Never put a chsk_ key in browser code or a prompt.", "Do not use an email address or display name as the stable identity.", "Start with a read-only test before enabling external actions."].map((item) => <div key={item} className="flex items-start gap-3 rounded-xl border border-foreground/10 px-4 py-4 text-sm"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />{item}</div>)}</div>
         </div>
       </section>
 

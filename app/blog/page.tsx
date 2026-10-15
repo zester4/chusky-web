@@ -16,7 +16,7 @@ const notes = [
 
 export default function BlogPage() {
   return (
-    <ContentPage eyebrow="Product principles" title={<>How we think about<br /><span className="text-muted-foreground">agents at work.</span></>} description="These are the design principles we use to make choices about Chusky. They are product perspective, not customer testimonials or performance claims." artwork={{ src: "/chusky/chusky-poster.png", alt: "Chusky working through a multi-step task" }}>
+    <ContentPage eyebrow="Product principles" title={<>How we think about<br /><span className="text-muted-foreground">agents at work.</span></>} description="These are the design principles we use to make choices about Chusky. They are product perspective, not customer testimonials or performance claims.">
       <ContentSection eyebrow="Our point of view" title="Capability is only useful when the boundary is clear." description="We judge an agent by the quality of its handoffs as well as its answers: what it understood, what it changed, and what still needs a person.">
         <div className="grid gap-3 md:grid-cols-3">{notes.map(([Icon, title, description]) => <ContentCard key={title} eyebrow="Principle" title={title}><Icon className="mb-4 h-5 w-5 text-chusky-amber" />{description}</ContentCard>)}</div>
       </ContentSection>

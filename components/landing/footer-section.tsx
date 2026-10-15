@@ -39,13 +39,13 @@ const socialLinks = [
   { name: "MCP source", href: "https://github.com/zester4/chusky-mcp" },
 ];
 
-export function FooterSection() {
+export function FooterSection({ quiet = false }: { quiet?: boolean }) {
   return (
     <footer className="relative border-t border-foreground/10">
       {/* Animated wave background */}
-      <div className="absolute inset-0 h-64 opacity-20 pointer-events-none overflow-hidden">
+      {!quiet && <div className="absolute inset-0 h-64 opacity-20 pointer-events-none overflow-hidden">
         <AnimatedWave />
-      </div>
+      </div>}
       
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
         {/* Main Footer */}
@@ -60,7 +60,7 @@ export function FooterSection() {
               </Link>
 
               <p className="mb-6 max-w-xs text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                A multi-channel agent for connected app actions, durable workflows, and files you can take with you.
+                Your agent across messages, meetings, and calls. Following through on the work that comes next.
               </p>
 
               {/* Social Links */}

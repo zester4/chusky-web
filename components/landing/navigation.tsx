@@ -28,6 +28,20 @@ export function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsMobileMenuOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isMobileMenuOpen]);
+
   return (
     <header
       className={`fixed z-50 transition-all duration-500 ${
@@ -37,7 +51,7 @@ export function Navigation() {
       }`}
     >
       <nav 
-        className={`mx-auto transition-all duration-500 ${
+        className={`relative z-50 mx-auto transition-all duration-500 ${
           isScrolled || isMobileMenuOpen
             ? "bg-background/80 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-lg max-w-[1200px]"
             : "bg-transparent max-w-[1400px]"
@@ -87,7 +101,7 @@ export function Navigation() {
               size="sm"
               className={`rounded-full bg-primary text-primary-foreground transition-all duration-500 hover:bg-primary/90 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
             >
-              <Link href="/sign-up">Sign up</Link>
+              <Link href="/contact">Book a pilot</Link>
             </Button>
           </div>
 
@@ -96,6 +110,8 @@ export function Navigation() {
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="flex min-h-11 min-w-11 items-center justify-center lg:hidden"
             aria-label="Toggle menu"
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
           >
             {isMobileMenuOpen ? (
               <X className="w-6 h-6" />
@@ -109,6 +125,9 @@ export function Navigation() {
       
       {/* Mobile Menu - Full Screen Overlay */}
       <div
+        id="mobile-navigation"
+        aria-hidden={!isMobileMenuOpen}
+        inert={!isMobileMenuOpen}
         className={`fixed inset-0 z-40 bg-background transition-all duration-500 lg:hidden ${
           isMobileMenuOpen 
             ? "opacity-100 pointer-events-auto" 
@@ -155,7 +174,7 @@ export function Navigation() {
             <Button asChild
               className="h-10 flex-1 rounded-full bg-foreground text-sm text-background"
             >
-              <Link href="/sign-up" onClick={() => setIsMobileMenuOpen(false)}>Sign up</Link>
+              <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>Book a pilot</Link>
             </Button>
           </div>
         </div>

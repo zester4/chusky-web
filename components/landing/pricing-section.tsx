@@ -1,24 +1,19 @@
 import Link from "next/link";
-import { ArrowRight, CircleHelp } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import { ContentCard, ContentSection } from "./content-page";
+import styles from "./product-page.module.css";
 
 export function PricingSection() {
-  return (
-    <section id="pricing" className="border-t border-foreground/10 py-16 sm:py-24 lg:py-32">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16 lg:px-12">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">Plans and access</p>
-          <h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Clear answers, not made-up tiers.</h2>
-        </div>
-        <div className="border border-foreground/10 p-5 sm:p-8">
-          <CircleHelp className="h-5 w-5 text-chusky-amber" aria-hidden="true" />
-          <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            This site does not currently publish a price list or plan limits. Availability depends on the workspace and the providers it has enabled; your signed-in workspace shows its current usage and access.
-          </p>
-          <div className="mt-7 text-sm">
-            <Link href="/docs" className="inline-flex items-center gap-2 text-muted-foreground underline underline-offset-4">Read the product docs <ArrowRight className="h-4 w-4" /></Link>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <>
+    <section id="pricing"><div className={styles.accessPanel}>
+      <div><p className={styles.eyebrow}>Your workspace, at a glance</p><h2 className="mt-5">See the access<br />behind your account.</h2><p>Chusky does not currently publish public plan prices or limits. Your signed-in workspace is the source for current usage and enabled capabilities.</p><Link href="/docs" className={styles.secondaryAction}>Read the product docs <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+      <div className={styles.accessBox}><p className={styles.eyebrow}>Account access</p><h3>Know what you can use.</h3><dl><div><dt>Usage</dt><dd>Available in your workspace</dd></div><div><dt>Connected apps</dt><dd>Accounts you authorize</dd></div><div><dt>Additional capabilities</dt><dd>Based on provider setup</dd></div><div><dt>Public pricing</dt><dd>Not currently published</dd></div></dl><Link href="/sign-in" className={styles.primaryAction}>View my workspace <ArrowUpRight size={18} aria-hidden="true" /></Link><p>New to Chusky? <Link href="/sign-up" className="underline underline-offset-4">Create an account.</Link></p></div>
+    </div></section>
+    <ContentSection eyebrow="Before you get started" title="A little clarity goes a long way."><div className="grid sm:grid-cols-2"><ContentCard title="What affects availability?">Connected accounts, provider setup, workspace permissions, and the capabilities enabled for your deployment determine what you can use.</ContentCard><ContentCard title="Where do I check my usage?">Sign in to your workspace to inspect current usage and account access. This public page does not read or estimate your private account data.</ContentCard></div></ContentSection>
+    <ContentSection eyebrow="Choose the first job" title="Start with a piece of your day." description="You can begin with one workflow, then bring in more channels and tools as you need them. Your workspace shows which capabilities are ready and which need a connection."><div className={styles.featureList}>{[
+      ["Conversations", "The meeting and its next step.", "Join a supported meeting, capture the agreement, and prepare the follow-up. Connect business voice for incoming and outgoing calls."],
+      ["Your routine", "The inbox and the calendar.", "Set up Elena’s scheduled check-ins, add a reminder, or let a relevant event start the next task."],
+      ["A bigger goal", "The project that takes a while.", "Set the steps, budget, and finish line for a mission. Keep progress and evidence alongside the result."],
+    ].map(([label, title, description]) => <article className={styles.featureRow} key={label}><span>{label}</span><h3>{title}</h3><p>{description}</p></article>)}</div><Link href="/features" className={styles.secondaryAction}>Explore the capabilities <ArrowUpRight size={16} aria-hidden="true" /></Link></ContentSection>
+  </>;
 }

@@ -1,21 +1,25 @@
 import type { Metadata } from "next";
 import { HowItWorksDetails } from "@/components/landing/how-it-works-details";
 import { ContentPage } from "@/components/landing/content-page";
+import { ControlSection, MissionLifecycleSection, TaskOutcomeLoopSection } from "@/components/landing/product-stories";
 
 export const metadata: Metadata = {
-  title: "How it works | Chusky AI Agent",
-  description: "See how Chusky routes tools, creates files, preserves long-running work, and keeps approvals and recovery visible.",
+  title: "How it works | Chusky",
+  description: "Talk to Chusky, give it a task, and get the outcome. See how one virtual worker handles calls, meetings, tools, longer missions, approvals, and proof.",
 };
 
 export default function HowItWorksPage() {
   return (
     <ContentPage
         eyebrow="How it works"
-        title={<>From request<br /><span className="text-muted-foreground">to recorded result.</span></>}
-        description="A Chusky run ties a request to an account, available capabilities, and a lifecycle you can inspect. The exact path depends on the task and enabled providers."
-        artwork={{ src: "/chusky/chusky-workflow.png", alt: "Chusky moving a request through a connected workflow" }}
+        title={<>Give the task.<br /><span>Get the outcome.</span></>}
+        description="Start with a message, call, meeting, or event. Chusky understands the goal, works through the connected steps, and brings back the result—with your approval on anything that matters."
+
       >
+      <TaskOutcomeLoopSection />
       <HowItWorksDetails />
+      <MissionLifecycleSection />
+      <ControlSection />
     </ContentPage>
   );
 }

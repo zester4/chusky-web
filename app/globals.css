@@ -1611,6 +1611,12 @@
     transform: translate3d(0, 0, 0);
   }
 
+  /* Motion is an enhancement; content must remain available before JS observes it. */
+  .landing-motion-root:not([data-motion-ready="true"]) [data-motion-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+
   .landing-motion-root [data-motion-card] {
     transition:
       transform 240ms ease,

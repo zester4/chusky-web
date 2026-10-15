@@ -1,139 +1,26 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Bot, MessageSquare, ShieldCheck, Workflow } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ProductPageShell } from "@/components/landing/product-page";
+import { ArrowUpRight } from "lucide-react";
+import { ContentPage, ContentSection } from "@/components/landing/content-page";
+import styles from "@/components/landing/product-page.module.css";
 
-export const metadata = {
-  title: "About | Chusky AI Agent",
-  description: "Why Chusky is built around useful agent work, clear boundaries, and progress people can inspect.",
-};
-
-const principles = [
-  {
-    number: "01",
-    icon: MessageSquare,
-    title: "Build for actual work",
-    description: "Agent usefulness is measured in the handoffs between a request, an external action, and a result someone can use.",
-  },
-  {
-    number: "02",
-    icon: Workflow,
-    title: "Make boundaries understandable",
-    description: "The system should make clear whose data is in scope, which capabilities are enabled, and when a person must decide.",
-  },
-  {
-    number: "03",
-    icon: ShieldCheck,
-    title: "Treat recovery as product design",
-    description: "A useful agent should leave an honest status and a safe next step when an action fails, pauses, or loses its connection.",
-  },
-];
+export const metadata: Metadata = { title: "About | Chusky AI Agent", description: "Why we are building Chusky: useful agent work with context, capability, and human control." };
 
 export default function AboutPage() {
-  return (
-    <ProductPageShell>
-      <section className="relative overflow-hidden border-b border-foreground/10 pt-24 pb-14 sm:pt-32 sm:pb-20 lg:pt-48 lg:pb-32">
-        <div className="pointer-events-none absolute inset-0 opacity-30">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--foreground)_1px,transparent_1px),linear-gradient(to_bottom,var(--foreground)_1px,transparent_1px)] bg-[size:72px_72px] opacity-[0.04]" />
-          <div className="absolute -right-32 top-12 h-96 w-96 rounded-full border border-foreground/10" />
-          <div className="absolute -right-8 top-36 h-56 w-56 rounded-full border border-foreground/10" />
-        </div>
-
-        <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-          <div className="grid items-end gap-8 sm:gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.62fr)]">
-            <div className="max-w-5xl">
-              <span className="mb-6 inline-flex items-center gap-3 text-xs font-mono text-muted-foreground sm:mb-8 sm:text-sm">
-                <span className="h-px w-8 bg-foreground/30" />
-                About Chusky
-              </span>
-              <h1 className="font-display text-4xl leading-[0.9] tracking-tight sm:text-5xl md:text-7xl lg:text-[8rem]">
-                A calmer way<br />
-                <span className="text-muted-foreground">to put AI to work.</span>
-              </h1>
-            </div>
-            <div className="relative overflow-hidden rounded-[1.5rem] border border-foreground/10 bg-[#10182d] shadow-[0_24px_70px_-35px_rgba(7,15,35,0.65)]">
-              <div className="relative aspect-[4/3]">
-                <Image src="/chusky/chusky-poster.png" alt="Chusky helps turn chats into completed work" fill priority sizes="(max-width: 1024px) 100vw, 31vw" className="object-cover object-[center_46%]" />
-              </div>
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#091229] via-[#091229]/65 to-transparent px-4 pb-4 pt-12 sm:px-5 sm:pb-5">
-                <p className="max-w-sm text-sm leading-relaxed text-white/80">Chusky is built to make multi-step agent work easier to follow and review.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-b border-foreground/10 py-14 sm:py-20 lg:py-28">
-        <div className="mx-auto grid max-w-[1400px] gap-8 px-4 sm:gap-12 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-12">
-          <div className="space-y-6">
-            <div className="relative overflow-hidden rounded-[1.5rem] border border-foreground/10 bg-[#10182d]">
-              <div className="relative aspect-[4/3]">
-                <Image src="/chusky/chusky-wave.png" alt="Chusky mascot greeting you" fill sizes="(max-width: 1024px) 100vw, 36vw" className="object-cover" />
-              </div>
-              <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-[#0c1530]/80 px-3 py-1.5 font-mono text-[11px] text-white backdrop-blur">A thoughtful loop</div>
-            </div>
-            <p className="text-sm font-mono text-muted-foreground">Why we built it</p>
-            <div className="mt-6 flex h-12 w-12 items-center justify-center rounded-full border border-foreground/15">
-              <Bot className="h-5 w-5" strokeWidth={1.5} />
-            </div>
-          </div>
-          <div>
-            <h2 className="max-w-3xl font-display text-3xl leading-tight tracking-tight md:text-5xl">
-              The best assistant is present when you need it and accountable when work matters.
-            </h2>
-            <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mt-8 sm:text-lg">
-              We are building Chusky around a practical question: can an agent help with the work between the request and the result, while keeping people able to understand and control important decisions?
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-b border-foreground/10">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-          <div className="grid lg:grid-cols-3">
-            {principles.map(({ number, icon: Icon, title, description }) => (
-              <article key={number} className="border-foreground/10 py-7 sm:py-10 lg:border-r lg:px-8 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0">
-                <div className="flex items-start justify-between">
-                  <span className="font-mono text-xs text-muted-foreground">{number}</span>
-                  <Icon className="h-5 w-5" strokeWidth={1.5} />
-                </div>
-                <h3 className="mt-10 font-display text-2xl tracking-tight sm:mt-16 sm:text-3xl">{title}</h3>
-                <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="border-b border-foreground/10 bg-foreground/[0.02] py-14 sm:py-20 lg:py-28">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
-          <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
-            <div><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">What we mean by agent</p><h2 className="mt-4 font-display text-3xl leading-tight tracking-tight sm:text-5xl">Not a chatbot with a longer answer.</h2></div>
-            <div className="grid gap-8 sm:grid-cols-2"><div><h3 className="font-display text-2xl">It can do work</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Chusky can use connected applications, research tools, files, and native operations to move toward an outcome. The point is not to make the conversation sound autonomous; it is to make the next step useful and inspectable.</p></div><div><h3 className="font-display text-2xl">It can stop honestly</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">A missing connection, failed provider, required approval, or uncertain result is part of the product state. Chusky should preserve the work and explain the next safe action instead of filling the gap with a confident claim.</p></div></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-b border-foreground/10 py-14 sm:py-20 lg:py-28">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12"><div className="max-w-3xl"><p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">The system behind the conversation</p><h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Context, capability, and control have to travel together.</h2><p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">A request is only useful when the agent knows whose work it belongs to, what it is allowed to see, which action is actually available, and how the result can be checked. That is why Chusky treats identity, memory, tools, approvals, files, and durable state as one connected design problem.</p></div><div className="mt-10 grid gap-px bg-foreground/10 md:grid-cols-4">{[{title:"Owned context",text:"Private conversations, memories, files, connected accounts, and approvals stay scoped to the right identity."},{title:"Live capability",text:"The agent discovers current tool schemas and provider availability instead of assuming every integration is enabled."},{title:"Visible control",text:"Important actions can pause for an exact approval with a clear target, scope, and expiry."},{title:"Recoverable progress",text:"Runs, tasks, missions, artifacts, and delivery records give longer work an address after the first response."}].map((item,index)=><article key={item.title} className="bg-background p-5 sm:p-6"><span className="font-mono text-[10px] text-muted-foreground">0{index+1}</span><h3 className="mt-8 font-display text-2xl">{item.title}</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.text}</p></article>)}</div></div>
-      </section>
-
-      <section className="border-b border-foreground/10 bg-foreground py-14 text-background sm:py-20 lg:py-28">
-        <div className="mx-auto grid max-w-[1400px] gap-10 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-12"><div><p className="font-mono text-xs uppercase tracking-[0.18em] text-background/55">A clear promise</p><h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">Useful does not mean unaccountable.</h2></div><div className="grid gap-6 sm:grid-cols-2"><p className="text-sm leading-relaxed text-background/70 sm:text-base">Chusky is designed for people who want leverage without losing the ability to understand what happened. It should show the action, preserve the state, and make recovery possible when the outside world is unreliable.</p><p className="text-sm leading-relaxed text-background/70 sm:text-base">That also means being precise about the limits: availability depends on configuration, providers can fail, and no model response substitutes for evidence from the system that was changed.</p></div></div>
-      </section>
-
-      <section className="py-14 sm:py-20 lg:py-28">
-        <div className="mx-auto flex max-w-[1400px] flex-col justify-between gap-7 px-4 sm:gap-10 sm:px-6 lg:flex-row lg:items-end lg:px-12">
-          <div className="max-w-3xl">
-            <p className="text-sm font-mono text-muted-foreground">The invitation</p>
-            <h2 className="mt-4 font-display text-3xl leading-[0.95] tracking-tight sm:mt-5 sm:text-4xl md:text-6xl">Bring your work into one thoughtful loop.</h2>
-          </div>
-            <Button asChild className="h-11 rounded-full bg-primary px-5 text-sm text-primary-foreground hover:bg-primary/90">
-            <Link href="/start-creating">Start creating <ArrowRight className="h-4 w-4" /></Link>
-          </Button>
-        </div>
-      </section>
-    </ProductPageShell>
-  );
+  return <ContentPage eyebrow="About Chusky" title={<>Good work deserves<br /><span>a second brain.</span></>} description="Work does not live in one chat. It happens in messages, meetings, calls, and the projects that take a while. We are building an agent that can be part of that day—and follow through on what comes next.">
+    <ContentSection eyebrow="Why we build" title="There is more to work than the answer." description={<><p>A good meeting creates commitments. A customer call changes a plan. An email arrives with the one detail a project was waiting for. The hard part is often keeping those moments connected to the next useful action.</p><p>Chusky brings an agent into those moments. It can join the conversation, work through connected tools, and keep a longer job moving. Your budget and approval still shape how far it can go.</p></>}><figure><Image src="/images/chusky-work-in-motion.webp" alt="Editorial illustration of a team working through the next steps after a meeting" width={1536} height={1024} sizes="(max-width: 760px) calc(100vw - 40px), 85vw" className="aspect-[2/1] w-full rounded-xl object-cover grayscale" /><figcaption className="mt-3 text-xs text-muted-foreground">Built around the way people work. Editorial illustration.</figcaption></figure></ContentSection>
+    <ContentSection eyebrow="What we bring together" title="One agent, across the day." description="Your channels, your conversations, and the work that keeps coming back belong in the same picture."><div className={styles.featureList}>{[
+      ["Be present", "Meet the work where it happens.", "Messages across Slack, WhatsApp, Telegram, iMessage, SMS, X, web chat, and CLI. Meetings across Zoom, Meet, Teams, and Webex. Incoming and outgoing business calls."],
+      ["Follow through", "Stay with the next step.", "Scheduled inbox and calendar checks, event-triggered tasks, reminders, recurring jobs, and missions that can keep their place across days or weeks."],
+      ["Make it useful", "Leave something people can use.", "Connected app actions, checked browser work, customer record updates, and research turned into reports, documents, presentations, and spreadsheets."],
+    ].map(([label, title, description]) => <article className={styles.featureRow} key={label}><span>{label}</span><h3>{title}</h3><p>{description}</p></article>)}</div></ContentSection>
+    <ContentSection eyebrow="What guides us" title="Useful. Understandable. Accountable."><div className={styles.featureList}>{[
+      ["01 / Context", "Know whose work it is.", "Keep private conversations, memories, files, connections, and approvals scoped to the right identity."],
+      ["02 / Capability", "Work with what is available.", "Discover current tools and permissions. Be clear when a provider, connection, or piece of context is missing."],
+      ["03 / Control", "Leave room for judgment.", "Pause at configured approval points, preserve the work, and make the next decision understandable."],
+      ["04 / Evidence", "Show what happened.", "Retain results, receipts, and state. Explain uncertainty when a provider response cannot confirm a change."],
+    ].map(([label, title, description]) => <article className={styles.featureRow} key={label}><span>{label}</span><h3>{title}</h3><p>{description}</p></article>)}</div></ContentSection>
+    <ContentSection eyebrow="The invitation" title="Bring the work that needs moving." description="Start with a conversation, a question, or a file. Add the tools your task needs as you go."><Link href="/sign-up" className={styles.primaryAction}>Get started <ArrowUpRight size={18} aria-hidden="true" /></Link></ContentSection>
+  </ContentPage>;
 }
