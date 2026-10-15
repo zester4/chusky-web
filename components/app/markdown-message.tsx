@@ -219,11 +219,11 @@ const components: Components = {
   h1: ({ children, ...props }) => <h1 className="mt-3 text-sm font-semibold tracking-tight first:mt-0 sm:text-base" {...props}>{children}</h1>,
   h2: ({ children, ...props }) => <h2 className="mt-3 text-[13px] font-semibold tracking-tight first:mt-0 sm:text-sm" {...props}>{children}</h2>,
   h3: ({ children, ...props }) => <h3 className="mt-2.5 text-xs font-semibold" {...props}>{children}</h3>,
-  p: ({ children, ...props }) => <p className="my-1.5 text-[12px] leading-[1.45rem] first:mt-0 last:mb-0 sm:text-[13px]" {...props}>{children}</p>,
-  ul: ({ children, ...props }) => <ul className="my-1.5 list-disc space-y-0.5 pl-4 text-[12px] leading-[1.45rem] sm:text-[13px]" {...props}>{children}</ul>,
-  ol: ({ children, ...props }) => <ol className="my-1.5 list-decimal space-y-0.5 pl-4 text-[12px] leading-[1.45rem] sm:text-[13px]" {...props}>{children}</ol>,
+  p: ({ children, ...props }) => <p className="my-1.5 text-[13px] leading-[1.5rem] first:mt-0 last:mb-0 sm:text-[14px]" {...props}>{children}</p>,
+  ul: ({ children, ...props }) => <ul className="my-1.5 list-disc space-y-0.5 pl-4 text-[13px] leading-[1.5rem] sm:text-[14px]" {...props}>{children}</ul>,
+  ol: ({ children, ...props }) => <ol className="my-1.5 list-decimal space-y-0.5 pl-4 text-[13px] leading-[1.5rem] sm:text-[14px]" {...props}>{children}</ol>,
   li: ({ children, ...props }) => <li className="pl-0.5" {...props}>{children}</li>,
-  blockquote: ({ children, ...props }) => <blockquote className="my-2 border-l-2 border-foreground/20 pl-2.5 text-[12px] italic leading-5 text-muted-foreground sm:text-[13px]" {...props}>{children}</blockquote>,
+  blockquote: ({ children, ...props }) => <blockquote className="my-2 border-l-2 border-foreground/20 pl-2.5 text-[13px] italic leading-[1.5rem] text-muted-foreground sm:text-[14px]" {...props}>{children}</blockquote>,
   a: ({ children, href, ...props }) => {
     const kind = mediaKindForSource(href, String(children));
     if (kind) return <MarkdownMedia kind={kind} source={href || ""} label={String(children)} />;

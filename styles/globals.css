@@ -164,3 +164,21 @@
     transition-duration: 0.01ms;
   }
 }
+
+/* Keep the chat's compact UI readable without changing the rest of the app. */
+.chat-page .text-\[9px\] {
+  font-size: 10px;
+}
+
+.chat-page .text-\[10px\] {
+  font-size: 11px;
+}
+
+.chat-page .text-\[11px\] {
+  font-size: 12px;
+}
+
+.chat-page .text-\[12px\],
+.chat-page .text-xs {
+  font-size: 13px;
+}
