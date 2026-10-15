@@ -227,7 +227,9 @@ const activityStatusText = (activity: SubagentActivity, isLive: boolean) => acti
 
 function ActivityBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo, size = 16 }: { toolSlug?: string; toolkitSlug?: string; toolkitName?: string; toolkitLogo?: string; size?: number }) {
   const isTreg = [toolkitSlug, toolkitName, toolSlug].some((value) => value?.split(/[_\s-]+/).some((part) => part.toLowerCase() === "treg"));
+  const isMonid = [toolkitSlug, toolkitName, toolSlug].some((value) => value?.split(/[_\s-]+/).some((part) => part.toLowerCase() === "monid"));
   if (isTreg) return <ToolkitLogo name="Treg" logo="/logos/treg.svg" size={size} />;
+  if (isMonid) return <ToolkitLogo name="Monid" logo="/logos/monid.png" size={size} />;
   if (toolSlug?.startsWith("CHUCK_")) return <img src="/brand/chusky-logo.png" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
   const brand = resolveProviderBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo });
   if (brand.logo || toolkitName || toolkitSlug || toolkitLogo || toolSlug?.startsWith("COMPOSIO_")) {

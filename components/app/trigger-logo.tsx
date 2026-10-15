@@ -93,6 +93,7 @@ const LOGO_DEFINITIONS: LogoDefinition[] = [
   { aliases: ["x", "twitter", "x_twitter"], name: "X", logo: "/logos/x-twitter.svg" },
   { aliases: ["spotify"], name: "Spotify", logo: "/logos/spotify.png" },
   { aliases: ["treg"], name: "Treg", logo: "/logos/treg.svg" },
+  { aliases: ["monid"], name: "Monid", logo: "/logos/monid.png" },
 ];
 
 function normalize(value: string): string {
