@@ -62,7 +62,7 @@ function AppsDataPage() {
 
 function Content({ kind, data, decide, busy }: { kind: PageKind; data: AccountOverview; decide: (id: string, decision: "approve" | "deny") => Promise<void>; busy?: string }) {
   if (kind === "approvals") {
-    const attentionEvents = data.triggerEvents.filter((event) => event.needsAttention || ["pending", "failed", "unavailable", "unknown"].includes(event.notificationStatus));
+    const attentionEvents = data.triggerEvents.filter((event) => event.needsAttention || event.actions?.length || ["pending", "failed", "unavailable", "unknown"].includes(event.notificationStatus));
     return <div className="space-y-4">
       {data.attentionCandidates.length > 0 && <Card>
         <div className="flex items-start justify-between gap-4 border-b border-foreground/10 bg-foreground/[0.018] px-3.5 py-3.5 sm:px-4"><div><div className="flex items-center gap-2"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/12 text-amber-700"><Brain size={13} /></span><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Elena’s proactive suggestions</p></div><p className="mt-2 text-xs text-muted-foreground">Capability ideas based on your workspace. Open one in Chat to decide the next safe step.</p></div><span className="shrink-0 rounded-full bg-amber-500/12 px-2 py-1 font-mono text-[9px] font-medium text-amber-800">{data.attentionCandidates.length} open</span></div>

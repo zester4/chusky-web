@@ -181,11 +181,12 @@ function fallbackActions(event: TriggerEventActivity): TriggerEventAction[] {
 }
 
 export function attentionActions(event: TriggerEventActivity): TriggerEventAction[] {
-  // A completed event is a report, not a request for the owner to inspect work
-  // that Chusky has already finished. Keep fallback actions for unresolved or
-  // failed events only.
+  // A completed event can still have an explicit owner follow-up proposed by
+  // Chusky. Keep those persisted actions visible, but never invent fallbacks
+  // for completed work.
+  if (event.actions?.length) return event.actions;
   if (event.status === "completed") return [];
-  return event.actions?.length ? event.actions : fallbackActions(event);
+  return fallbackActions(event);
 }
 
 export function AttentionActionCard({ event, onAction, compact = false }: { event: TriggerEventActivity; onAction?: (action: TriggerEventAction) => void; compact?: boolean }) {
