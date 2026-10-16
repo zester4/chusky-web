@@ -88,7 +88,7 @@ export type AccountOverview = {
   approvals: Array<{ id: string; toolSlug: string; request: string; status: string; missionId?: string; channelProvider?: string; createdAt: string; expiresAt: string }>;
   attentionCandidates: AttentionCandidate[];
   channels: Array<{ id: string; provider: string; externalUserId: string; workspaceId?: string; displayName?: string; verifiedAt: string; proactiveOptIn: boolean }>;
-  reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string }>;
+  reminders: Array<{ id: string; text: string; runAt: string; status: string; createdAt: string; webThreadId?: string; webRunId?: string; webNotificationAt?: string; webReadAt?: string; needsAttention?: boolean }>;
   jobs: Array<{ id: string; text: string; cron: string; status: string; createdAt: string; deliveryError?: string; scheduleError?: string }>;
   attentionPulse?: { lastOccurrence?: JobOccurrence };
   memory: MemoryFact[];
@@ -673,6 +673,7 @@ export const chuskyApi = {
     pause: (id: string) => request<{ message: string; data: Reminder }>(`/reminders/${encodeURIComponent(id)}/pause`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     resume: (id: string) => request<{ message: string; data: Reminder }>(`/reminders/${encodeURIComponent(id)}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     runNow: (id: string) => request<{ reminderId: string; workflowRunId: string; data: Reminder }>(`/reminders/${encodeURIComponent(id)}/run`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    markNotificationRead: (id: string) => request<{ ok: boolean; reminderId: string; readAt: string }>(`/reminders/${encodeURIComponent(id)}/notification/read`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     cancel: (id: string) => request<void>(`/reminders/${encodeURIComponent(id)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
   },
   jobs: {

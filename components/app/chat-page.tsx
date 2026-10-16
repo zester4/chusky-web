@@ -724,6 +724,10 @@ export function ChatPage() {
           const missionIds = [...new Set(runs.data.flatMap((run) => typeof run.metadata?.missionId === "string" ? [run.metadata.missionId] : []))];
           if (missionIds.length) void Promise.allSettled(missionIds.map((missionId) => chuskyApi.missions.markNotificationRead(missionId))).then(notifyChuskyDataChanged);
         }
+        if (current.metadata.source === "reminder-notifications") {
+          const reminderIds = [...new Set(runs.data.flatMap((run) => typeof run.metadata?.reminderId === "string" ? [run.metadata.reminderId] : []))];
+          if (reminderIds.length) void Promise.allSettled(reminderIds.map((reminderId) => chuskyApi.reminders.markNotificationRead(reminderId))).then(notifyChuskyDataChanged);
+        }
         if (active) {
           setArtifactCatalog(artifactPage.data);
           const threadMessages: Message[] = [];
