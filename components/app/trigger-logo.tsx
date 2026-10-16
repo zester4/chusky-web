@@ -94,6 +94,7 @@ const LOGO_DEFINITIONS: LogoDefinition[] = [
   { aliases: ["spotify"], name: "Spotify", logo: "/logos/spotify.png" },
   { aliases: ["treg"], name: "Treg", logo: "/logos/treg.svg" },
   { aliases: ["monid"], name: "Monid", logo: "/logos/monid.png" },
+  { aliases: ["tinyfish", "tiny_fish"], name: "TinyFish", logo: "/logos/tinyfish.jpg" },
 ];
 
 function normalize(value: string): string {
