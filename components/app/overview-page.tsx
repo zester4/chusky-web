@@ -3,44 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Activity, ArrowUpRight, Boxes, CheckCircle2, CircleAlert, FileOutput, Link2, MessageSquare, Radar, RefreshCw, ShieldCheck, TriangleAlert, Wrench, Workflow, Zap } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Activity as ActivitySnapshot, type Artifact, type AutonomySnapshot, type ChannelConnection, type ConnectedAccount, type Delivery, type HealthSnapshot, type McpConnection, type Mission, type Page, type Thread, type Tool, type Usage, type Worker } from "@/lib/chusky-api";
+import { chuskyApi, type DashboardOverview, type Thread } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 
-type OptionalResult<T> = { value: T; failed?: string };
-
-type OverviewData = {
-  usage: Usage;
-  threads: Page<Thread>;
-  health: HealthSnapshot;
-  account: AccountOverview;
-  workers: Worker[];
-  artifacts: Artifact[];
-  channels: ChannelConnection[];
-  deliveries: Delivery[];
-  activity: ActivitySnapshot;
-  autonomy: AutonomySnapshot;
-  missions: Mission[];
-  connectedAccounts: ConnectedAccount[];
-  mcpConnections: McpConnection[];
-  tools: Tool[];
-};
-
-const emptyActivity: ActivitySnapshot = { now: 0, approvals: [], tasks: [], reminders: [], jobs: [], attentionCandidates: [] };
-const emptyAutonomy: AutonomySnapshot = {
-  userId: 0,
-  mode: "personal",
-  profile: { enabled: false, defaultAuthority: "observe", maxChecksPerDay: 0, maxAutonomousActionsPerDay: 0, notifyOn: "never" },
-  watches: [],
-  queue: [],
-  counts: {},
-  generatedAt: 0,
-};
-
-function optional<T>(label: string, promise: Promise<T>, fallback: T): Promise<OptionalResult<T>> {
-  return promise.then((value) => ({ value })).catch(() => ({ value: fallback, failed: label }));
-}
+type OverviewData = DashboardOverview;
 
 function formatDate(value: string | number) {
   const date = new Date(value);
@@ -49,7 +17,7 @@ function formatDate(value: string | number) {
 }
 
 function LoadingState() {
-  return <div className="flex items-center gap-2 py-10 text-xs text-muted-foreground"><RefreshCw size={15} className="animate-spin" /> Reading your live workspace…</div>;
+  return <div className="flex items-center gap-2 py-10 text-xs text-muted-foreground"><RefreshCw size={15} className="animate-spin" /> Reading your workspace…</div>;
 }
 
 function OfflineState({ onRetry }: { onRetry: () => void }) {
@@ -92,25 +60,9 @@ export function OverviewPage() {
   const load = async () => {
     setOffline(false);
     try {
-      const [usage, threads, health, account, workers, artifacts, channels, deliveries, activity, autonomy, missions, apps, mcp, tools] = await Promise.all([
-        chuskyApi.usage.get(),
-        chuskyApi.threads.list({ limit: 5 }),
-        chuskyApi.health.get(),
-        chuskyApi.account.get(),
-        optional("workers", chuskyApi.workers.list(), { data: [] as Worker[] }),
-        optional("artifacts", chuskyApi.artifacts.list({ limit: 8 }), { data: [] as Artifact[] }),
-        optional("channels", chuskyApi.channels.list(), { data: [] as ChannelConnection[] }),
-        optional("deliveries", chuskyApi.deliveries.list(), { data: [] as Delivery[] }),
-        optional("activity", chuskyApi.activity.get(), emptyActivity),
-        optional("attention pulse", chuskyApi.account.autonomy.queue(), emptyAutonomy),
-        optional("missions", chuskyApi.missions.list(), { data: [] as Mission[] }),
-        optional("connected apps", chuskyApi.apps.connections(), { data: [] as ConnectedAccount[] }),
-        optional("MCP connections", chuskyApi.mcp.connections(), { data: [] as McpConnection[] }),
-        optional("tools", chuskyApi.tools.list(), { data: [] as Tool[] }),
-      ]);
-      const optionalResults = [workers, artifacts, channels, deliveries, activity, autonomy, missions, apps, mcp, tools];
-      setData({ usage, threads, health, account, workers: workers.value.data, artifacts: artifacts.value.data, channels: channels.value.data, deliveries: deliveries.value.data, activity: activity.value, autonomy: autonomy.value, missions: missions.value.data, connectedAccounts: apps.value.data, mcpConnections: mcp.value.data, tools: tools.value.data });
-      setDegradedSources(optionalResults.flatMap((result) => result.failed ? [result.failed] : []));
+      const overview = await chuskyApi.account.dashboardOverview();
+      setData(overview);
+      setDegradedSources(overview.degradedSources);
       setLastUpdated(Date.now());
     } catch {
       setOffline(true);
@@ -120,8 +72,8 @@ export function OverviewPage() {
   useEffect(() => { void load(); }, []);
   useLiveData(load, DASHBOARD_REFRESH_INTERVAL_MS);
 
-  if (offline) return <><PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="A live view of what Chusky can do, what it is doing, and what needs you." action={<Button secondary onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button>} /><OfflineState onRetry={() => void load()} /></>;
-  if (!data) return <><PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="A live view of what Chusky can do, what it is doing, and what needs you." /><LoadingState /></>;
+  if (offline) return <><PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="See what Chusky can do, what it is doing, and what needs you." action={<Button secondary onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button>} /><OfflineState onRetry={() => void load()} /></>;
+  if (!data) return <><PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="See what Chusky can do, what it is doing, and what needs you." /><LoadingState /></>;
 
   const pendingApprovals = data.account.approvals.filter((item) => item.status === "pending");
   const elenaEnabled = data.account.features?.attentionPulse === true;
@@ -143,26 +95,26 @@ export function OverviewPage() {
     ...activeWorkers.slice(0, 3).map((item) => ({ title: `Worker · ${item.worker}`, detail: item.objective, status: item.status, href: "/app/workers" })),
     ...activeMissions.slice(0, 3).map((item) => ({ title: item.title, detail: item.nextAction || `${item.steps.length} planned steps`, status: item.status, href: "/app/missions" })),
   ];
-  const liveCount = data.usage.runs.active + activeTasks.length + activeWorkers.length + activeMissions.length;
+  const activeWorkCount = data.usage.runs.active + activeTasks.length + activeWorkers.length + activeMissions.length;
 
   const attentionHref = elenaEnabled ? "/app/autonomy" : "/app/approvals";
   const automationCount = data.account.triggers.length + (elenaEnabled ? data.autonomy.watches.length : 0) + data.activity.jobs.length;
   const automationDetail = elenaEnabled ? `${data.account.triggers.length} triggers · ${data.autonomy.watches.length} watches` : `${data.account.triggers.length} triggers · ${data.activity.jobs.length} jobs`;
 
   return <>
-    <PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="A live view of what Chusky can do, what it is doing, and what needs you." action={<div className="flex gap-1.5"><Button secondary onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button><Button onClick={() => { window.location.assign(`/app/chat?new=1&nonce=${Date.now()}`); }}>New chat</Button></div>} />
+    <PageHeading eyebrow="Workspace overview" title="Your agent at a glance." description="See what Chusky can do, what it is doing, and what needs you." action={<div className="flex gap-1.5"><Button secondary onClick={() => void load()}><RefreshCw size={13} /> Refresh</Button><Button onClick={() => { window.location.assign(`/app/chat?new=1&nonce=${Date.now()}`); }}>New chat</Button></div>} />
     <div className="space-y-4 sm:space-y-5">
-      <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${data.health.ok ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}><Activity size={16} /></span><div className="min-w-0"><p className="text-xs font-medium">Chusky is {data.health.ok ? "ready" : "degraded"}</p><p className="mt-1 text-[10px] text-muted-foreground">{data.health.persistence === "redis" ? "Durable workspace storage" : "Development storage"} · refreshes every 10 seconds{lastUpdated ? ` · checked ${formatDate(lastUpdated)}` : ""}</p></div></div><div className="flex flex-wrap items-center gap-2"><Status tone={data.health.ok ? "green" : "amber"}>{data.health.status}</Status><Link href="/app/operations" className="text-[10px] text-muted-foreground hover:text-foreground">Runtime details <ArrowUpRight size={12} className="inline" /></Link></div></Card>
-      {degradedSources.length > 0 && <div className="flex items-start gap-2 border border-amber-300/70 bg-amber-50 px-3 py-2.5 text-[10px] leading-relaxed text-amber-950/80"><TriangleAlert size={13} className="mt-0.5 shrink-0" /><span>Some live sections could not refresh: {degradedSources.join(", ")}. The rest of this overview is current.</span></div>}
+      <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${data.health.ok ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}><Activity size={16} /></span><div className="min-w-0"><p className="text-xs font-medium">Chusky is {data.health.ok ? "ready" : "degraded"}</p><p className="mt-1 text-[10px] text-muted-foreground">{data.health.persistence === "redis" ? "Durable workspace storage" : "Development storage"}{lastUpdated ? ` · checked ${formatDate(lastUpdated)}` : ""}</p></div></div><div className="flex flex-wrap items-center gap-2"><Status tone={data.health.ok ? "green" : "amber"}>{data.health.status}</Status><Link href="/app/operations" className="text-[10px] text-muted-foreground hover:text-foreground">Runtime details <ArrowUpRight size={12} className="inline" /></Link></div></Card>
+      {degradedSources.length > 0 && <div className="flex items-start gap-2 border border-amber-300/70 bg-amber-50 px-3 py-2.5 text-[10px] leading-relaxed text-amber-950/80"><TriangleAlert size={13} className="mt-0.5 shrink-0" /><span>Some sections could not refresh: {degradedSources.join(", ")}. The rest of this overview is current.</span></div>}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><SummaryMetric label="Needs attention" value={String(attentionItems.length)} detail={attentionItems.length ? "Open approvals, blockers, or delivery gaps" : "Nothing is waiting on you"} icon={<CircleAlert size={14} />} href={attentionItems.length ? attentionHref : undefined} /><SummaryMetric label="Live now" value={String(liveCount)} detail={`${data.usage.runs.active} active agent run${data.usage.runs.active === 1 ? "" : "s"}`} icon={<Zap size={14} />} href="/app/tasks" /><SummaryMetric label="Reachable through" value={String(data.channels.length)} detail={`${data.connectedAccounts.length} connected app account${data.connectedAccounts.length === 1 ? "" : "s"}`} icon={<Link2 size={14} />} href="/app/channels" /><SummaryMetric label="Automations" value={String(automationCount)} detail={automationDetail} icon={<Radar size={14} />} href="/app/triggers" /><SummaryMetric label="Outputs" value={String(data.artifacts.length)} detail="Owner-scoped files ready to inspect or download" icon={<FileOutput size={14} />} href="/app/capabilities?tab=artifacts" /></div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><SummaryMetric label="Needs attention" value={String(attentionItems.length)} detail={attentionItems.length ? "Open approvals, blockers, or delivery gaps" : "Nothing is waiting on you"} icon={<CircleAlert size={14} />} href={attentionItems.length ? attentionHref : undefined} /><SummaryMetric label="Active work" value={String(activeWorkCount)} detail={`${data.usage.runs.active} active agent run${data.usage.runs.active === 1 ? "" : "s"}`} icon={<Zap size={14} />} href="/app/tasks" /><SummaryMetric label="Reachable through" value={String(data.channels.length)} detail={`${data.connectedAccounts.length} connected app account${data.connectedAccounts.length === 1 ? "" : "s"}`} icon={<Link2 size={14} />} href="/app/channels" /><SummaryMetric label="Automations" value={String(automationCount)} detail={automationDetail} icon={<Radar size={14} />} href="/app/triggers" /><SummaryMetric label="Outputs" value={String(data.artifacts.length)} detail="Owner-scoped files ready to inspect or download" icon={<FileOutput size={14} />} href="/app/capabilities?tab=artifacts" /></div>
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="p-4"><SectionHeading eyebrow="Your next decisions" title="Needs your attention" href={attentionHref} linkLabel="Open attention" />{attentionItems.length ? <div>{attentionItems.slice(0, 6).map((item, index) => <AttentionRow key={`${item.title}-${index}`} {...item} />)}</div> : <div className="flex items-center gap-3 py-4"><CheckCircle2 size={19} className="text-emerald-600" /><div><p className="text-xs font-medium">Nothing is waiting on you</p><p className="mt-1 text-[10px] text-muted-foreground">Chusky will surface approvals, blockers, delivery uncertainty{elenaEnabled ? ", and meaningful Pulse findings" : ""} here.</p></div></div>}</Card>
         <Card className="p-4"><SectionHeading eyebrow="In motion" title="What Chusky is doing" href="/app/tasks" linkLabel="View work" />{activityItems.length ? <div>{activityItems.slice(0, 6).map((item, index) => <ActivityRow key={`${item.title}-${index}`} {...item} />)}</div> : <div className="py-4"><p className="text-xs font-medium">No active work right now</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Start a conversation, mission, trigger, or recurring job and its durable progress will appear here.</p></div>}</Card>
       </div>
 
-      <section><SectionHeading eyebrow="Learn by seeing the real system" title="What Chusky can do" href="/app/capabilities" linkLabel="Browse capabilities" /><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><CapabilityCard title="Work and follow through" detail="Tasks, missions, workers, and verified outcomes." value={`${data.activity.tasks.length} tasks · ${data.missions.length} missions`} href="/app/missions" icon={Workflow} />{elenaEnabled && <CapabilityCard title="Stay aware" detail="Attention Pulse, triggers, reminders, jobs, and watches." value={`${data.autonomy.watches.length} watches · ${data.activity.jobs.length} jobs`} href="/app/autonomy" icon={Radar} />}<CapabilityCard title="Use connected apps" detail="Email, calendar, Slack, CRM, documents, and more." value={`${data.connectedAccounts.length} connected accounts`} href="/app/apps" icon={Boxes} /><CapabilityCard title="Reach you anywhere" detail="Linked channels for proactive updates and delivery." value={`${data.channels.length} linked channels`} href="/app/channels" icon={MessageSquare} /><CapabilityCard title="Research and extend" detail="Native tools, MCP servers, skills, and live research." value={`${data.tools.length} tools · ${data.mcpConnections.length} MCP connections`} href="/app/mcp" icon={Wrench} /><CapabilityCard title="Create useful outputs" detail="Reports, documents, spreadsheets, presentations, and media." value={`${data.artifacts.length} available artifacts`} href="/app/capabilities?tab=artifacts" icon={FileOutput} /></div></section>
+      <section><SectionHeading eyebrow="Learn by seeing the real system" title="What Chusky can do" href="/app/capabilities" linkLabel="Browse capabilities" /><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><CapabilityCard title="Work and follow through" detail="Tasks, missions, workers, and verified outcomes." value={`${data.activity.tasks.length} tasks · ${data.missions.length} missions`} href="/app/missions" icon={Workflow} />{elenaEnabled && <CapabilityCard title="Stay aware" detail="Attention Pulse, triggers, reminders, jobs, and watches." value={`${data.autonomy.watches.length} watches · ${data.activity.jobs.length} jobs`} href="/app/autonomy" icon={Radar} />}<CapabilityCard title="Use connected apps" detail="Email, calendar, Slack, CRM, documents, and more." value={`${data.connectedAccounts.length} connected accounts`} href="/app/apps" icon={Boxes} /><CapabilityCard title="Reach you anywhere" detail="Linked channels for proactive updates and delivery." value={`${data.channels.length} linked channels`} href="/app/channels" icon={MessageSquare} /><CapabilityCard title="Research and extend" detail="Native tools, MCP servers, skills, and research." value={`${data.tools.total} tools · ${data.mcpConnections.length} MCP connections`} href="/app/mcp" icon={Wrench} /><CapabilityCard title="Create useful outputs" detail="Reports, documents, spreadsheets, presentations, and media." value={`${data.artifacts.length} available artifacts`} href="/app/capabilities?tab=artifacts" icon={FileOutput} /></div></section>
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="p-4"><SectionHeading eyebrow="Where Chusky can reach you" title="Connected channels" href="/app/channels" linkLabel="Manage channels" />{data.channels.length ? <div className="divide-y divide-foreground/10">{data.channels.slice(0, 6).map((channel) => <div key={channel.id} className="flex items-center justify-between gap-3 py-2.5"><div className="flex min-w-0 items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Link2 size={13} /></span><span className="min-w-0"><span className="block truncate text-xs font-medium">{channel.displayName || channel.provider}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{channel.provider} · {channel.proactiveOptIn ? "proactive updates on" : "reply only"}</span></span></div><Status tone="green">linked</Status></div>)}</div> : <div className="py-4"><p className="text-xs font-medium">No channels linked yet</p><p className="mt-1 text-[10px] text-muted-foreground">Link Telegram, Slack, WhatsApp, iMessage, SMS, or X to receive work outside this dashboard.</p><Link href="/app/channels" className="mt-3 inline-flex text-[10px] font-medium hover:underline">Connect a channel <ArrowUpRight size={12} className="ml-1" /></Link></div>}</Card>

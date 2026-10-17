@@ -103,6 +103,24 @@ export type AccountOverview = {
   telegramLink: { linked: boolean };
   deliveries: Array<{ id: string; provider: string; status: string; kind: string; attempts: number; providerStatus?: string; lastError?: string; durationMs?: number; createdAt: string; updatedAt: string; deliveredAt?: string }>;
 };
+export type DashboardOverview = {
+  observedAt: number;
+  degradedSources: string[];
+  health: Pick<HealthSnapshot, "ok" | "status" | "persistence">;
+  usage: Usage;
+  threads: Page<Thread>;
+  account: Pick<AccountOverview, "features" | "approvals" | "triggers">;
+  workers: Worker[];
+  artifacts: Artifact[];
+  channels: ChannelConnection[];
+  deliveries: Delivery[];
+  activity: Activity;
+  autonomy: AutonomySnapshot;
+  missions: Mission[];
+  connectedAccounts: ConnectedAccount[];
+  mcpConnections: McpConnection[];
+  tools: { total: number; nativeTotal: number; composioTotal: number };
+};
 export type AttentionCandidate = { id: string; candidateType: string; reason: string; proposedAction?: string; providerSlug?: string; sourceTriggerEventId?: string; suggestedActions?: Array<{ id: string; label: string; prompt: string }>; score: number; createdAt: string };
 export type FluxVoice = { id: string; name: string; accent: string };
 export type BlandVoice = { id: string; name: string; description?: string };
@@ -427,6 +445,7 @@ export const chuskyApi = {
   },
   account: {
     get: () => request<AccountOverview>("/account/overview"),
+    dashboardOverview: () => request<DashboardOverview>("/account/dashboard-overview"),
     activateAttentionCandidate: (candidateId: string, actionId?: string) => request<{ candidate: AttentionCandidate; actionId?: string; alreadyActivated?: boolean }>(`/account/attention-candidates/${encodeURIComponent(candidateId)}/activate`, { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(actionId ? { actionId } : {}) }),
     dismissAttentionCandidate: (candidateId: string) => request<{ data: { candidate: AttentionCandidate } }>(`/account/attention-candidates/${encodeURIComponent(candidateId)}/dismiss`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     export: () => request<Record<string, unknown>>("/account/export"),
@@ -628,6 +647,7 @@ export const chuskyApi = {
   },
   tools: {
     list: (query = "", source?: "native" | "composio", toolkit?: string, limit = 250) => { const params = new URLSearchParams(); if (query) params.set("query", query); if (source) params.set("source", source); if (toolkit) params.set("toolkit", toolkit); params.set("limit", String(limit)); return request<{ data: Tool[]; total?: number; nativeTotal?: number; composioTotal?: number }>(`/tools?${params.toString()}`); },
+    summary: () => request<{ data: []; total?: number; nativeTotal?: number; composioTotal?: number }>("/tools?summary=true"),
     get: (slug: string) => request<Tool>(`/tools/${encodeURIComponent(slug)}`),
   },
   skills: {
