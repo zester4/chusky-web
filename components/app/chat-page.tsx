@@ -33,7 +33,7 @@ import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
-import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
+import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, isGenericProgressText, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity } from "@/lib/run-activity";
 import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
 import { shouldUseChatReturnCache } from "@/lib/chat-cache-policy";
 import { AppShellContext } from "./app-shell";
@@ -115,7 +115,11 @@ const progressProviderForActivities = (activities: RunToolActivity[]) => {
 };
 
 function progressFromRun(run: Run): RunProgress {
-  if (run.progress) return run.progress;
+  if (run.progress) return {
+    ...run.progress,
+    title: isGenericProgressText(run.progress.title) ? "Working…" : run.progress.title,
+    ...(isGenericProgressText(run.progress.detail) ? { detail: undefined } : {}),
+  };
   const activities = runActivities(run);
   const providerActivity = [...activities].reverse().find((activity) => activity.toolkitName || activity.toolkitSlug || activity.toolSlug);
   const phase = progressPhaseForRun(run.status, activities);
@@ -139,7 +143,7 @@ function progressFromRun(run: Run): RunProgress {
         ? "This run needs attention"
         : run.status === "cancelled"
           ? "Run cancelled"
-          : (action ? activityTitle(action) : undefined) || savedProgressText || (phase === "planning" ? "Preparing your request" : phase === "researching" ? "Researching the request" : "Executing the next action");
+          : (action ? activityTitle(action) : undefined) || savedProgressText || "Working…";
   const detail = run.status === "requires_approval"
     ? "Chusky paused safely before a consequential action. Review the request below."
     : run.status === "completed"
@@ -148,7 +152,7 @@ function progressFromRun(run: Run): RunProgress {
         ? "The saved run is still available. Review the error and try again when ready."
         : run.status === "cancelled"
           ? "The completed steps remain available above."
-          : action?.summary || (activities.length ? `${completed} of ${activities.length} steps confirmed.` : "Chusky is preparing the right context.");
+          : action?.summary || (activities.length ? `${completed} of ${activities.length} steps confirmed.` : undefined);
   return {
     phase,
     title,
@@ -308,11 +312,14 @@ function CompactActivityStatus({ activity, current }: { activity: PresentedToolA
   return <span className={`compact-execution-status ${current ? "is-active" : activity.status === "completed" ? "is-complete" : waiting || failed ? "is-attention" : ""}`} role="img" aria-label={label}>{icon}</span>;
 }
 
-function CompactProgressRow({ progress }: { progress: RunProgress }) {
+function CompactProgressRow({ progress, pending }: { progress: RunProgress; pending: boolean }) {
   if (progress.phase === "completed") return null;
+  if (!pending && progress.phase !== "waiting" && !progress.requiresApproval) return null;
+  if (!progress.requiresApproval && progress.phase !== "waiting") {
+    return <div className="chat-working-row" role="status" aria-live="polite" aria-label="Working"><span className="chat-working-shimmer">Working…</span></div>;
+  }
   const provider = progress.provider ? triggerProviderBrand(progress.provider) : undefined;
-  const current = !progress.requiresApproval;
-  const status = progress.requiresApproval || progress.phase === "waiting" ? "Waiting for approval" : current ? "Running" : "Pending";
+  const status = "Waiting for approval";
   return <div className="chat-progress-row" role="status" aria-label="Agent activity">
     <ActivityBrand toolSlug={progress.provider || "CHUCK_RUN"} toolkitName={provider?.name} toolkitLogo={progress.providerLogo || provider?.logo} size={19} />
     <div className="chat-progress-copy">
@@ -321,6 +328,14 @@ function CompactProgressRow({ progress }: { progress: RunProgress }) {
     </div>
     <span className="compact-execution-state">{status}</span>
   </div>;
+}
+
+function ProgressNarrative({ progress, openingText }: { progress: RunProgress; openingText?: string }) {
+  if (progress.phase === "completed" || progress.requiresApproval || progress.phase === "waiting") return null;
+  const detail = isGenericProgressText(progress.detail) ? undefined : progress.detail?.trim();
+  const opening = openingText ? stripGenericProgressText(openingText) : "";
+  if (detail && opening && detail === opening) return null;
+  return detail ? <p className="chat-progress-narrative" aria-live="polite">{detail}</p> : null;
 }
 
 function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
@@ -346,9 +361,16 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
   </ol>;
 }
 
-function ActivityNarrative({ activities, subagentActivities, toolkitCatalogue, pending, progress }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean; progress?: RunProgress }) {
-  if (!activities.length) return progress ? <CompactProgressRow progress={progress} /> : null;
-  return <div className="compact-execution-list my-2" role="status" aria-label="Agent activity"><ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} /></div>;
+function ActivityNarrative({ activities, subagentActivities, toolkitCatalogue, pending, progress, openingText }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean; progress?: RunProgress; openingText?: string }) {
+  if (!activities.length) return progress ? <div className="compact-execution-list my-2" role="status" aria-label="Agent activity"><CompactProgressRow progress={progress} pending={pending} /><ProgressNarrative progress={progress} openingText={openingText} /></div> : null;
+  return <div className="compact-execution-list my-2" role="status" aria-label="Agent activity">
+    {progress && progress.phase !== "completed" ? <CompactProgressRow progress={progress} pending={pending} /> : null}
+    {progress && progress.phase !== "completed" ? <ProgressNarrative progress={progress} openingText={openingText} /> : null}
+    <details className="compact-execution-details" open={pending}>
+      <summary className="compact-execution-summary">Tool calls · {activities.length}</summary>
+      <ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} />
+    </details>
+  </div>;
 }
 
 function SubagentTree({ activities, parentToolCallId, live }: { activities: RunSubagentActivity[]; parentToolCallId: string; live: boolean }) {
@@ -1381,7 +1403,7 @@ export function ChatPage() {
     setAttachments([]);
     const triggerDisplayText = typeof metadataOverride?.triggerEventId === "string" ? triggerContextDisplay(text) : undefined;
     const outgoing: Message = { role: "user", text: text || (attachmentOverride ? "Voice message" : "Attached file(s)"), ...(triggerDisplayText ? { displayText: triggerDisplayText } : {}), time: "Now", attachments: readyAttachments.map(({ id, name, contentType, size, previewUrl, downloadUrl }) => ({ id, name, contentType, size, previewUrl, downloadUrl })) };
-    const initialProgress: RunProgress = { phase: "planning", title: "Preparing your request", detail: "Chusky is organizing the right context before it acts." };
+    const initialProgress: RunProgress = { phase: "planning", title: "Working…" };
     setMessages((current) => editingMessageIndex === undefined ? [...current, outgoing, { role: "assistant", text: "", pending: true, progress: initialProgress }] : [...current.slice(0, editingMessageIndex), outgoing, { role: "assistant", text: "", pending: true, progress: initialProgress }]);
     setEditingMessageIndex(undefined);
     const shouldTitle = Boolean(text && !thread.metadata.title);
@@ -1396,9 +1418,9 @@ export function ChatPage() {
           syncActiveRunId(typed.run.id);
           updateLastAssistant({ runId: typed.run.id, pending: true, progress: progressFromRun(typed.run) });
         } else if (typed.type === "run.progress") {
-          updateLastAssistant((item) => ({ progress: typed.progress, pending: true, statusText: typed.progress.title, openingText: typed.progress.evidence?.find((entry) => entry.id === "turn-opening")?.detail ?? item.openingText }));
+          updateLastAssistant((item) => ({ progress: typed.progress, pending: true, statusText: undefined, openingText: typed.progress.evidence?.find((entry) => entry.id === "turn-opening")?.detail ?? item.openingText }));
         } else if (typed.type === "run.status") {
-          updateLastAssistant((item) => ({ pending: true, statusText: typed.text, tool: undefined, progress: item.progress || { phase: "researching", title: typed.text, detail: "Chusky is keeping the work visible while it continues." } }));
+          updateLastAssistant((item) => ({ pending: true, statusText: undefined, tool: undefined, progress: item.progress || { phase: "researching", title: "Working…", ...(isGenericProgressText(typed.text) ? {} : { detail: typed.text }) } }));
         } else if (typed.type === "run.delta") {
           setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: true } : item));
         } else if (typed.type === "run.tool_started") {
@@ -1678,8 +1700,8 @@ export function ChatPage() {
                       <span className="shrink-0 font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span>
                     </div>}
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
-                    {item.role === "assistant" && item.openingText ? <p className="mb-3 text-sm leading-6" aria-live="polite">{item.openingText}</p> : null}
-                    {headlineActivity || item.progress ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
+                    {item.role === "assistant" && item.openingText && stripGenericProgressText(item.openingText) ? <p className="mb-3 text-sm leading-6" aria-live="polite">{stripGenericProgressText(item.openingText)}</p> : null}
+                    {headlineActivity || item.progress ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} openingText={item.openingText} /> : null}
                     {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? visibleAssistantText ? <MarkdownMessage content={visibleAssistantText} streaming={item.pending} /> : null : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}

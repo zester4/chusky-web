@@ -37,6 +37,13 @@ const cleanActivityCopy = (value?: string): string | undefined => {
 };
 
 const genericActivityCopy = /^(?:i['’]?m|i am)?\s*(?:taking care of that|working(?: through your request| on it)?|processing (?:your request|that|it)|handling (?:that|it)|running(?: now)?|connected app action|remote connected app action|one moment)[\s.!…]*$/i;
+const genericProgressCopy = /^(?:preparing your request|researching the request|executing the next action|working(?: now| on it| through your request)?|running(?: now)?|chusky is (?:organizing|keeping the work visible|preparing)(?: the right context)?(?: before it acts)?|i['’]?m\s+(?:understanding(?: your request)?|lining up (?:the )?best way(?: to help)?|taking care of (?:that|it)))[\s.!…]*$/i;
+
+/** True when a lifecycle line is only filler and adds no user-visible information. */
+export function isGenericProgressText(value?: string): boolean {
+  const candidate = cleanActivityCopy(value);
+  return Boolean(candidate && (genericActivityCopy.test(candidate) || genericProgressCopy.test(candidate)));
+}
 
 const providerNameForActivity = (activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName">): string | undefined => {
   const supplied = cleanActivityCopy(activity.toolkitName || activity.toolkitSlug);
@@ -112,7 +119,7 @@ export function stripGenericProgressText(value: string): string {
     .split(/\r?\n/)
     .filter((line) => {
       const candidate = line.replace(/^\s*(?:[-*•>]\s+)?/, "").trim();
-      return !genericActivityCopy.test(candidate);
+      return !isGenericProgressText(candidate);
     })
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")

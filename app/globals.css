@@ -601,6 +601,37 @@
     box-shadow: none;
   }
 
+  .compact-execution-details {
+    width: 100%;
+  }
+
+  .compact-execution-summary {
+    display: inline-flex;
+    min-height: 1.75rem;
+    align-items: center;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    list-style: none;
+  }
+
+  .compact-execution-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .compact-execution-summary::before {
+    content: "⌄";
+    display: inline-block;
+    margin-right: 0.35rem;
+    font-size: 0.85rem;
+    transition: transform 160ms ease;
+  }
+
+  .compact-execution-details:not([open]) .compact-execution-summary::before {
+    transform: rotate(-90deg);
+  }
+
   .compact-execution-rows,
   .compact-execution-list > ol {
     margin: 0;
@@ -666,6 +697,42 @@
     align-items: flex-start;
     gap: 0.7rem;
     margin: 0.65rem 0 0.85rem;
+  }
+
+  .chat-working-row {
+    display: flex;
+    min-height: 1.75rem;
+    align-items: center;
+    margin: 0.65rem 0 0.35rem;
+  }
+
+  .chat-working-shimmer {
+    display: inline-block;
+    color: transparent;
+    background: linear-gradient(100deg, var(--muted-foreground) 20%, var(--foreground) 50%, var(--muted-foreground) 80%);
+    background-size: 220% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: chusky-working-shimmer 1.6s linear infinite;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4rem;
+  }
+
+  .chat-progress-narrative {
+    margin: 0.25rem 0 0.7rem;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+  }
+
+  @keyframes chusky-working-shimmer {
+    from { background-position: 140% 0; }
+    to { background-position: -80% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-working-shimmer { animation: none; color: var(--muted-foreground); }
   }
 
   .chat-progress-copy {
