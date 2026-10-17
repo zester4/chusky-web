@@ -36,7 +36,7 @@ const cleanActivityCopy = (value?: string): string | undefined => {
   return normalized || undefined;
 };
 
-const genericActivityCopy = /^(?:i['’]?m|i am)?\s*(?:taking care of that|working(?: through your request| on it)?|processing (?:your request|that|it)|handling (?:that|it)|running(?: now)?|one moment)[\s.!…]*$/i;
+const genericActivityCopy = /^(?:i['’]?m|i am)?\s*(?:taking care of that|working(?: through your request| on it)?|processing (?:your request|that|it)|handling (?:that|it)|running(?: now)?|connected app action|remote connected app action|one moment)[\s.!…]*$/i;
 
 const providerNameForActivity = (activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName">): string | undefined => {
   const supplied = cleanActivityCopy(activity.toolkitName || activity.toolkitSlug);
@@ -52,14 +52,50 @@ const titleCaseActivityToken = (value: string) => value
   .map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
   .join(" ");
 
+/** Normalize labels written by older runs before the structured action copy existed. */
+const legacyActionLabelForTool = (toolSlug?: string): string | undefined => {
+  switch (toolSlug?.toUpperCase()) {
+    case "CHUCK_TREG_SEARCH": return "Finding research capabilities";
+    case "CHUCK_TREG_COMPANY_SEARCH": return "Searching for companies";
+    case "CHUCK_TREG_PEOPLE_SEARCH": return "Searching for people";
+    case "CHUCK_TREG_COMPANY_JOBS_SEARCH": return "Searching for company jobs";
+    case "CHUCK_TREG_ENRICH_COMPANY": return "Enriching the selected company";
+    case "CHUCK_TREG_ENRICH_PERSON": return "Enriching the selected person";
+    case "CHUCK_TREG_RESOLVE": return "Resolving the requested data";
+    case "CHUCK_TREG_CALL": return "Calling the approved endpoint";
+    case "CHUCK_MONID_PLAN": return "Planning the research";
+    case "CHUCK_MONID_SEARCH": return "Finding research capabilities";
+    case "CHUCK_MONID_INSPECT": return "Inspecting the selected capability";
+    case "CHUCK_MONID_RUN": return "Running the research action";
+    case "CHUCK_MONID_RUN_GET": return "Checking the research run";
+    case "CHUCK_MONID_RUNS_LIST": return "Listing research runs";
+    case "CHUCK_MONID_BALANCE":
+    case "CHUCK_MONID_USAGE": return "Checking usage";
+    case "COMPOSIO_REMOTE_BASH_TOOL": return "Running a remote shell command";
+    case "COMPOSIO_REMOTE_WORKBENCH": return "Working in the remote workspace";
+    case "COMPOSIO_EXECUTE_TOOL": return "Running the connected action";
+    case "COMPOSIO_MULTI_EXECUTE_TOOL": return "Running connected actions";
+    default: return undefined;
+  }
+};
+
+const looksLikeLegacyToolLabel = (value: string, toolSlug?: string): boolean => {
+  if (!toolSlug) return false;
+  const normalizedValue = value.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  const normalizedSlug = toolSlug.replace(/^(CHUCK|COMPOSIO|MCP)_/i, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+  return normalizedValue === normalizedSlug || normalizedValue.endsWith(normalizedSlug);
+};
+
 /** Return the concrete action instead of generic model filler such as "I'm taking care of that". */
 export function activityTitle(activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName" | "actionLabel" | "message">): string {
+  const legacyLabel = legacyActionLabelForTool(activity.toolSlug);
   const supplied = [activity.actionLabel, activity.message]
     .map(cleanActivityCopy)
+    .map((value) => value && legacyLabel && looksLikeLegacyToolLabel(value, activity.toolSlug) ? legacyLabel : value)
     .find((value) => value && !genericActivityCopy.test(value));
   const provider = providerNameForActivity(activity);
   if (supplied && !genericActivityCopy.test(supplied)) {
-    if (!provider || supplied.toLowerCase().startsWith(`${provider.toLowerCase()} ·`) || supplied.toLowerCase().includes(provider.toLowerCase())) return supplied;
+    if (!provider || supplied.toLowerCase().startsWith(`${provider.toLowerCase()} ·`)) return supplied;
     return `${provider} · ${supplied}`;
   }
 

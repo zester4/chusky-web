@@ -189,6 +189,10 @@ const reconcileStreamedText = (current: string, snapshot: string) => {
 };
 const runFailureCopy = (failure?: Message["failure"]) => {
   const detail = failure?.message || "";
+  if (failure?.code === "approved_action_not_executed") return {
+    message: "Your approval was recorded, but the requested action did not start. Nothing was sent or changed.",
+    detail: "Chusky could not confirm execution of the exact approved action. Review the saved activity and try again.",
+  };
   if (/429|rate limit|quota|too many requests/i.test(detail)) return {
     message: "The selected model is busy right now. Choose another model or try again in a moment.",
     detail: "The model request was rate limited before a final reply was saved.",
