@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, LoaderCircle, Phone, RefreshCw, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, FileText, Globe2, Image, LoaderCircle, MapPin, MessageSquare, Phone, RefreshCw, Search, ShieldAlert, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallNumberCountry, type CallNumberPrice, type CallPersona, type CallPersonaId, type CallPhoneNumber, type CallPhoneNumberOption, type CallProfile, type CallRecord, type CallTone, type Task } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
@@ -12,6 +12,20 @@ import { resolveProviderBrand } from "./trigger-logo";
 import { ToolkitLogo } from "./toolkit-logo";
 
 type CallsSection = "numbers" | "representative" | "activity";
+type NumberFeature = "voice" | "sms" | "mms" | "emergency" | "fax" | "local_calling" | "international_sms";
+type NumberSearchBy = "area_code" | "region" | "locality" | "postal_code" | "contains";
+
+const numberFeatureOptions: Array<{ id: NumberFeature; label: string; description: string; available: boolean; icon: typeof Phone }> = [
+  { id: "voice", label: "Voice", description: "Inbound and outbound calls", available: true, icon: Phone },
+  { id: "sms", label: "SMS", description: "Text messaging", available: false, icon: MessageSquare },
+  { id: "mms", label: "MMS", description: "Picture messaging", available: false, icon: Image },
+  { id: "emergency", label: "Emergency", description: "Emergency calling", available: false, icon: ShieldAlert },
+  { id: "fax", label: "Fax", description: "Faxing", available: false, icon: FileText },
+  { id: "local_calling", label: "Local calling", description: "Local voice number", available: true, icon: MapPin },
+  { id: "international_sms", label: "International SMS", description: "International text messaging", available: false, icon: Globe2 },
+];
+
+const starterAreaCodes = ["201", "202", "205", "206", "207", "208", "209", "210"];
 
 function date(value: string) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -84,8 +98,17 @@ export function CallsPage() {
   const [numberPrice, setNumberPrice] = useState<CallNumberPrice>();
   const [numberOptions, setNumberOptions] = useState<CallPhoneNumberOption[]>([]);
   const [countryCode, setCountryCode] = useState("US");
-  const [areaCode, setAreaCode] = useState("");
+  const [numberFeatures, setNumberFeatures] = useState<NumberFeature[]>(["voice", "local_calling"]);
+  const [numberType, setNumberType] = useState<"local">("local");
+  const [searchBy, setSearchBy] = useState<NumberSearchBy>("area_code");
+  const [areaCodes, setAreaCodes] = useState<string[]>([]);
+  const [areaCodeDraft, setAreaCodeDraft] = useState("");
   const [region, setRegion] = useState("");
+  const [locality, setLocality] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [contains, setContains] = useState("");
+  const [advancedNumberSearch, setAdvancedNumberSearch] = useState(false);
+  const [openNumberMenu, setOpenNumberMenu] = useState<"country" | "features" | "type" | "searchBy" | "areaCode">();
   const [numberSearchBusy, setNumberSearchBusy] = useState(false);
   const [numberPurchaseBusy, setNumberPurchaseBusy] = useState<string>();
   const [numbersError, setNumbersError] = useState<string>();
@@ -222,11 +245,58 @@ export function CallsPage() {
     void loadInboundRoutes();
   });
 
+  useEffect(() => {
+    if (!openNumberMenu) return;
+    const closeOnOutside = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && !target.closest("[data-number-menu]")) setOpenNumberMenu(undefined);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenNumberMenu(undefined);
+    };
+    document.addEventListener("mousedown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openNumberMenu]);
+
+  const addAreaCode = (value: string) => {
+    const normalized = value.replace(/\D/g, "").slice(0, 6);
+    if (!normalized || areaCodes.includes(normalized)) return;
+    if (areaCodes.length >= 5) {
+      setNumbersError("Choose up to five area codes per search.");
+      return;
+    }
+    setAreaCodes((current) => [...current, normalized]);
+    setAreaCodeDraft("");
+  };
+
+  const removeAreaCode = (value: string) => setAreaCodes((current) => current.filter((item) => item !== value));
+
+  const selectedCountry = numberCountries.find((country) => country.code === countryCode);
+  const selectedSearchLabel = ({ area_code: "Area code", region: "State or region", locality: "City", postal_code: "Postal code", contains: "Contains" } satisfies Record<NumberSearchBy, string>)[searchBy];
+
   const searchNumbers = async () => {
     setNumberSearchBusy(true);
     setNumbersError(undefined);
     try {
-      const result = await chuskyApi.account.calls.numbers.search({ countryCode: countryCode.trim().toUpperCase(), ...(areaCode.trim() ? { areaCode: areaCode.trim() } : {}), ...(region.trim() ? { region: region.trim() } : {}), limit: 12 });
+      const typedAreaCode = areaCodeDraft.replace(/\D/g, "").slice(0, 6);
+      const requestedAreaCodes = [...new Set([...areaCodes, ...(typedAreaCode ? [typedAreaCode] : [])])].slice(0, 5);
+      const result = await chuskyApi.account.calls.numbers.search({
+        countryCode: countryCode.trim().toUpperCase(),
+        ...(searchBy === "area_code" && requestedAreaCodes.length ? { areaCodes: requestedAreaCodes } : {}),
+        ...(searchBy === "region" && region.trim() ? { region: region.trim() } : {}),
+        ...(searchBy === "locality" && locality.trim() ? { locality: locality.trim() } : {}),
+        ...(searchBy === "postal_code" && postalCode.trim() ? { postalCode: postalCode.trim() } : {}),
+        ...(searchBy === "contains" && contains.trim() ? { contains: contains.trim() } : {}),
+        ...(advancedNumberSearch && searchBy !== "region" && region.trim() ? { region: region.trim() } : {}),
+        ...(advancedNumberSearch && searchBy !== "locality" && locality.trim() ? { locality: locality.trim() } : {}),
+        ...(advancedNumberSearch && searchBy !== "postal_code" && postalCode.trim() ? { postalCode: postalCode.trim() } : {}),
+        ...(advancedNumberSearch && searchBy !== "contains" && contains.trim() ? { contains: contains.trim() } : {}),
+        limit: 12,
+      });
       setNumberOptions(result.data);
       if (result.price) setNumberPrice(result.price);
       if (!result.data.length) setNumbersError("No matching numbers were found. Try another area code.");
@@ -368,16 +438,47 @@ export function CallsPage() {
       <Card className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Your phone numbers</p><h2 className="mt-1.5 font-display text-2xl">Ready for callers</h2><p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Every number here is routed to your representative. Customers only see the number and the experience you configure—not the underlying voice service.</p></div><Phone size={20} className="text-muted-foreground" /></div>{numbersError && <p className="mt-4 border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">{numbersError}</p>}{visibleNumbers.length ? <div className="mt-5 grid gap-3 md:grid-cols-2">{visibleNumbers.map((number) => <article key={number.phoneNumber} className="flex items-start justify-between gap-3 rounded-lg border border-foreground/10 p-3.5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium tracking-wide">{number.phoneNumber}</p><Status tone="green">Ready</Status></div><p className="mt-1.5 text-[11px] text-muted-foreground">{number.displayName || "Chusky phone number"}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{number.source === "managed" ? "Customers can call this number now." : "Connected number · routing is active."}</p><p className="mt-2 text-[10px] text-muted-foreground">Updated {date(new Date(number.updatedAt).toISOString())}</p></div>{number.source === "managed" && <Button secondary disabled={numberPurchaseBusy === number.phoneNumber} onClick={() => void releaseNumber(number)} aria-label={`Release ${number.phoneNumber}`}>{numberPurchaseBusy === number.phoneNumber ? <LoaderCircle size={12} className="animate-spin" /> : <Trash2 size={12} />}<span className="hidden sm:inline">Release</span></Button>}</article>)}</div> : <div className="mt-5 border border-dashed border-foreground/15 p-5 text-xs leading-5 text-muted-foreground">You do not have a phone number yet. Find a number below to give customers a direct line to your representative.</div>}</Card>
 
       <Card className="p-4 sm:p-5">
-        <div className="flex items-start gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/[0.05]"><ShoppingBag size={16} /></span><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Number inventory</p><h2 className="mt-1.5 font-display text-2xl">Get a new number</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Choose a country and optional region. The number is purchased and connected automatically.</p></div></div>
+        <div className="flex items-start gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/[0.05]"><ShoppingBag size={16} /></span><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Number inventory</p><h2 className="mt-1.5 font-display text-2xl">Get a new number</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Choose where you want to be reachable. Chusky handles the carrier setup and connects the number to this workspace automatically.</p></div></div>
         {!numberManagementAvailable ? <div className="mt-5 border border-foreground/10 bg-foreground/[0.025] p-3.5 text-[11px] leading-5 text-muted-foreground">Number purchasing is temporarily unavailable right now. Any connected numbers remain available for calling.</div> : <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-            <label className="block text-[11px] text-muted-foreground">Country<select value={countryCode} onChange={(event) => { setCountryCode(event.target.value); setRegion(""); setNumberOptions([]); }} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs">{numberCountries.map((country) => <option key={country.code} value={country.code}>{country.flag} {country.name}</option>)}</select></label>
-            <label className="block text-[11px] text-muted-foreground">{numberCountries.find((country) => country.code === countryCode)?.regionLabel ?? "State or region"}<span className="text-muted-foreground/70"> (optional)</span><input value={region} onChange={(event) => setRegion(event.target.value.slice(0, 80))} placeholder={numberCountries.find((country) => country.code === countryCode)?.regionPlaceholder ?? "Any region"} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label>
-            <label className="block text-[11px] text-muted-foreground">Area code <span className="text-muted-foreground/70">(optional)</span><input value={areaCode} onChange={(event) => setAreaCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="415" className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label>
-            <Button disabled={numberSearchBusy || !countryCode} onClick={() => void searchNumbers()}>{numberSearchBusy ? <LoaderCircle size={13} className="animate-spin" /> : <Phone size={13} />} Find numbers</Button>
+          <div className="mt-5 overflow-visible rounded-xl border border-foreground/10 bg-background p-3 sm:p-4">
+            <div className="grid gap-3 lg:grid-cols-[minmax(150px,1.05fr)_minmax(190px,1.25fr)_minmax(110px,.7fr)_minmax(135px,.85fr)_minmax(180px,1fr)] lg:items-end">
+              <div className="relative" data-number-menu>
+                <label className="block text-[11px] text-muted-foreground">Country <span className="font-normal italic text-foreground">Required</span></label>
+                <button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "country"} onClick={() => setOpenNumberMenu(openNumberMenu === "country" ? undefined : "country")} className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-foreground/25 bg-background px-3 text-left text-xs transition-colors hover:border-foreground/45 focus:outline-none focus:ring-2 focus:ring-foreground/15"><span className="min-w-0 truncate">{selectedCountry ? `${selectedCountry.flag} ${selectedCountry.name} ${selectedCountry.callingCode}` : "Select country"}</span><ChevronDown size={14} className={openNumberMenu === "country" ? "rotate-180 transition-transform" : "transition-transform"} /></button>
+                {openNumberMenu === "country" && <div role="listbox" aria-label="Country" className="absolute z-30 mt-1 max-h-64 w-full min-w-56 overflow-auto rounded-lg border border-foreground/20 bg-background p-1 shadow-xl">{numberCountries.map((country) => <button key={country.code} type="button" role="option" aria-selected={country.code === countryCode} onClick={() => { setCountryCode(country.code); setRegion(""); setAreaCodes([]); setAreaCodeDraft(""); setNumberOptions([]); setOpenNumberMenu(undefined); }} className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs hover:bg-foreground/[0.06] ${country.code === countryCode ? "bg-foreground/[0.06] font-medium" : ""}`}><span>{country.flag} {country.name}</span><span className="text-muted-foreground">{country.callingCode}</span></button>)}</div>}
+              </div>
+
+              <div className="relative" data-number-menu>
+                <label className="block text-[11px] text-muted-foreground">Features</label>
+                <button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "features"} onClick={() => setOpenNumberMenu(openNumberMenu === "features" ? undefined : "features")} className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-foreground/25 bg-background px-2.5 text-left text-xs transition-colors hover:border-foreground/45 focus:outline-none focus:ring-2 focus:ring-foreground/15"><span className="flex min-w-0 flex-wrap gap-1">{numberFeatures.map((featureId) => { const feature = numberFeatureOptions.find((item) => item.id === featureId); return feature ? <span key={feature.id} className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.08] px-2 py-1 text-[10px] font-medium"><feature.icon size={11} />{feature.label}<X size={10} className="text-muted-foreground" /></span> : null; })}</span><ChevronDown size={14} className={openNumberMenu === "features" ? "rotate-180 transition-transform" : "shrink-0 transition-transform"} /></button>
+                {openNumberMenu === "features" && <div role="listbox" aria-label="Number features" className="absolute z-30 mt-1 max-h-72 w-full min-w-64 overflow-auto rounded-lg border border-foreground/20 bg-background p-1 shadow-xl">{numberFeatureOptions.map((feature) => { const selected = numberFeatures.includes(feature.id); return <button key={feature.id} type="button" role="option" aria-selected={selected} disabled={!feature.available} onClick={() => { if (!feature.available) return; setNumberFeatures((current) => selected ? (feature.id === "voice" ? current : current.filter((item) => item !== feature.id)) : [...current, feature.id]); }} className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs ${feature.available ? "hover:bg-foreground/[0.06]" : "cursor-not-allowed opacity-45"}`}><feature.icon size={15} className="shrink-0" /><span className="min-w-0 flex-1"><span className="block">{feature.label}</span><span className="block text-[10px] text-muted-foreground">{feature.description}{!feature.available ? " · coming soon" : ""}</span></span>{selected && <Check size={14} />}</button>; })}</div>}
+              </div>
+
+              <div className="relative" data-number-menu>
+                <label className="block text-[11px] text-muted-foreground">Type</label>
+                <button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "type"} onClick={() => setOpenNumberMenu(openNumberMenu === "type" ? undefined : "type")} className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-foreground/25 bg-background px-3 text-left text-xs transition-colors hover:border-foreground/45 focus:outline-none focus:ring-2 focus:ring-foreground/15"><span>{numberType === "local" ? "Local" : numberType}</span><ChevronDown size={14} className={openNumberMenu === "type" ? "rotate-180 transition-transform" : "transition-transform"} /></button>
+                {openNumberMenu === "type" && <div role="listbox" aria-label="Number type" className="absolute z-30 mt-1 w-full rounded-lg border border-foreground/20 bg-background p-1 shadow-xl"><button type="button" role="option" aria-selected={numberType === "local"} onClick={() => { setNumberType("local"); setOpenNumberMenu(undefined); }} className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs hover:bg-foreground/[0.06]">Local {numberType === "local" && <Check size={14} />}</button></div>}
+              </div>
+
+              <div className="relative" data-number-menu>
+                <label className="block text-[11px] text-muted-foreground">Search by</label>
+                <button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "searchBy"} onClick={() => setOpenNumberMenu(openNumberMenu === "searchBy" ? undefined : "searchBy")} className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-foreground/25 bg-background px-3 text-left text-xs transition-colors hover:border-foreground/45 focus:outline-none focus:ring-2 focus:ring-foreground/15"><span>{selectedSearchLabel}</span><ChevronDown size={14} className={openNumberMenu === "searchBy" ? "rotate-180 transition-transform" : "transition-transform"} /></button>
+                {openNumberMenu === "searchBy" && <div role="listbox" aria-label="Search by" className="absolute right-0 z-30 mt-1 w-full min-w-44 rounded-lg border border-foreground/20 bg-background p-1 shadow-xl">{(["area_code", "region", "locality", "postal_code", "contains"] as NumberSearchBy[]).map((value) => <button key={value} type="button" role="option" aria-selected={searchBy === value} onClick={() => { setSearchBy(value); setNumberOptions([]); setOpenNumberMenu(undefined); }} className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs hover:bg-foreground/[0.06] ${searchBy === value ? "font-medium" : ""}`}><span>{{ area_code: "Area code", region: selectedCountry?.regionLabel ?? "State or region", locality: "City", postal_code: "Postal code", contains: "Contains" }[value]}</span>{searchBy === value && <Check size={14} />}</button>)}</div>}
+              </div>
+
+              {searchBy === "area_code" ? <div className="relative" data-number-menu>
+                <label className="block text-[11px] text-muted-foreground">Area code</label>
+                <div className="mt-1.5 flex min-h-10 w-full items-center gap-1 rounded-lg border border-foreground/25 bg-background px-2 transition-colors hover:border-foreground/45 focus-within:ring-2 focus-within:ring-foreground/15"><div className="flex min-w-0 flex-1 flex-wrap gap-1">{areaCodes.map((value) => <span key={value} className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.08] px-2 py-1 text-[10px] font-medium">{value}<button type="button" onClick={() => removeAreaCode(value)} aria-label={`Remove area code ${value}`}><X size={10} className="text-muted-foreground" /></button></span>)}<input value={areaCodeDraft} onChange={(event) => setAreaCodeDraft(event.target.value.replace(/\D/g, "").slice(0, 6))} onFocus={() => setOpenNumberMenu("areaCode")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addAreaCode(areaCodeDraft); } }} inputMode="numeric" placeholder={areaCodes.length ? "Add" : "Select…"} className="min-w-16 flex-1 bg-transparent px-1 py-1 text-xs outline-none" /></div><button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "areaCode"} onClick={() => setOpenNumberMenu(openNumberMenu === "areaCode" ? undefined : "areaCode")} aria-label="Choose area code" className="shrink-0 p-1"><ChevronDown size={14} className={openNumberMenu === "areaCode" ? "rotate-180 transition-transform" : "transition-transform"} /></button></div>
+                {openNumberMenu === "areaCode" && <div role="listbox" aria-label="Area code" className="absolute right-0 z-30 mt-1 max-h-64 w-full min-w-44 overflow-auto rounded-lg border border-foreground/20 bg-background p-1 shadow-xl">{selectedCountry?.code === "US" ? starterAreaCodes.map((value) => <button key={value} type="button" role="option" aria-selected={areaCodes.includes(value)} onClick={() => areaCodes.includes(value) ? removeAreaCode(value) : addAreaCode(value)} className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs hover:bg-foreground/[0.06]">{value}{areaCodes.includes(value) && <Check size={14} />}</button>) : <p className="px-2.5 py-2 text-[10px] leading-4 text-muted-foreground">Type an area or regional code above.</p>}</div>}
+              </div> : <label className="block text-[11px] text-muted-foreground">{selectedSearchLabel}<input value={searchBy === "region" ? region : searchBy === "locality" ? locality : searchBy === "postal_code" ? postalCode : contains} onChange={(event) => { const value = event.target.value.slice(0, 80); if (searchBy === "region") setRegion(value); else if (searchBy === "locality") setLocality(value); else if (searchBy === "postal_code") setPostalCode(value); else setContains(value); }} placeholder={searchBy === "region" ? selectedCountry?.regionPlaceholder ?? "Any region" : searchBy === "locality" ? "New York" : searchBy === "postal_code" ? "10001" : "415"} className="mt-1.5 min-h-10 w-full rounded-lg border border-foreground/25 bg-background px-3 text-xs" /></label>}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-foreground/10 pt-3"><button type="button" onClick={() => setAdvancedNumberSearch((value) => !value)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-foreground/[0.07] px-3 text-[11px] font-medium transition-colors hover:bg-foreground/[0.12]"><SlidersHorizontal size={13} /> Advanced search <ChevronDown size={13} className={advancedNumberSearch ? "rotate-180 transition-transform" : "transition-transform"} /></button><Button disabled={numberSearchBusy || !countryCode || !numberFeatures.includes("voice")} onClick={() => void searchNumbers()}>{numberSearchBusy ? <LoaderCircle size={13} className="animate-spin" /> : <Search size={13} />} Search numbers</Button></div>
+            {advancedNumberSearch && <div className="mt-3 grid gap-3 border-t border-foreground/10 pt-3 sm:grid-cols-3"><label className="block text-[11px] text-muted-foreground">{selectedCountry?.regionLabel ?? "State or region"}<input value={region} onChange={(event) => setRegion(event.target.value.slice(0, 80))} placeholder={selectedCountry?.regionPlaceholder ?? "Any region"} className="mt-1.5 min-h-9 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-[11px] text-muted-foreground">City<input value={locality} onChange={(event) => setLocality(event.target.value.slice(0, 80))} placeholder="New York" className="mt-1.5 min-h-9 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-[11px] text-muted-foreground">Postal code<input value={postalCode} onChange={(event) => setPostalCode(event.target.value.slice(0, 20))} placeholder="10001" className="mt-1.5 min-h-9 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-[11px] text-muted-foreground sm:col-span-3">Contains<input value={contains} onChange={(event) => setContains(event.target.value.slice(0, 20))} placeholder="A pattern in the phone number" className="mt-1.5 min-h-9 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label></div>}
           </div>
-          {numberPrice && <p className="mt-3 text-[10px] text-muted-foreground">Numbers from <span className="font-medium text-foreground">${(numberPrice.amountCents / 100).toFixed(2)} USD per month</span>. Provider costs are handled by Chusky; your number is automatically attached to this workspace.</p>}
-          {numberOptions.length > 0 && <div className="mt-4 grid gap-2 md:grid-cols-2">{numberOptions.map((option) => <article key={option.phoneNumber} className="flex items-center justify-between gap-3 border border-foreground/10 p-3"><div><p className="text-sm font-medium">{option.phoneNumber}</p><p className="mt-1 text-[10px] text-muted-foreground">{[option.locality, option.region, option.isoCountry].filter(Boolean).join(" · ") || "Voice capable"}</p>{numberPrice && <p className="mt-1 text-[10px] text-muted-foreground">${(numberPrice.amountCents / 100).toFixed(2)} / month</p>}</div><Button disabled={numberPurchaseBusy === option.phoneNumber} onClick={() => void purchaseNumber(option)}>{numberPurchaseBusy === option.phoneNumber ? <LoaderCircle size={12} className="animate-spin" /> : <ShoppingBag size={12} />} Buy</Button></article>)}</div>}
+          <p className="mt-3 text-[10px] leading-4 text-muted-foreground">Voice and local calling are available for local numbers. Messaging, fax, and emergency capabilities will appear here when their tenant routing is enabled.</p>
+          {numberPrice && <p className="mt-1 text-[10px] text-muted-foreground">Numbers from <span className="font-medium text-foreground">${(numberPrice.amountCents / 100).toFixed(2)} USD per month</span>. Provider costs are handled by Chusky; your number is automatically attached to this workspace.</p>}
+          {numberOptions.length > 0 && <div className="mt-4 grid gap-2 md:grid-cols-2">{numberOptions.map((option) => <article key={option.phoneNumber} className="flex items-center justify-between gap-3 rounded-lg border border-foreground/10 p-3"><div><p className="text-sm font-medium">{option.phoneNumber}</p><p className="mt-1 text-[10px] text-muted-foreground">{[option.locality, option.region, option.isoCountry].filter(Boolean).join(" · ") || "Voice capable"}</p>{numberPrice && <p className="mt-1 text-[10px] text-muted-foreground">${(numberPrice.amountCents / 100).toFixed(2)} / month</p>}</div><Button disabled={numberPurchaseBusy === option.phoneNumber} onClick={() => void purchaseNumber(option)}>{numberPurchaseBusy === option.phoneNumber ? <LoaderCircle size={12} className="animate-spin" /> : <ShoppingBag size={12} />} Buy</Button></article>)}</div>}
         </>}
         {inboundRoutesError && !visibleNumbers.length && <p className="mt-3 text-[10px] text-muted-foreground">{inboundRoutesError}</p>}
       </Card>
