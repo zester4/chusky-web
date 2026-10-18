@@ -324,8 +324,8 @@ export function CallsPage() {
     <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadProfile(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
     {error && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 sm:mb-5 sm:p-4"><div className="flex gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><div><p>{error}</p>{setupRequired && <p className="mt-1.5 text-amber-900/70">Verify your web account in Settings before using voice calls.</p>}</div></div></Card>}
 
-    <nav aria-label="Calls sections" className="mb-5 grid gap-1 border-b border-foreground/10 sm:grid-cols-3">
-      {sections.map((item) => <button key={item.id} type="button" onClick={() => setSection(item.id)} aria-current={section === item.id ? "page" : undefined} className={`border-b-2 px-2 py-3 text-left transition-colors ${section === item.id ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}><span className="block text-xs font-medium">{item.label}</span><span className="mt-1 block text-[10px] leading-4">{item.description}</span></button>)}
+    <nav aria-label="Calls sections" className="mb-5 flex min-w-0 gap-1 overflow-x-auto border-b border-foreground/10">
+      {sections.map((item) => <button key={item.id} type="button" title={item.description} onClick={() => setSection(item.id)} aria-current={section === item.id ? "page" : undefined} className={`min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-left text-xs font-medium transition-colors ${section === item.id ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{item.label}</button>)}
     </nav>
 
     {section === "numbers" && <div className="space-y-4 sm:space-y-5">
