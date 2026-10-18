@@ -42,6 +42,7 @@ const LOGO_DEFINITIONS: LogoDefinition[] = [
   { aliases: ["googlebigquery", "google_bigquery"], name: "Google BigQuery", logo: "/logos/google_bigquery.svg" },
   { aliases: ["googlecloud", "google_cloud", "googlecloudrun", "google_cloud_run"], name: "Google Cloud", logo: "/logos/google-cloud-run.svg" },
   { aliases: ["gmail", "googlemail", "google_mail"], name: "Gmail", logo: "/logos/gmail.svg" },
+  { aliases: ["sendblue", "imessage"], name: "iMessage", logo: "/logos/imessage.svg" },
   { aliases: ["github"], name: "GitHub", logo: "/logos/github.svg" },
   { aliases: ["gitlab"], name: "GitLab", logo: "/logos/gitlab.svg" },
   { aliases: ["bitbucket"], name: "Bitbucket", logo: "/logos/bitbucket.svg" },
