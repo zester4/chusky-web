@@ -1,5 +1,12 @@
 export interface BuilderAccess { name: string; role: "builder_admin" | "builder_viewer"; permissions: string[]; mfaEnabled: boolean; verified: boolean; fresh: boolean }
-export interface BuilderControl { version: number; agentEnabled: boolean; changedAt?: number }
+export interface BuilderVoiceControl {
+  version: number;
+  subaccountManagementEnabled: boolean;
+  numberManagementEnabled: boolean;
+  personaLibraryEnabled: boolean;
+  changedAt?: number;
+}
+export interface BuilderControl { version: number; agentEnabled: boolean; changedAt?: number; voice?: Omit<BuilderVoiceControl, "version" | "changedAt"> }
 export interface BuilderPerson { id: string; name: string; email: string; emailVerified: boolean; createdAt: string | null; role: string; banned: boolean }
 export interface BuilderOverview {
   observedAt: number; scope: string; uptimeSeconds: number; persistence: string;
