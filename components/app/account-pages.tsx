@@ -340,27 +340,29 @@ function DevicesPanel({ initial }: { initial: AccountOverview["devices"] }) {
     catch { setError("Clipboard access is unavailable. Copy the token manually."); }
   };
   return <>
-    <Card className="p-4 sm:p-5">
+    <Card className="p-4 shadow-[var(--depth-surface-shadow)] sm:p-5">
       <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Direct CLI connection</p>
       <h2 className="mt-1.5 font-display text-2xl">Generate a terminal token</h2>
       <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Create a bearer token here, then use it to connect the CLI directly. Telegram pairing remains available, but it is no longer required.</p>
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-        <label className="min-w-0 flex-1 text-[11px] font-medium">Terminal name<input value={deviceName} maxLength={80} onChange={(event) => setDeviceName(event.target.value)} className="mt-1.5 block min-h-9 w-full border border-foreground/15 bg-background px-3 text-xs outline-none focus:border-foreground/50" placeholder="terminal" /></label>
-        <Button disabled={tokenBusy} onClick={() => void createToken()}>{tokenBusy ? <LoaderCircle size={13} className="animate-spin" /> : <Laptop size={13} />} Generate token</Button>
+      <div className="mt-4 rounded-xl border border-foreground/10 bg-foreground/[0.018] p-3 shadow-[var(--depth-control-shadow)]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <label className="min-w-0 flex-1 text-[11px] font-medium">Terminal name<input value={deviceName} maxLength={80} onChange={(event) => setDeviceName(event.target.value)} className="mt-1.5 block min-h-9 w-full border border-foreground/15 bg-background px-3 text-xs outline-none transition-[border-color,box-shadow] duration-200 focus:border-foreground/50 focus:shadow-[var(--depth-control-shadow)]" placeholder="terminal" /></label>
+          <Button disabled={tokenBusy} onClick={() => void createToken()}>{tokenBusy ? <LoaderCircle size={13} className="animate-spin" /> : <Laptop size={13} />} Generate token</Button>
+        </div>
       </div>
-      {token && <div className="mt-4 border border-amber-300/70 bg-amber-50 p-3 text-amber-950">
+      {token && <div className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-[var(--depth-floating-shadow)]">
         <p className="text-xs font-medium">Copy this token now</p>
         <p className="mt-1 text-[11px] leading-4">It is shown once in this page state. Treat it like a password; the server stores only its hash.</p>
         <div className="mt-3 flex items-center gap-2">
-          <code className="min-w-0 flex-1 break-all border border-amber-300/70 bg-white/70 p-2 text-[11px]">{token}</code>
+          <code className="min-w-0 flex-1 break-all rounded-lg border border-amber-300/70 bg-white/70 p-2 text-[11px] shadow-[var(--depth-control-shadow)]">{token}</code>
           <Button secondary aria-label="Copy CLI token" onClick={() => void copyToken()}>{copied ? <Check size={13} /> : <Copy size={13} />}<span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span></Button>
         </div>
         <p className="mt-2 text-[10px] leading-4">On the computer you want to connect, run <code className="rounded bg-amber-100 px-1 py-0.5">chusky auth link --token &lt;paste-token&gt;</code>.</p>
       </div>}
     </Card>
-    <Card className="mt-4 overflow-hidden">
+    <Card className="mt-4 overflow-hidden shadow-[var(--depth-surface-shadow)]">
       <div className="border-b border-foreground/10 p-4"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Linked terminals</p></div>
-      {devices.length ? devices.map((item) => <div key={item.id} className="flex flex-col gap-2 border-b border-foreground/10 p-3.5 last:border-0 sm:flex-row sm:items-center sm:p-4"><Laptop size={15} className="shrink-0 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{item.name}</p><p className="mt-1 text-[11px] text-muted-foreground">Last seen {date(item.lastSeenAt)} · linked {date(item.createdAt)}</p></div><Button secondary disabled={busy} onClick={() => setConfirmId(item.id)}>Revoke access</Button></div>) : <Empty>No CLI devices are linked.</Empty>}
+      {devices.length ? devices.map((item) => <div key={item.id} className="flex flex-col gap-2 border-b border-foreground/10 p-3.5 transition-colors last:border-0 hover:bg-foreground/[0.018] sm:flex-row sm:items-center sm:p-4"><Laptop size={15} className="shrink-0 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{item.name}</p><p className="mt-1 text-[11px] text-muted-foreground">Last seen {date(item.lastSeenAt)} · linked {date(item.createdAt)}</p></div><Button secondary disabled={busy} onClick={() => setConfirmId(item.id)}>Revoke access</Button></div>) : <Empty>No CLI devices are linked.</Empty>}
       {error && <p role="alert" className="border-t border-foreground/10 p-3 text-xs text-amber-700">{error}</p>}
     </Card>
     {confirmId && <ConfirmDialog open onOpenChange={(open) => !open && setConfirmId(undefined)} title="Revoke this device?" description="Its CLI token will stop working immediately. The device can pair again later." confirmLabel="Revoke device" destructive onConfirm={() => revoke(confirmId)} />}
