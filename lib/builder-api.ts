@@ -9,6 +9,22 @@ export interface BuilderOverview {
   providers: Array<{ name: string; configured: boolean }>;
 }
 export interface BuilderAudit { id: string; actorId: string; action: string; at: number; enabled?: boolean; reason?: string; version?: number; targetUserId?: string }
+export interface BuilderTwilioSubaccount {
+  id: string;
+  userId: number;
+  twilioAccountSid: string;
+  status: "provisioning" | "active" | "suspended" | "failed" | "closed";
+  friendlyName: string;
+  providerStatus?: "active" | "suspended" | "closed";
+  createdAt: number;
+  updatedAt: number;
+  suspendedAt?: number;
+  lastHealthCheckAt?: number;
+  lastHealthStatus?: "healthy" | "unhealthy" | "unknown";
+  lastHealthErrorCode?: string;
+  numberCount?: number;
+  billing?: { currency: "USD"; activeNumberCount: number; customerPriceCents: number };
+}
 export class BuilderApiError extends Error {
   constructor(public readonly code: string, public readonly status: number, message: string) { super(message); }
 }
