@@ -169,25 +169,8 @@ function MarkdownMedia({ kind, source, label }: { kind: MediaKind; source: strin
   return <span className="my-2 block max-w-full rounded-lg border border-foreground/10 bg-foreground/[0.025] p-2"><audio controls preload="metadata" className="w-full" aria-label={accessibleLabel}><source src={source} />Your browser cannot play this audio.</audio><MediaCaption source={source} label={label} kind={kind} /></span>;
 }
 
-function compactBareUrls(content: string) {
-  return content.split(/(```[\s\S]*?```|`[^`\n]+`)/g).map((part, index) => {
-    if (index % 2 === 1) return part;
-    return part.replace(/https?:\/\/[^\s<>)\]}]+/gi, (raw, offset: number, original: string) => {
-      const before = original.slice(Math.max(0, offset - 2), offset);
-      if (before === "](" || before.endsWith("![")) return raw;
-      const href = raw.replace(/[),.!?;:]+$/g, "");
-      try {
-        const label = new URL(href).hostname.replace(/^www\./i, "");
-        return `[${label}](${href})`;
-      } catch {
-        return raw;
-      }
-    });
-  }).join("");
-}
-
 function normalizeMarkdownContent(content: string) {
-  return compactBareUrls(content)
+  return content
     // Accept the LaTeX delimiters commonly returned by models in addition to remark-math's dollar syntax.
     .replace(/\\\[([\s\S]*?)\\\]/g, (_, expression: string) => `$$\n${expression.trim()}\n$$`)
     .replace(/\\\(([\s\S]*?)\\\)/g, (_, expression: string) => `$${expression.trim()}$`)
