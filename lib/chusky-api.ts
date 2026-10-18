@@ -468,6 +468,7 @@ export const chuskyApi = {
       businessReconcile: (projectId: string, maxWatches = 8) => reconcileAutonomy(`/account/projects/${encodeURIComponent(projectId)}/autonomy/reconcile`, { maxWatches }),
     },
     createTelegramLink: () => request<TelegramLinkCode>("/account/telegram-link", { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    unlinkTelegram: () => request<void>("/account/telegram-link", { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
     models: () => request<Page<Model>>("/account/models"),
     preferences: () => request<VoiceSettings>("/account/preferences"),
     voiceOptions: () => request<VoiceOptions>("/account/voice-options"),

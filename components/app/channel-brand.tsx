@@ -7,7 +7,7 @@ export type ChannelProvider = "telegram" | "slack" | "whatsapp" | "sendblue" | "
 type ChannelBrand = { name: string; logo: string; description: string };
 
 const CHANNEL_BRANDS: Record<ChannelProvider, ChannelBrand> = {
-  telegram: { name: "Telegram", logo: "/logos/telegram.svg", description: "Your primary Chusky workspace" },
+  telegram: { name: "Telegram", logo: "/logos/telegram.svg", description: "Optional channel for your web workspace" },
   slack: { name: "Slack", logo: "/logos/slack.svg", description: "Direct messages and workspace delivery" },
   whatsapp: { name: "WhatsApp", logo: "/logos/whatsapp.svg", description: "Private messages and approved delivery" },
   sendblue: { name: "iMessage", logo: "/logos/imessage.svg", description: "Private iMessage delivery" },
