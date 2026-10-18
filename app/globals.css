@@ -791,10 +791,15 @@
 
   .app-depth-root .app-shell .chat-composer textarea.chat-composer-input,
   .app-depth-root .app-shell .chat-composer textarea.chat-composer-input:focus-visible {
+    height: 6rem;
+    max-height: 6rem;
     min-height: 6rem;
     border: 0;
     border-radius: 0;
     box-shadow: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 0.8rem 0.9rem 0.35rem;
   }
 
@@ -928,6 +933,13 @@
   .app-shell .chat-composer .chat-composer-action:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--foreground) 48%, transparent);
     outline-offset: 2px;
+  }
+
+  @media (max-width: 639px) {
+    .app-depth-root .app-shell .chat-composer textarea.chat-composer-input {
+      font-size: 16px;
+      line-height: 1.4;
+    }
   }
 
   .chat-activity-timeline,
