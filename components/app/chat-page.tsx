@@ -11,7 +11,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Download,
+  ExternalLink,
   Pencil,
   PlugZap,
   FileText,
@@ -26,9 +26,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   Share2,
-    X,
+  Maximize2,
+  Minimize2,
+  X,
 } from "lucide-react";
-import { chuskyApi, type AccountOverview, type Artifact, type AttentionCandidate, type Model, type PrivateRunLink, type Run, type RunImage, type RunProgress, type RunProgressPhase, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit, type TriggerEventAction, type TriggerEventActivity } from "@/lib/chusky-api";
+import { chuskyApi, type AccountOverview, type Artifact, type AttentionCandidate, type Model, type PrivateRunLink, type Run, type RunEvidence, type RunImage, type RunProgress, type RunProgressPhase, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit, type TriggerEventAction, type TriggerEventActivity } from "@/lib/chusky-api";
 import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
@@ -57,6 +59,7 @@ type Message = {
   statusText?: string;
   openingText?: string;
   progress?: RunProgress;
+  evidence?: RunEvidence[];
   tool?: string;
   activities?: RunToolActivity[];
   subagentActivities?: RunSubagentActivity[];
@@ -227,7 +230,7 @@ async function runMessagePair(run: Run, artifactCatalog: Artifact[]): Promise<{ 
   const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
   return {
     user: run.input || run.attachments?.length ? { role: "user", text: run.input || "Attached file(s)", ...(triggerDisplayText ? { displayText: triggerDisplayText } : {}), time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent } : undefined,
-    assistant: { role: "assistant", runId: run.id, text: output, openingText: runOpeningText(run), progress: progressFromRun(run), activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
+    assistant: { role: "assistant", runId: run.id, text: output, openingText: runOpeningText(run), progress: progressFromRun(run), evidence: progressFromRun(run).evidence, activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
   };
 }
 const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + worker.slice(1);
@@ -451,6 +454,101 @@ const stripArtifactLinks = (content: string, artifacts: ChatArtifact[]) => {
   if (!artifacts.length) return content;
   return content.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (full, label) => artifactLinksInText(full, artifacts).length ? label : full);
 };
+
+type ChatSource = RunEvidence & { href: string; host: string };
+
+const cleanSourceUrl = (value: string) => value.trim().replace(/[),.!?;:]+$/g, "");
+const sourceHost = (href: string) => {
+  try { return new URL(href).hostname.replace(/^www\./i, ""); }
+  catch { return "Source"; }
+};
+
+const sourceEvidenceForMessage = (message: Message, content: string): ChatSource[] => {
+  const candidates: RunEvidence[] = [
+    ...(message.evidence || []),
+    ...(message.progress?.evidence || []),
+  ];
+  const seen = new Set<string>();
+  const sources: ChatSource[] = [];
+  const add = (candidate: RunEvidence, href: string) => {
+    const cleanHref = cleanSourceUrl(href);
+    if (!/^https?:\/\//i.test(cleanHref) || seen.has(cleanHref)) return;
+    seen.add(cleanHref);
+    sources.push({ ...candidate, href: cleanHref, host: sourceHost(cleanHref) });
+  };
+  for (const candidate of candidates) {
+    if (candidate.href && (candidate.kind === "source" || !candidate.kind)) add(candidate, candidate.href);
+  }
+  const markdownLinkPattern = /\[[^\]]+\]\((https?:\/\/[^)\s]+)(?:\s+"[^"]*")?\)/gi;
+  for (const match of content.matchAll(markdownLinkPattern)) if (!isArtifactLink(match[1])) add({ label: sourceHost(match[1]), kind: "source" }, match[1]);
+  const bareUrlPattern = /https?:\/\/[^\s<>)\]}]+/gi;
+  for (const match of content.matchAll(bareUrlPattern)) {
+    const before = content.slice(Math.max(0, (match.index || 0) - 2), match.index || 0);
+    if (before === "](") continue;
+    if (!isArtifactLink(match[0])) add({ label: sourceHost(match[0]), kind: "source" }, match[0]);
+  }
+  return sources;
+};
+
+function SourceBrand({ source, size = 22 }: { source: ChatSource; size?: number }) {
+  return <span className="chat-source-brand" style={{ width: size, height: size }} aria-hidden="true"><TriggerLogoGroup text={source.label || source.host} slugs={[source.label || source.host]} size={size - 2} /></span>;
+}
+
+function SourceSheet({ sources, onClose }: { sources: ChatSource[]; onClose: () => void }) {
+  useEffect(() => {
+    if (!sources.length) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose, sources.length]);
+
+  if (!sources.length) return null;
+  return <>
+    <button type="button" className="chat-source-backdrop" aria-label="Close sources" onClick={onClose} />
+    <aside className="chat-source-sheet floating-3d" role="dialog" aria-modal="true" aria-labelledby="chat-source-sheet-title">
+      <div className="chat-source-sheet-header">
+        <div className="min-w-0">
+          <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Report sources</p>
+          <h2 id="chat-source-sheet-title" className="mt-1 text-sm font-semibold">Sources · {sources.length}</h2>
+        </div>
+        <button type="button" onClick={onClose} className="control-3d flex size-8 items-center justify-center rounded-full border border-foreground/10 text-muted-foreground hover:text-foreground" aria-label="Close sources"><X size={15} /></button>
+      </div>
+      <div className="chat-source-sheet-body">
+        <p className="mb-3 text-[11px] leading-5 text-muted-foreground">The links used for this result, kept together so the report stays easy to read.</p>
+        <ol className="space-y-2.5">
+          {sources.map((source, index) => <li key={`${source.href}-${index}`} className="chat-source-item">
+            <SourceBrand source={source} size={28} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-medium" title={source.label}>{source.label || source.host}</p>
+              <a href={source.href} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[10px] text-muted-foreground underline decoration-foreground/15 underline-offset-2 hover:text-foreground" title={source.href}>
+                <span className="truncate">{source.host}</span><ExternalLink size={10} className="shrink-0" aria-hidden="true" />
+              </a>
+              {source.detail ? <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">{source.detail}</p> : null}
+            </div>
+          </li>)}
+        </ol>
+      </div>
+    </aside>
+  </>;
+}
+
+function SourceSummary({ sources, onOpen }: { sources: ChatSource[]; onOpen: () => void }) {
+  if (!sources.length) return null;
+  const first = sources[0];
+  return <button type="button" onClick={onOpen} className="chat-source-summary control-3d" aria-label={`Open ${sources.length} report sources`}>
+    <SourceBrand source={first} />
+    <span className="truncate">Sources · {sources.length}</span>
+    <ChevronRight size={13} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+  </button>;
+}
+
+function ArtifactActions({ href, name }: { href: string; name: string }) {
+  return <div className="flex shrink-0 items-center gap-1.5">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="control-3d inline-flex min-h-8 items-center rounded border border-foreground/15 px-2.5 text-[10px] font-medium hover:bg-foreground/5">Open</a>
+    <a href={href} download={name} className="control-3d inline-flex min-h-8 items-center rounded border border-foreground/15 px-2.5 text-[10px] font-medium hover:bg-foreground/5">Download</a>
+  </div>;
+}
+
 function ArtifactCard({ artifact }: { artifact: ChatArtifact }) {
   const href = chuskyApi.artifacts.downloadHref(artifact.id);
   const isImage = artifact.contentType.startsWith("image/") || artifact.type === "image";
@@ -458,21 +556,21 @@ function ArtifactCard({ artifact }: { artifact: ChatArtifact }) {
   const isAudio = artifact.contentType.startsWith("audio/");
   if (isImage) return <figure className="mt-2 max-w-xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025]">
     <img src={href} alt={artifact.name} loading="lazy" decoding="async" className="max-h-[32rem] w-auto max-w-full object-contain" />
-    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><a href={href} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><ArtifactActions href={href} name={artifact.name} /></figcaption>
   </figure>;
   if (isVideo) return <figure className="mt-2 max-w-2xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025]">
     <video controls playsInline preload="metadata" className="max-h-[32rem] w-full bg-black object-contain" aria-label={artifact.name}><source src={href} type={artifact.contentType || undefined} />Your browser cannot play this video.</video>
-    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><a href={href} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{artifact.name} · {formatArtifactSize(artifact.size)}</span><ArtifactActions href={href} name={artifact.name} /></figcaption>
   </figure>;
   if (isAudio) return <figure className="mt-2 max-w-2xl rounded-md border border-foreground/10 bg-foreground/[0.025] p-3">
     <div className="mb-2 flex min-w-0 items-center gap-2"><FileText size={14} className="shrink-0 text-muted-foreground" /><span className="min-w-0 truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</span></div>
     <audio controls preload="metadata" className="w-full" aria-label={artifact.name}><source src={href} type={artifact.contentType || undefined} />Your browser cannot play this audio.</audio>
-    <figcaption className="mt-2 flex items-center justify-between gap-3 text-[10px] text-muted-foreground"><span>{formatArtifactSize(artifact.size)}</span><a href={href} download={artifact.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+    <figcaption className="mt-2 flex items-center justify-between gap-3 text-[10px] text-muted-foreground"><span>{formatArtifactSize(artifact.size)}</span><ArtifactActions href={href} name={artifact.name} /></figcaption>
   </figure>;
   return <div className="mt-2 flex max-w-full items-center gap-3 rounded-md border border-foreground/10 bg-foreground/[0.025] px-3 py-2.5">
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-foreground/10 bg-background text-muted-foreground"><FileText size={15} /></div>
     <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-medium" title={artifact.name}>{artifact.name}</p><p className="mt-0.5 text-[10px] capitalize text-muted-foreground">{artifact.type} · {formatArtifactSize(artifact.size)}</p></div>
-    <a href={href} download={artifact.name} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-foreground/15 px-2.5 py-1.5 text-[10px] font-medium hover:bg-foreground/5" aria-label={`Download ${artifact.name}`}><Download size={12} />Download</a>
+    <ArtifactActions href={href} name={artifact.name} />
   </div>;
 }
 
@@ -481,7 +579,7 @@ function GeneratedImageCard({ image, className = "" }: { image: RunImage & { dow
   return <figure className={`generated-image-card mt-2 w-full max-w-2xl overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.025] shadow-sm ${className}`}>
     {/* Signed, short-lived R2 URLs are account-authorized and bypass Next's image optimizer. */}
     <img src={image.downloadUrl} alt={image.name || "Image generated by Chusky"} loading="lazy" decoding="async" className="max-h-[32rem] w-auto max-w-full object-contain" />
-    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{image.name} · {formatArtifactSize(image.size)}</span><a href={image.downloadUrl} download={image.name} className="shrink-0 underline underline-offset-2">Download</a></figcaption>
+    <figcaption className="flex items-center justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-[10px] text-muted-foreground"><span className="truncate">{image.name} · {formatArtifactSize(image.size)}</span><ArtifactActions href={image.downloadUrl} name={image.name} /></figcaption>
   </figure>;
 }
 
@@ -590,6 +688,8 @@ export function ChatPage() {
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
   const [controller, setController] = useState<AbortController>();
   const [activeMessageIndex, setActiveMessageIndex] = useState<number>();
+  const [collapsedOutcomeIndexes, setCollapsedOutcomeIndexes] = useState<Record<number, boolean>>({});
+  const [sourcePanelSources, setSourcePanelSources] = useState<ChatSource[]>([]);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number>();
   const [feedbackBusyRunId, setFeedbackBusyRunId] = useState<string>();
   const [draftReadyThread, setDraftReadyThread] = useState<string>();
@@ -923,6 +1023,7 @@ export function ChatPage() {
         ...item,
         text,
         progress: progressFromRun(run),
+        evidence: progressFromRun(run).evidence,
         openingText: runOpeningText(run) ?? item.openingText,
         activities: snapshotActivities.length ? snapshotActivities : item.activities,
         subagentActivities: snapshotSubagentActivities.length ? snapshotSubagentActivities : item.subagentActivities,
@@ -1418,7 +1519,7 @@ export function ChatPage() {
           syncActiveRunId(typed.run.id);
           updateLastAssistant({ runId: typed.run.id, pending: true, progress: progressFromRun(typed.run) });
         } else if (typed.type === "run.progress") {
-          updateLastAssistant((item) => ({ progress: typed.progress, pending: true, statusText: undefined, openingText: typed.progress.evidence?.find((entry) => entry.id === "turn-opening")?.detail ?? item.openingText }));
+          updateLastAssistant((item) => ({ progress: typed.progress, evidence: typed.progress.evidence, pending: true, statusText: undefined, openingText: typed.progress.evidence?.find((entry) => entry.id === "turn-opening")?.detail ?? item.openingText }));
         } else if (typed.type === "run.status") {
           updateLastAssistant((item) => ({ pending: true, statusText: undefined, tool: undefined, progress: item.progress || { phase: "researching", title: "Working…", ...(isGenericProgressText(typed.text) ? {} : { detail: typed.text }) } }));
         } else if (typed.type === "run.delta") {
@@ -1457,7 +1558,7 @@ export function ChatPage() {
           const userHistoryContent = `${typed.run.input || "Attached file(s)"}${typed.run.attachments?.length ? `\n[Attachments: ${typed.run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
           setMessages((current) => current.map((item, index) => {
             if (index === current.length - 2 && item.role === "user") return { ...item, historyCommitted: true, historyContent: userHistoryContent };
-            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, progress: progressFromRun(typed.run), artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, privateLinks: (typed.run as Run & { privateLinks?: PrivateRunLink[] }).privateLinks, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
+            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, progress: progressFromRun(typed.run), evidence: progressFromRun(typed.run).evidence, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, privateLinks: (typed.run as Run & { privateLinks?: PrivateRunLink[] }).privateLinks, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
             return item;
           }));
         } else if (typed.type === "run.approval_required") {
@@ -1662,11 +1763,14 @@ export function ChatPage() {
     else void send();
   };
 
+  const closeSourcePanel = useCallback(() => setSourcePanelSources([]), []);
+
   const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
   const visibleProviders = [...new Set(messages.flatMap((message) => message.activities?.length ? presentToolActivities(message.activities).map((activity) => lookupActivityToolkit(activity, toolkitCatalogue).name) : []).filter((name): name is string => Boolean(name)))].slice(0, 5);
 
   return (
     <div className="chat-page -mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-background sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
+      <SourceSheet sources={sourcePanelSources} onClose={closeSourcePanel} />
       {notice && <div className={`fixed left-1/2 top-16 z-50 flex w-[min(calc(100%-1rem),32rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border px-3 py-2 text-[11px] shadow-lg ${notice.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`} role="alert"><span>{notice.message}</span><button type="button" onClick={() => setNotice(undefined)} className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss notification"><X size={13} /></button></div>}
 
       <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_250px]">
@@ -1692,6 +1796,9 @@ export function ChatPage() {
                 const isTriggerContext = item.role === "user" && Boolean(item.displayText);
                 const visibleUserText = item.displayText || item.text;
                 const visibleAssistantText = item.role === "assistant" ? stripGenericProgressText(stripArtifactLinks(item.text, item.artifacts || [])) : "";
+                const reportSources = item.role === "assistant" ? sourceEvidenceForMessage(item, item.text) : [];
+                const isRichOutcome = item.role === "assistant" && !item.pending && !item.failure && Boolean(visibleAssistantText || item.artifacts?.length || item.images?.length) && Boolean(reportSources.length || item.artifacts?.length || item.images?.length || visibleAssistantText.length > 420);
+                const outcomeCollapsed = Boolean(collapsedOutcomeIndexes[index]);
                 return <div key={`${item.role}-${index}`} className={isTriggerContext ? "group relative ml-auto w-full max-w-[min(94%,42rem)]" : item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-full max-w-3xl"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={isTriggerContext ? "relative w-full min-w-0 break-words rounded-xl border border-foreground/10 bg-background px-3 py-3 shadow-sm [overflow-wrap:anywhere]" : item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : "relative w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]"}>
                     {isTriggerContext && <div className="mb-2 flex items-center gap-2 border-b border-foreground/10 pb-2">
@@ -1702,7 +1809,14 @@ export function ChatPage() {
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
                     {item.role === "assistant" && item.openingText && stripGenericProgressText(item.openingText) ? <p className="mb-3 text-sm leading-6" aria-live="polite">{stripGenericProgressText(item.openingText)}</p> : null}
                     {headlineActivity || item.progress ? <ActivityNarrative activities={visibleActivities} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} openingText={item.openingText} /> : null}
-                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? visibleAssistantText ? <MarkdownMessage content={visibleAssistantText} streaming={item.pending} /> : null : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
+                    {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? isRichOutcome ? <article className={`chat-outcome-surface ${outcomeCollapsed ? "is-collapsed" : ""}`} aria-label="Chusky outcome">
+                      <div className="chat-outcome-header">
+                        <div className="min-w-0"><p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">Completed outcome</p><p className="mt-1 text-sm font-semibold">{item.progress?.title && item.progress.title !== "Work completed" ? item.progress.title : "Your result is ready"}</p></div>
+                        <button type="button" onClick={(event) => { event.stopPropagation(); setCollapsedOutcomeIndexes((current) => ({ ...current, [index]: !current[index] })); }} className="control-3d flex size-8 shrink-0 items-center justify-center rounded-full border border-foreground/10 text-muted-foreground hover:text-foreground" aria-label={outcomeCollapsed ? "Expand report" : "Collapse report"} aria-expanded={!outcomeCollapsed} title={outcomeCollapsed ? "Expand report" : "Collapse report"}>{outcomeCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}</button>
+                      </div>
+                      <div className="chat-outcome-body">{visibleAssistantText ? <MarkdownMessage content={visibleAssistantText} streaming={item.pending} className="chat-outcome-markdown" /> : null}</div>
+                      <div className="chat-outcome-footer"><SourceSummary sources={reportSources} onOpen={() => setSourcePanelSources(reportSources)} /></div>
+                    </article> : visibleAssistantText ? <MarkdownMessage content={visibleAssistantText} streaming={item.pending} /> : null : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
