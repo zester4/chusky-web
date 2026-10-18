@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, LoaderCircle, Phone, RefreshCw, ShieldCheck, ShoppingBag, SlidersHorizontal, Trash2 } from "lucide-react";
-import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallPhoneNumber, type CallPhoneNumberOption, type CallProfile, type CallRecord, type CallTone, type Task } from "@/lib/chusky-api";
+import { AlertTriangle, CheckCircle2, LoaderCircle, Phone, RefreshCw, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallPersona, type CallPersonaId, type CallPhoneNumber, type CallPhoneNumberOption, type CallProfile, type CallRecord, type CallTone, type Task } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -45,6 +45,9 @@ export function CallsPage() {
   const [provider, setProvider] = useState<"twilio" | "bland" | null>(null);
   const [callAccounts, setCallAccounts] = useState<CallConnectedAccount[]>([]);
   const [callToolkits, setCallToolkits] = useState<string[]>([]);
+  const [personas, setPersonas] = useState<CallPersona[]>([]);
+  const [personaId, setPersonaId] = useState<CallPersonaId>();
+  const [personaBusy, setPersonaBusy] = useState(false);
   const [allowedToolkits, setAllowedToolkits] = useState<string[]>([]);
   const [allowedConnectionIds, setAllowedConnectionIds] = useState<string[]>([]);
   const [allowExternalWrites, setAllowExternalWrites] = useState(true);
@@ -86,6 +89,7 @@ export function CallsPage() {
 
   const applyProfile = (profile?: CallProfile) => {
     if (!profile) return;
+    setPersonaId(profile.personaId);
     setIdentity(profile.identity || "Chusky");
     setOrganization(profile.organization || "");
     setContactName(profile.contactName || "");
@@ -113,6 +117,15 @@ export function CallsPage() {
       setQuietEnd(controls.quietHours.end || "07:00");
     } else {
       setQuietHoursEnabled(false);
+    }
+  };
+
+  const loadPersonas = async () => {
+    try {
+      const result = await chuskyApi.account.calls.personas.list();
+      setPersonas(result.data);
+    } catch {
+      setPersonas([]);
     }
   };
 
@@ -192,12 +205,14 @@ export function CallsPage() {
   useEffect(() => {
     void load();
     void loadProfile();
+    void loadPersonas();
     void loadNumbers();
     void loadInboundRoutes();
   }, []);
   useLiveData(() => {
     void load();
     void loadProfile();
+    void loadPersonas();
     void loadNumbers();
     void loadInboundRoutes();
   });
@@ -246,6 +261,7 @@ export function CallsPage() {
   };
 
   const profilePayload = (): CallProfile => ({
+    ...(personaId ? { personaId, personaVersion: 1 } : {}),
     identity: identity.trim() || "Chusky",
     ...(organization.trim() ? { organization: organization.trim() } : {}),
     ...(contactName.trim() ? { contactName: contactName.trim() } : {}),
@@ -259,6 +275,20 @@ export function CallsPage() {
     toolPolicy: { enabled: true, allowedToolkits, allowedConnectionIds, allowExternalWrites, version: 1 },
     controls: { greetingMode, allowVoicemail, allowHumanHandoff, optOutEnabled: true, recording, retentionDays, ...(quietHoursEnabled ? { quietHours: { timezone: quietTimezone, start: quietStart, end: quietEnd } } : {}) },
   });
+
+  const applyPersona = async (nextPersonaId: CallPersonaId) => {
+    setPersonaBusy(true);
+    setProfileMessage(undefined);
+    try {
+      const result = await chuskyApi.account.calls.personas.apply(nextPersonaId);
+      applyProfile(result.data);
+      setProfileMessage(`${personas.find((persona) => persona.id === nextPersonaId)?.name ?? "Persona"} applied. Review the details and save when ready.`);
+    } catch (cause) {
+      setProfileMessage(cause instanceof Error ? cause.message : "The persona could not be applied.");
+    } finally {
+      setPersonaBusy(false);
+    }
+  };
 
   const saveProfile = async () => {
     setProfileBusy(true);
@@ -321,7 +351,7 @@ export function CallsPage() {
   ];
 
   return <>
-    <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadProfile(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
+    <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadProfile(); void loadPersonas(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
     {error && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 sm:mb-5 sm:p-4"><div className="flex gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><div><p>{error}</p>{setupRequired && <p className="mt-1.5 text-amber-900/70">Verify your web account in Settings before using voice calls.</p>}</div></div></Card>}
 
     <nav aria-label="Calls sections" className="mb-5 flex min-w-0 gap-1 overflow-x-auto border-b border-foreground/10">
@@ -336,7 +366,8 @@ export function CallsPage() {
 
     {section === "representative" && <div className="space-y-4 sm:space-y-5">
       <ProviderVoiceSettings provider={provider ?? "twilio"} title="Voice" description="Choose the voice your representative uses. The service that delivers the call is managed for you." />
-      <Card className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Representative profile</p><h2 className="mt-1.5 font-display text-2xl">How Chusky represents you</h2><p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">This profile applies to managed inbound numbers and to outbound calls. Chusky presents itself as the configured assistant, without claiming to be a licensed professional.</p></div><SlidersHorizontal size={18} className="text-muted-foreground" /></div><div className="mt-5 space-y-4">
+      <Card className="p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Representative profile</p><h2 className="mt-1.5 font-display text-2xl">How Chusky represents you</h2><p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Start with a proven role, then adjust its identity, tone, tools, and safeguards. The selected profile applies to managed inbound numbers and outbound calls.</p></div><SlidersHorizontal size={18} className="text-muted-foreground" /></div><div className="mt-5 space-y-4">
+        <section aria-labelledby="voice-personas-heading" className="border border-foreground/10 bg-foreground/[0.02] p-3.5 sm:p-4"><div className="flex items-start gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.06]"><Sparkles size={15} /></span><div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Persona library</p><h3 id="voice-personas-heading" className="mt-1 font-display text-xl">Choose how your representative works</h3><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Each persona is a safe starting point. It does not grant accounts or permissions; connected apps and approvals still control what Chusky can actually do.</p></div></div>{personas.length ? <div className="mt-4 grid gap-2 md:grid-cols-2">{personas.map((persona) => <button key={persona.id} type="button" disabled={personaBusy} onClick={() => { setPersonaId(persona.id); void applyPersona(persona.id); }} className={`group rounded-lg border p-3 text-left transition-colors ${personaId === persona.id ? "border-foreground bg-background" : "border-foreground/10 bg-background/50 hover:border-foreground/35"}`} aria-pressed={personaId === persona.id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-medium">{persona.name}</span><span className="rounded-full border border-foreground/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">{persona.category}</span></div><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{persona.shortDescription}</p></div>{personaId === persona.id && <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />}</div><p className="mt-2 text-[10px] leading-4 text-muted-foreground/80">{persona.description}</p></button>)}</div> : <p className="mt-4 text-[11px] text-muted-foreground">Persona library is loading or temporarily unavailable. You can still configure a custom representative below.</p>}<p className="mt-3 text-[10px] leading-4 text-muted-foreground">Selecting a persona updates the saved profile immediately. Your name, business, contact, verified facts, connected-app restrictions, and call controls remain yours to review.</p></section>
         <div className="grid gap-3 sm:grid-cols-2"><label className="block text-xs text-muted-foreground">Representative name<input value={identity} onChange={(event) => setIdentity(event.target.value)} maxLength={180} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs text-muted-foreground">Business or personal name <span className="text-muted-foreground/70">(optional)</span><input value={organization} onChange={(event) => setOrganization(event.target.value)} maxLength={180} placeholder="MedVault" className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs text-muted-foreground">Contact name <span className="text-muted-foreground/70">(optional)</span><input value={contactName} onChange={(event) => setContactName(event.target.value)} maxLength={180} placeholder="The person Chusky is calling" className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs text-muted-foreground">Conversation purpose<select value={mode} onChange={(event) => setMode(event.target.value as CallMode)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="general">General assistant</option><option value="sales">Sales</option><option value="onboarding">Onboarding</option><option value="support">Support</option><option value="scheduling">Scheduling</option></select></label><label className="block text-xs text-muted-foreground">Tone<select value={tone} onChange={(event) => setTone(event.target.value as CallTone)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="professional">Professional</option><option value="warm">Warm</option><option value="direct">Direct</option><option value="consultative">Consultative</option></select></label><label className="block text-xs text-muted-foreground">Disclosure<select value={disclosure} onChange={(event) => setDisclosure(event.target.value as CallDisclosure)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="assistant">Configured assistant</option><option value="explicit_ai">Say AI assistant once</option></select></label></div>
         <div className="border border-foreground/10 bg-foreground/[0.02] p-3" aria-live="polite"><p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Caller-facing preview</p><p className="mt-1.5 text-xs leading-5">Hello, this is {safePreviewIdentity(identity)}, {disclosure === "explicit_ai" ? "an AI assistant" : "an assistant"}{organization.trim() ? ` from ${organization.trim()}` : " calling on behalf of the person or business that asked me to reach you"}.</p><p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">The role is disclosed once, naturally. The representative does not claim to be a nurse, doctor, lawyer, accountant, or another licensed professional.</p></div>
         <label className="block text-xs text-muted-foreground">Optional opening<input value={opening} onChange={(event) => setOpening(event.target.value)} maxLength={500} placeholder="Leave empty for a natural introduction" className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs text-muted-foreground">Verified context, one fact per line<textarea value={facts} onChange={(event) => setFacts(event.target.value)} rows={3} className="mt-1.5 w-full border border-foreground/15 bg-background px-2.5 py-2 text-xs" /></label><label className="block text-xs text-muted-foreground">Communication guidance, one item per line<textarea value={guardrails} onChange={(event) => setGuardrails(event.target.value)} rows={3} className="mt-1.5 w-full border border-foreground/15 bg-background px-2.5 py-2 text-xs" /></label>

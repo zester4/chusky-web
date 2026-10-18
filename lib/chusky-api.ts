@@ -68,7 +68,9 @@ export type CallMode = "general" | "sales" | "onboarding" | "support" | "schedul
 export type CallTone = "professional" | "warm" | "direct" | "consultative";
 export type CallDisclosure = "assistant" | "explicit_ai";
 export type CallCapability = "memory_lookup" | "scratchpad_lookup" | "schedule_lookup" | "task_lookup" | "call_history";
-export type CallProfile = { identity: string; organization?: string; contactName?: string; mode: CallMode; tone: CallTone; opening?: string; facts: string[]; guardrails: string[]; capabilities: CallCapability[]; disclosure?: CallDisclosure; toolPolicy?: CallToolPolicy; controls?: { greetingMode: "dynamic" | "static" | "human_first"; allowVoicemail: boolean; allowHumanHandoff: boolean; optOutEnabled: boolean; recording: "disabled" | "announce" | "enabled"; retentionDays: 1 | 7 | 30; quietHours?: { timezone: string; start: string; end: string; days?: number[] } } };
+export type CallPersonaId = "personal_assistant" | "customer_service" | "healthcare_assistant" | "shop_assistant" | "front_desk" | "sales_representative" | "appointment_coordinator" | "billing_support";
+export type CallPersona = { id: CallPersonaId; version: 1; name: string; shortDescription: string; description: string; category: "personal" | "business"; mode: CallMode; tone: CallTone; opening: string; guardrails: string[]; capabilities: CallCapability[]; controls: { greetingMode: "dynamic" | "static" | "human_first"; allowVoicemail: boolean; allowHumanHandoff: boolean; optOutEnabled: boolean; recording: "disabled" | "announce" | "enabled"; retentionDays: 1 | 7 | 30 }; toolPolicy: CallToolPolicy };
+export type CallProfile = { personaId?: CallPersonaId; personaVersion?: number; identity: string; organization?: string; contactName?: string; mode: CallMode; tone: CallTone; opening?: string; facts: string[]; guardrails: string[]; capabilities: CallCapability[]; disclosure?: CallDisclosure; toolPolicy?: CallToolPolicy; controls?: { greetingMode: "dynamic" | "static" | "human_first"; allowVoicemail: boolean; allowHumanHandoff: boolean; optOutEnabled: boolean; recording: "disabled" | "announce" | "enabled"; retentionDays: 1 | 7 | 30; quietHours?: { timezone: string; start: string; end: string; days?: number[] } } };
 export type CallInboundRoute = { provider: "twilio" | "bland"; phoneNumber: string; userId: number; callProfile: CallRepresentation; purpose: string; voiceProfile: CallProfile; allowedCallers: string[]; verifiedCallers: string[]; updatedAt: number };
 export type DeveloperProject = { id: string; name: string; keyPrefix: string; scopes: string[]; organizationId?: string; createdAt: string; rotatedAt?: string; revokedAt?: string };
 export type CreatedDeveloperProject = DeveloperProject & { key: string };
@@ -472,6 +474,10 @@ export const chuskyApi = {
     updatePreferences: (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => request<VoiceSettings>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     calls: {
       list: () => request<{ available: boolean; provider: "twilio" | "bland" | null; data: CallRecord[] }>("/account/calls"),
+      personas: {
+        list: () => request<{ version: 1; data: CallPersona[] }>("/account/calls/personas"),
+        apply: (personaId: CallPersonaId) => request<{ data: CallProfile }>("/account/calls/profile/persona", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ personaId }) }),
+      },
       profile: {
         get: () => request<{ data?: CallProfile }>("/account/calls/profile"),
         update: (profile: CallProfile) => request<{ data: CallProfile }>("/account/calls/profile", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ profile }) }),
