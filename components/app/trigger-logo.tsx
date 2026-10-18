@@ -38,6 +38,7 @@ const LOGO_DEFINITIONS: LogoDefinition[] = [
   { aliases: ["googledocs", "google_docs"], name: "Google Docs", logo: "/logos/google-docs.svg" },
   { aliases: ["sheets", "googlesheets", "google_sheets"], name: "Google Sheets", logo: "/logos/google-sheets.svg" },
   { aliases: ["googlemeet", "google_meet"], name: "Google Meet", logo: "/logos/google-meet.svg" },
+  { aliases: ["googlemaps", "google_maps", "maps"], name: "Google Maps", logo: "/logos/google.svg" },
   { aliases: ["googlecontacts", "google_contacts"], name: "Google Contacts", logo: "/logos/google-contacts.png" },
   { aliases: ["googlebigquery", "google_bigquery"], name: "Google BigQuery", logo: "/logos/google_bigquery.svg" },
   { aliases: ["googlecloud", "google_cloud", "googlecloudrun", "google_cloud_run"], name: "Google Cloud", logo: "/logos/google-cloud-run.svg" },

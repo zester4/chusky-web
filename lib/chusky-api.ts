@@ -59,6 +59,8 @@ export type CallTranscript = { turns: Array<{ id: string; at: string; caller: st
 export type CallQaScorecard = { version: "voice-qa-v1"; status: "computed"; score: number; dimensions: Record<string, number>; passed: boolean; evidence: string[]; scoredAt: number };
 export type CallToolPolicy = { enabled: boolean; allowedToolkits: string[]; allowedConnectionIds: string[]; allowExternalWrites: boolean; version: 1 };
 export type CallConnectedAccount = { id: string; alias?: string; toolkit: string; status: string; updatedAt?: string };
+export type CallPhoneNumber = { phoneNumber: string; displayName?: string; source: "managed" | "external"; callProfile: CallRepresentation; provider: "twilio" | "bland"; purpose: string; updatedAt: number };
+export type CallPhoneNumberOption = { sid?: string; phoneNumber: string; friendlyName?: string; locality?: string; region?: string; isoCountry?: string; capabilities: { voice: boolean; sms: boolean; mms: boolean } };
 export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; callProfile: "personal" | "business"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; providerStatus?: "queued" | "initiated" | "ringing" | "in-progress" | "answered" | "completed" | "busy" | "no-answer" | "failed" | "canceled" | "machine" | "unknown"; terminalReason?: string; callLengthSeconds?: number; runtimeState?: "healthy" | "degraded" | "reconnecting" | "ended"; toolPolicy?: CallToolPolicy; summary?: string; transcript?: CallTranscript; timeline?: CallTimelineEvent[]; qa?: CallQaScorecard; outcome?: { title: string; summary: string; decisions: string[]; actionItems: { task: string; owner: string; dueDate?: string }[]; openQuestions: string[] }; outcomeStatus?: "pending" | "completed" | "failed"; followUpTaskIds?: string[]; followUpStatus?: "pending" | "scheduled" | "failed"; followUpErrorCode?: string; error?: string; createdAt: string; updatedAt: string };
 export type CallControl = { action: "hangup" } | { action: "send_dtmf"; digits: string } | { action: "transfer"; phoneNumber: string };
 export type CallRepresentation = "personal" | "business";
@@ -470,8 +472,18 @@ export const chuskyApi = {
     updatePreferences: (input: { model?: string; voiceReplies?: boolean; liveVoice?: { provider: "twilio" | "meetings"; voice: string | null } | { provider: "bland"; voice: { id: string; name: string } | null } }) => request<VoiceSettings>("/account/preferences", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
     calls: {
       list: () => request<{ available: boolean; provider: "twilio" | "bland" | null; data: CallRecord[] }>("/account/calls"),
+      profile: {
+        get: () => request<{ data?: CallProfile }>("/account/calls/profile"),
+        update: (profile: CallProfile) => request<{ data: CallProfile }>("/account/calls/profile", { method: "PATCH", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify({ profile }) }),
+      },
       capabilities: () => request<{ data: CallConnectedAccount[]; toolkits: string[]; lazySchemas: boolean }>("/account/calls/capabilities"),
       request: (input: { phoneNumber: string; purpose: string; callProfile: CallRepresentation; profile: CallProfile; continuityFromCallId?: string }) => request<CallRecord>("/account/calls", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+      numbers: {
+        list: () => request<{ available: boolean; data: CallPhoneNumber[] }>("/account/calls/numbers"),
+        search: (input: { countryCode: string; areaCode?: string; contains?: string; limit?: number }) => { const params = new URLSearchParams({ countryCode: input.countryCode }); if (input.areaCode) params.set("areaCode", input.areaCode); if (input.contains) params.set("contains", input.contains); if (input.limit) params.set("limit", String(input.limit)); return request<{ data: CallPhoneNumberOption[] }>(`/account/calls/numbers/search?${params.toString()}`); },
+        purchase: (input: { phoneNumber: string; displayName?: string }) => request<{ data: CallPhoneNumber }>("/account/calls/numbers/purchase", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
+        release: (phoneNumber: string) => request<{ released: boolean }>(`/account/calls/numbers/${encodeURIComponent(phoneNumber)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),
+      },
       inboundRoutes: () => request<{ data: CallInboundRoute[] }>("/account/calls/inbound-routes"),
       saveInboundRoute: (input: { provider: "twilio" | "bland"; phoneNumber: string; callProfile: CallRepresentation; purpose: string; voiceProfile: CallProfile; allowedCallers: string[]; verifiedCallers: string[] }) => request<{ data: CallInboundRoute }>("/account/calls/inbound-routes", { method: "POST", headers: { "Idempotency-Key": idempotency() }, body: JSON.stringify(input) }),
       deleteInboundRoute: (provider: "twilio" | "bland", phoneNumber: string) => request<{ deleted: boolean }>(`/account/calls/inbound-routes/${provider}/${encodeURIComponent(phoneNumber)}`, { method: "DELETE", headers: { "Idempotency-Key": idempotency() } }),

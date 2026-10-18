@@ -5,6 +5,8 @@ import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import type { CallControl, CallRecord, Task } from "@/lib/chusky-api";
 import { Button, Status } from "./app-shell";
+import { resolveProviderBrand } from "./trigger-logo";
+import { ToolkitLogo } from "./toolkit-logo";
 
 type CallTab = "logs" | "transcript" | "outcome" | "tasks";
 
@@ -139,7 +141,7 @@ function TasksPanel({ call, tasks, tasksLoading, tasksError }: { call: CallRecor
 
 export function CallActivityTabs({ call, tasks, tasksLoading, tasksError, busy, onControl }: { call: CallRecord; tasks?: Task[]; tasksLoading: boolean; tasksError?: string; busy?: string; onControl: (input: CallControl) => void }) {
   const [activeTab, setActiveTab] = useState<CallTab>("logs");
-  const active = ["starting", "bridging", "active"].includes(call.status) && call.provider === "twilio";
+  const active = ["starting", "bridging", "active"].includes(call.status);
   const taskCount = call.followUpTaskIds?.length ?? 0;
   const counts: Record<CallTab, number> = { logs: call.timeline?.length ?? 0, transcript: call.transcript?.turns.length ?? 0, outcome: call.outcome || call.summary ? 1 : 0, tasks: taskCount };
   const actionBusy = (name: string) => busy === `${call.id}:${name}`;
@@ -151,10 +153,9 @@ export function CallActivityTabs({ call, tasks, tasksLoading, tasksError, busy, 
         <div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{call.direction === "inbound" ? "Incoming call" : "Outgoing call"} · {call.phoneNumber}</p><Status tone={statusTone(call)}>{statusLabel(call)}</Status></div>
         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{call.purpose}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[9px] text-muted-foreground">
-          <Status tone="gray">{call.callProfile === "business" ? "Business profile" : "Personal profile"}</Status>
-          {call.toolPolicy?.enabled && <span className="rounded border border-foreground/10 px-1.5 py-0.5">{call.toolPolicy.allowedToolkits.length ? `Apps: ${call.toolPolicy.allowedToolkits.join(", ")}` : "Purpose-routed apps"}{call.toolPolicy.allowExternalWrites ? " · actions enabled" : " · read-only"}</span>}
+          {call.toolPolicy?.enabled && <span className="flex flex-wrap items-center gap-1.5 rounded border border-foreground/10 px-1.5 py-1">{call.toolPolicy.allowedToolkits.length ? call.toolPolicy.allowedToolkits.map((toolkit) => { const brand = resolveProviderBrand({ toolkitSlug: toolkit }); return <span key={toolkit} className="inline-flex items-center gap-1"><ToolkitLogo name={brand.name} logo={brand.logo} size={16} /><span>{brand.name}</span></span>; }) : "Purpose-routed apps"}{call.toolPolicy.allowExternalWrites ? " · actions enabled" : " · read-only"}</span>}
         </div>
-        <p className="mt-1 text-[10px] text-muted-foreground">{call.providerStatus ? `Provider: ${call.providerStatus.replaceAll("-", " ")}` : "Provider status pending"}{call.callLengthSeconds !== undefined ? ` · ${Math.floor(call.callLengthSeconds / 60)}m ${call.callLengthSeconds % 60}s` : ""}{call.terminalReason ? ` · ${call.terminalReason.replaceAll("_", " ")}` : ""}</p>
+        <p className="mt-1 text-[10px] text-muted-foreground">{call.providerStatus ? `Call status: ${call.providerStatus.replaceAll("-", " ")}` : "Call status pending"}{call.callLengthSeconds !== undefined ? ` · ${Math.floor(call.callLengthSeconds / 60)}m ${call.callLengthSeconds % 60}s` : ""}{call.terminalReason ? ` · ${call.terminalReason.replaceAll("_", " ")}` : ""}</p>
         {call.error && <p className="mt-1 text-[11px] text-amber-700">{call.error}</p>}
       </div>
       <p className="shrink-0 text-[10px] text-muted-foreground">{date(call.updatedAt)}</p>
