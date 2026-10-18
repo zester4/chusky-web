@@ -24,15 +24,21 @@ function eventLabel(type: string) {
 }
 
 function statusTone(call: CallRecord): "green" | "amber" | "gray" {
-  return call.runtimeState === "degraded" || call.runtimeState === "reconnecting" || call.status === "failed"
+  return call.terminalReason === "provider_accepted_reconciliation_pending" || call.runtimeState === "degraded" || call.runtimeState === "reconnecting" || call.status === "failed" || ["busy", "no-answer", "failed", "canceled", "unknown"].includes(call.providerStatus ?? "")
     ? "amber"
-    : call.status === "active" || call.status === "ended" || call.runtimeState === "ended" ? "green" : "gray";
+    : call.status === "active" || call.status === "ended" || call.runtimeState === "ended" || ["answered", "in-progress", "completed", "machine"].includes(call.providerStatus ?? "") ? "green" : "gray";
 }
 
 function statusLabel(call: CallRecord) {
+  if (call.terminalReason === "provider_accepted_reconciliation_pending") return "Reconciliation pending — do not retry";
   if (call.runtimeState === "reconnecting") return "Reconnecting";
   if (call.runtimeState === "degraded") return "Degraded";
   if (call.runtimeState === "ended") return "Ended";
+  if (call.providerStatus === "in-progress") return "Answered";
+  if (call.providerStatus === "no-answer") return "No answer";
+  if (call.providerStatus === "canceled") return "Cancelled";
+  if (call.providerStatus === "machine") return "Voicemail";
+  if (call.providerStatus) return call.providerStatus.replaceAll("-", " ").replace(/\b\w/g, (value) => value.toUpperCase());
   return call.status;
 }
 
@@ -144,6 +150,11 @@ export function CallActivityTabs({ call, tasks, tasksLoading, tasksError, busy, 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{call.direction === "inbound" ? "Incoming call" : "Outgoing call"} · {call.phoneNumber}</p><Status tone={statusTone(call)}>{statusLabel(call)}</Status></div>
         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{call.purpose}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[9px] text-muted-foreground">
+          <Status tone="gray">{call.callProfile === "business" ? "Business profile" : "Personal profile"}</Status>
+          {call.toolPolicy?.enabled && <span className="rounded border border-foreground/10 px-1.5 py-0.5">{call.toolPolicy.allowedToolkits.length ? `Apps: ${call.toolPolicy.allowedToolkits.join(", ")}` : "Purpose-routed apps"}{call.toolPolicy.allowExternalWrites ? " · actions enabled" : " · read-only"}</span>}
+        </div>
+        <p className="mt-1 text-[10px] text-muted-foreground">{call.providerStatus ? `Provider: ${call.providerStatus.replaceAll("-", " ")}` : "Provider status pending"}{call.callLengthSeconds !== undefined ? ` · ${Math.floor(call.callLengthSeconds / 60)}m ${call.callLengthSeconds % 60}s` : ""}{call.terminalReason ? ` · ${call.terminalReason.replaceAll("_", " ")}` : ""}</p>
         {call.error && <p className="mt-1 text-[11px] text-amber-700">{call.error}</p>}
       </div>
       <p className="shrink-0 text-[10px] text-muted-foreground">{date(call.updatedAt)}</p>

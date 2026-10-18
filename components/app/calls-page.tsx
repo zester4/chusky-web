@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, LoaderCircle, Phone, RefreshCw, ShieldCheck } from "lucide-react";
-import { chuskyApi, type CallCapability, type CallMode, type CallRecord, type CallRepresentation, type CallTone, type Task } from "@/lib/chusky-api";
+import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallRecord, type CallRepresentation, type CallTone, type Task } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -11,13 +11,21 @@ import { CallActivityTabs } from "./call-activity-tabs";
 
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 function normalizePhone(value: string) { return value.replace(/[\s().-]/g, ""); }
+function safePreviewIdentity(value: string) { return /\b(?:dr\.?|doctor|nurse|rn|registered\s+nurse|physician|surgeon|pharmacist|therapist|psychologist|lawyer|attorney|accountant|licensed|ordained|human)\b/i.test(value) ? "Chusky" : value.trim() || "Chusky"; }
 export function CallsPage() {
   const [calls, setCalls] = useState<CallRecord[]>();
   const [tasks, setTasks] = useState<Task[]>();
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksError, setTasksError] = useState<string>();
+  const [inboundRoutes, setInboundRoutes] = useState<CallInboundRoute[]>([]);
+  const [inboundRoutesError, setInboundRoutesError] = useState<string>();
   const [available, setAvailable] = useState(false);
   const [provider, setProvider] = useState<"twilio" | "bland" | null>(null);
+  const [callAccounts, setCallAccounts] = useState<CallConnectedAccount[]>([]);
+  const [callToolkits, setCallToolkits] = useState<string[]>([]);
+  const [allowedToolkits, setAllowedToolkits] = useState<string[]>([]);
+  const [allowedConnectionIds, setAllowedConnectionIds] = useState<string[]>([]);
+  const [allowExternalWrites, setAllowExternalWrites] = useState(true);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [purpose, setPurpose] = useState("");
   const [continuityFromCallId, setContinuityFromCallId] = useState("");
@@ -25,6 +33,7 @@ export function CallsPage() {
   const [organization, setOrganization] = useState("");
   const [contactName, setContactName] = useState("");
   const [callProfile, setCallProfile] = useState<CallRepresentation>("personal");
+  const [disclosure, setDisclosure] = useState<CallDisclosure>("assistant");
   const [mode, setMode] = useState<CallMode>("general");
   const [tone, setTone] = useState<CallTone>("professional");
   const [opening, setOpening] = useState("");
@@ -43,12 +52,26 @@ export function CallsPage() {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
+  const [inboundProvider, setInboundProvider] = useState<"twilio" | "bland">("twilio");
+  const [inboundPhoneNumber, setInboundPhoneNumber] = useState("");
+  const [inboundPurpose, setInboundPurpose] = useState("Handle an inbound caller request");
+  const [inboundCallProfile, setInboundCallProfile] = useState<CallRepresentation>("business");
+  const [inboundAllowedCallers, setInboundAllowedCallers] = useState("");
+  const [inboundVerifiedCallers, setInboundVerifiedCallers] = useState("");
+  const [inboundBusy, setInboundBusy] = useState<string>();
 
   const load = async () => {
     setError(undefined);
     try {
       const result = await chuskyApi.account.calls.list();
       setCalls(result.data); setAvailable(result.available); setProvider(result.provider);
+      try {
+        const capabilities = await chuskyApi.account.calls.capabilities();
+        setCallAccounts(capabilities.data);
+        setCallToolkits(capabilities.toolkits);
+      } catch {
+        setCallAccounts([]); setCallToolkits([]);
+      }
       const taskIds = [...new Set(result.data.flatMap((call) => call.followUpTaskIds ?? []))];
       setTasksError(undefined);
       if (taskIds.length) {
@@ -68,13 +91,27 @@ export function CallsPage() {
       }
     } catch (cause) { setCalls([]); setTasks([]); setTasksLoading(false); setError(cause instanceof Error ? cause.message : "Could not load calls."); }
   };
-  useEffect(() => { void load(); }, []);
-  useLiveData(load);
+  const loadInboundRoutes = async () => {
+    try {
+      const result = await chuskyApi.account.calls.inboundRoutes();
+      setInboundRoutes(result.data);
+      setInboundRoutesError(undefined);
+    } catch (cause) {
+      setInboundRoutes([]);
+      setInboundRoutesError(cause instanceof Error ? cause.message : "Inbound lines could not be loaded.");
+    }
+  };
+  useEffect(() => { void load(); void loadInboundRoutes(); }, []);
+  useLiveData(() => { void load(); void loadInboundRoutes(); });
 
   const requestCall = async () => {
     setBusy("request"); setError(undefined);
     try {
-      await chuskyApi.account.calls.request({ phoneNumber: normalizePhone(phoneNumber.trim()), purpose: purpose.trim(), callProfile, ...(continuityFromCallId ? { continuityFromCallId } : {}), profile: { identity: identity.trim() || "Chusky", ...(organization.trim() ? { organization: organization.trim() } : {}), ...(contactName.trim() ? { contactName: contactName.trim() } : {}), mode, tone, ...(opening.trim() ? { opening: opening.trim() } : {}), facts: facts.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), guardrails: guardrails.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), capabilities, controls: { greetingMode, allowVoicemail, allowHumanHandoff, optOutEnabled: true, recording, retentionDays, ...(quietHoursEnabled ? { quietHours: { timezone: quietTimezone, start: quietStart, end: quietEnd } } : {}) } } });
+      const validConnectionIds = allowedConnectionIds.filter((id) => {
+        const account = callAccounts.find((candidate) => candidate.id === id);
+        return Boolean(account && allowedToolkits.includes(account.toolkit));
+      });
+      await chuskyApi.account.calls.request({ phoneNumber: normalizePhone(phoneNumber.trim()), purpose: purpose.trim(), callProfile, ...(continuityFromCallId ? { continuityFromCallId } : {}), profile: { identity: identity.trim() || "Chusky", ...(organization.trim() ? { organization: organization.trim() } : {}), ...(contactName.trim() ? { contactName: contactName.trim() } : {}), mode, tone, disclosure, ...(opening.trim() ? { opening: opening.trim() } : {}), facts: facts.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), guardrails: guardrails.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), capabilities, toolPolicy: { enabled: true, allowedToolkits, allowedConnectionIds: validConnectionIds, allowExternalWrites, version: 1 }, controls: { greetingMode, allowVoicemail, allowHumanHandoff, optOutEnabled: true, recording, retentionDays, ...(quietHoursEnabled ? { quietHours: { timezone: quietTimezone, start: quietStart, end: quietEnd } } : {}) } } });
       setPhoneNumber(""); setPurpose(""); setContinuityFromCallId(""); await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not place a call."); }
     finally { setBusy(undefined); }
@@ -84,6 +121,45 @@ export function CallsPage() {
     try { await chuskyApi.account.calls.control(call.id, input); await load(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not control the call."); }
     finally { setBusy(undefined); }
+  };
+  const saveInboundRoute = async () => {
+    setInboundBusy("save"); setError(undefined);
+    try {
+      const validConnectionIds = allowedConnectionIds.filter((id) => {
+        const account = callAccounts.find((candidate) => candidate.id === id);
+        return Boolean(account && allowedToolkits.includes(account.toolkit));
+      });
+      await chuskyApi.account.calls.saveInboundRoute({
+        provider: inboundProvider,
+        phoneNumber: normalizePhone(inboundPhoneNumber.trim()),
+        callProfile: inboundCallProfile,
+        purpose: inboundPurpose.trim(),
+        allowedCallers: inboundAllowedCallers.split(/[,\n]/).map((item) => normalizePhone(item.trim())).filter(Boolean),
+        verifiedCallers: inboundVerifiedCallers.split(/[,\n]/).map((item) => normalizePhone(item.trim())).filter(Boolean),
+        voiceProfile: {
+          identity: identity.trim() || "Chusky",
+          ...(organization.trim() ? { organization: organization.trim() } : {}),
+          mode, tone, disclosure,
+          ...(opening.trim() ? { opening: opening.trim() } : {}),
+          facts: facts.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+          guardrails: guardrails.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+          capabilities,
+          toolPolicy: { enabled: true, allowedToolkits, allowedConnectionIds: validConnectionIds, allowExternalWrites, version: 1 },
+          controls: { greetingMode, allowVoicemail, allowHumanHandoff, optOutEnabled: true, recording, retentionDays, ...(quietHoursEnabled ? { quietHours: { timezone: quietTimezone, start: quietStart, end: quietEnd } } : {}) },
+        },
+      });
+      setInboundPhoneNumber("");
+      await loadInboundRoutes();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Inbound line could not be saved.");
+    } finally { setInboundBusy(undefined); }
+  };
+  const deleteInboundRoute = async (route: CallInboundRoute) => {
+    if (!window.confirm(`Remove inbound routing for ${route.phoneNumber}? New callers will no longer reach this workspace.`)) return;
+    setInboundBusy(`${route.provider}:${route.phoneNumber}`); setError(undefined);
+    try { await chuskyApi.account.calls.deleteInboundRoute(route.provider, route.phoneNumber); await loadInboundRoutes(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Inbound line could not be removed."); }
+    finally { setInboundBusy(undefined); }
   };
 
   const setupRequired = error?.toLowerCase().includes("verify your web account") ?? false;
@@ -139,6 +215,16 @@ export function CallsPage() {
                     <option value="professional">Professional</option><option value="warm">Warm</option><option value="direct">Direct</option><option value="consultative">Consultative</option>
                   </select>
                 </label>
+                <label className="block text-xs text-muted-foreground">Introduction disclosure
+                  <select value={disclosure} onChange={(event) => setDisclosure(event.target.value as CallDisclosure)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs">
+                    <option value="assistant">Configured assistant</option><option value="explicit_ai">Say AI assistant once</option>
+                  </select>
+                </label>
+              </div>
+              <div className="border border-foreground/10 bg-foreground/[0.02] p-3" aria-live="polite">
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Caller-facing preview</p>
+                <p className="mt-1.5 text-xs leading-5">Hello, this is {safePreviewIdentity(identity)}, {disclosure === "explicit_ai" ? "an AI assistant" : "an assistant"}{organization.trim() ? ` from ${organization.trim()}` : callProfile === "business" ? " for the business I represent" : " calling on behalf of the person who asked me to reach them"}.</p>
+                <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">The server rejects regulated or professional titles and keeps the caller-facing role as an assistant. The disclosure is said once, not repeated on every turn.</p>
               </div>
               <label className="block text-xs text-muted-foreground">Optional opening
                 <input value={opening} onChange={(event) => setOpening(event.target.value)} maxLength={500} placeholder="Leave empty for a natural introduction" className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" />
@@ -154,6 +240,13 @@ export function CallsPage() {
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {([["memory_lookup", "Memory"], ["scratchpad_lookup", "Scratchpad"], ["schedule_lookup", "Reminders and schedules"], ["task_lookup", "Tasks"], ["call_history", "Call history"]] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2 text-[11px]"><input type="checkbox" checked={capabilities.includes(key)} onChange={(event) => setCapabilities((current) => event.target.checked ? [...current, key] : current.filter((item) => item !== key))} className="accent-foreground" />{label}</label>)}
                 </div>
+              </fieldset>
+              <fieldset className="border-t border-foreground/10 pt-3">
+                <legend className="text-xs text-muted-foreground">Connected-app access for this call</legend>
+                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Choose apps when this call needs business data or an action. Leave all apps unchecked to let the purpose router select from active connections. Exact action schemas load only when needed.</p>
+                {callToolkits.length ? <div className="mt-2 grid gap-2 sm:grid-cols-2">{callToolkits.map((toolkit) => <label key={toolkit} className="flex items-center gap-2 text-[11px]"><input type="checkbox" checked={allowedToolkits.includes(toolkit)} onChange={(event) => setAllowedToolkits((current) => event.target.checked ? [...current, toolkit] : current.filter((item) => item !== toolkit))} className="accent-foreground" />{toolkit}</label>)}</div> : <p className="mt-2 text-[11px] text-muted-foreground">No active Composio connections are available. Connect an app in Apps to enable call actions.</p>}
+                {callAccounts.length > 0 && allowedToolkits.length > 0 && <div className="mt-3 border-t border-foreground/10 pt-3"><p className="text-[10px] text-muted-foreground">Optional account restriction</p><div className="mt-2 space-y-2">{callAccounts.filter((account) => allowedToolkits.includes(account.toolkit)).map((account) => <label key={account.id} className="flex items-center gap-2 text-[11px]"><input type="checkbox" checked={allowedConnectionIds.includes(account.id)} onChange={(event) => setAllowedConnectionIds((current) => event.target.checked ? [...current, account.id] : current.filter((item) => item !== account.id))} className="accent-foreground" /><span>{account.alias || account.toolkit}</span><span className="text-muted-foreground">({account.status.toLowerCase()})</span></label>)}</div><p className="mt-2 text-[10px] text-muted-foreground">If one account is selected, Chusky pins provider actions to it. It will not switch accounts from caller instructions.</p></div>}
+                <label className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground"><input type="checkbox" checked={allowExternalWrites} onChange={(event) => setAllowExternalWrites(event.target.checked)} className="accent-foreground" /> Allow approved external actions such as bookings, messages, and updates</label>
               </fieldset>
               <fieldset className="border-t border-foreground/10 pt-3">
                 <legend className="text-xs text-muted-foreground">Call controls</legend>
@@ -172,8 +265,28 @@ export function CallsPage() {
           <Button disabled={!available || !normalizePhone(phoneNumber.trim()) || !purpose.trim() || Boolean(busy)} onClick={() => setConfirm(true)}>{busy === "request" ? <LoaderCircle size={13} className="animate-spin" /> : <Phone size={13} />}{available ? "Place call" : "Voice unavailable"}</Button>
         </div>
       </Card>
-      <Card className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Outbound call</p><h2 className="mt-1.5 font-display text-2xl">Ready to dial</h2></div><ShieldCheck size={18} className="text-emerald-600" /></div><div className="mt-4 space-y-3 text-xs text-muted-foreground"><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Your click starts this exact call after destination and purpose validation.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Chusky uses the representative profile and purpose you submit.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Provider credentials and audio never appear in this dashboard.</p></div></Card>
+      <Card className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Outbound call</p><h2 className="mt-1.5 font-display text-2xl">Ready to dial</h2></div><ShieldCheck size={18} className="text-emerald-600" /></div><div className="mt-4 space-y-3 text-xs text-muted-foreground"><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Your click starts this exact call after destination and purpose validation.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Chusky uses the representative profile and purpose you submit.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> {allowedToolkits.length ? `This call is scoped to ${allowedToolkits.join(", ")}.` : "The purpose router will select from your active connected apps."}</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Provider credentials and audio never appear in this dashboard.</p></div></Card>
     </div>
+    <Card className="mt-4 sm:mt-5">
+      <div className="border-b border-foreground/10 p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Inbound business lines</p><h2 className="mt-1 font-display text-2xl">Let customers call you.</h2><p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Assign a provider number to this workspace. The webhook resolves the number durably at call time, so each business gets its own persona, verification boundary, and connected-app scope.</p></div>
+      <div className="p-4 sm:p-5">
+        {inboundRoutesError && <p className="mb-3 text-[11px] text-amber-700">{inboundRoutesError}</p>}
+        {inboundRoutes.length > 0 && <div className="space-y-2.5">{inboundRoutes.map((route) => <article key={`${route.provider}:${route.phoneNumber}`} className="flex flex-wrap items-start justify-between gap-3 border border-foreground/10 p-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-medium">{route.phoneNumber}</p><Status tone="green">{route.provider}</Status><Status tone="gray">{route.callProfile === "business" ? "Public business line" : "Private personal line"}</Status></div><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{route.purpose} · {route.voiceProfile.organization || route.voiceProfile.identity}</p><p className="mt-1 text-[10px] text-muted-foreground">Updated {date(new Date(route.updatedAt).toISOString())}{route.callProfile === "personal" ? ` · ${route.allowedCallers.length} allowed caller${route.allowedCallers.length === 1 ? "" : "s"}` : " · public callers remain unverified until policy allows"}</p></div><Button secondary disabled={Boolean(inboundBusy)} onClick={() => void deleteInboundRoute(route)}>{inboundBusy === `${route.provider}:${route.phoneNumber}` ? <LoaderCircle size={12} className="animate-spin" /> : null} Remove</Button></article>)}</div>}
+        <div className={`${inboundRoutes.length ? "mt-4 border-t border-foreground/10 pt-4" : ""}`}>
+          <p className="text-xs font-medium">Add or update an inbound line</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block text-[11px] text-muted-foreground">Provider<select value={inboundProvider} onChange={(event) => setInboundProvider(event.target.value as typeof inboundProvider)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="twilio">Twilio</option><option value="bland">Bland</option></select></label>
+            <label className="block text-[11px] text-muted-foreground">Provider phone number<input value={inboundPhoneNumber} onChange={(event) => setInboundPhoneNumber(event.target.value)} placeholder="+1 555 010 0123" inputMode="tel" maxLength={24} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label>
+            <label className="block text-[11px] text-muted-foreground">Line type<select value={inboundCallProfile} onChange={(event) => setInboundCallProfile(event.target.value as CallRepresentation)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="business">Business — callers may reach the line</option><option value="personal">Personal — allowlisted callers only</option></select></label>
+            <label className="block text-[11px] text-muted-foreground">Inbound purpose<input value={inboundPurpose} onChange={(event) => setInboundPurpose(event.target.value)} maxLength={2000} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label>
+          </div>
+          {inboundCallProfile === "personal" && <label className="mt-3 block text-[11px] text-muted-foreground">Allowed callers, comma or line separated<input value={inboundAllowedCallers} onChange={(event) => setInboundAllowedCallers(event.target.value)} placeholder="+15550100123" className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /><span className="mt-1 block text-[10px]">Personal lines require at least one exact E.164 caller number.</span></label>}
+          <label className="mt-3 block text-[11px] text-muted-foreground">Verified callers, optional<input value={inboundVerifiedCallers} onChange={(event) => setInboundVerifiedCallers(event.target.value)} placeholder="+15550100123" className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /><span className="mt-1 block text-[10px]">Business callers are treated as public by default. Verification only expands access when the caller matches this list.</span></label>
+          <p className="mt-3 text-[10px] leading-4 text-muted-foreground">This route uses the representative profile, disclosure setting, call mode, tool policy, and guardrails configured above. Provider webhooks still need the global inbound endpoint enabled in deployment settings.</p>
+          <div className="mt-3"><Button disabled={!normalizePhone(inboundPhoneNumber.trim()) || !inboundPurpose.trim() || inboundCallProfile === "personal" && !inboundAllowedCallers.trim() || Boolean(inboundBusy)} onClick={() => void saveInboundRoute()}>{inboundBusy === "save" ? <LoaderCircle size={13} className="animate-spin" /> : <Phone size={13} />} Save inbound route</Button></div>
+        </div>
+      </div>
+    </Card>
     <Card className="mt-4 sm:mt-5"><div className="flex items-center justify-between border-b border-foreground/10 p-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call history</p><h2 className="mt-1 font-display text-2xl">Recent activity</h2></div><Status tone={available ? "green" : "gray"}>{available ? "Voice ready" : "Not configured"}</Status></div>{calls === undefined ? <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> Loading calls…</div> : !calls.length ? <div className="p-5 text-xs leading-5 text-muted-foreground">No calls yet. Request a call when you need Chusky to reach someone by phone.</div> : <div>{calls.map((call) => <CallActivityTabs key={call.id} call={call} tasks={tasks} tasksLoading={tasksLoading} tasksError={tasksError} busy={busy} onControl={(input) => void control(call, input)} />)}</div>}</Card>
     <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Place this phone call?" description={`Chusky will dial ${phoneNumber || "this number"} now about: ${purpose || "the stated purpose"}.`} confirmLabel="Place call" onConfirm={() => { setConfirm(false); return requestCall(); }} />
   </>;
