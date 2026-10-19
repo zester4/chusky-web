@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 // @ts-expect-error Node's strip-types test runner needs the explicit extension.
-import { defaultOnboardingProfile, parseOnboardingProfile, safeOnboardingError, serializeOnboardingProfile } from "../lib/onboarding.ts";
+import { buildOnboardingFirstMission, defaultOnboardingProfile, parseOnboardingProfile, safeOnboardingError, serializeOnboardingProfile } from "../lib/onboarding.ts";
 
 test("onboarding profile parsing keeps only supported bounded choices", () => {
   const parsed = parseOnboardingProfile(JSON.stringify({
@@ -56,6 +56,25 @@ test("onboarding preserves the explicit organization sharing scope", () => {
 
   assert.equal(parsed?.contextScope, "organization");
   assert.equal(parseOnboardingProfile(JSON.stringify({ accountType: "business" }))?.contextScope, "private");
+});
+
+test("the onboarding first mission is idempotent, read-only, and tightly budgeted", () => {
+  const profile = { ...defaultOnboardingProfile(), firstOutcome: "Prepare a practical launch plan.", completedAt: "2026-10-19T12:00:00.000Z" };
+  const first = buildOnboardingFirstMission(profile);
+  const retry = buildOnboardingFirstMission(profile);
+
+  assert.equal(first.idempotencyKey, retry.idempotencyKey);
+  assert.equal(first.input.steps.length, 1);
+  assert.deepEqual(first.input.steps[0]?.allowedTools, []);
+  assert.equal(first.input.maxDurationSeconds, 300);
+  assert.equal(first.input.maxSteps, 1);
+  assert.equal(first.input.maxSlices, 2);
+  assert.equal(first.input.maxToolCalls, 3);
+  assert.equal(first.input.maxCost, 1);
+  assert.deepEqual(first.input.budgetCeiling, { maxDurationSeconds: 300, maxSteps: 1, maxSlices: 2, maxToolCalls: 3, maxCost: 1 });
+  assert.match(first.input.objective, /do not access connected apps/i);
+  assert.match(first.input.definitionOfDone, /not represented as completed/i);
+  assert.throws(() => buildOnboardingFirstMission(defaultOnboardingProfile()), /Add a first outcome/);
 });
 
 test("onboarding errors are safe and actionable", () => {

@@ -53,6 +53,45 @@ export const defaultOnboardingProfile = (name = ""): OnboardingProfile => ({
   contextScope: "private",
 });
 
+export function buildOnboardingFirstMission(profile: OnboardingProfile): {
+  idempotencyKey: string;
+  input: {
+    title: string;
+    objective: string;
+    definitionOfDone: string;
+    steps: Array<{ id: string; title: string; objective: string; allowedTools: string[]; retryLimit: number }>;
+    budgetCeiling: { maxDurationSeconds: number; maxSteps: number; maxSlices: number; maxToolCalls: number; maxCost: number };
+    maxDurationSeconds: number;
+    maxSteps: number;
+    maxSlices: number;
+    maxToolCalls: number;
+    maxCost: number;
+  };
+} {
+  const outcome = cleanText(profile.firstOutcome, 2400);
+  if (!outcome) throw new Error("Add a first outcome before starting a plan.");
+  let hash = 2166136261;
+  for (let index = 0; index < outcome.length; index += 1) hash = Math.imul(hash ^ outcome.charCodeAt(index), 16777619);
+  const keyVersion = profile.completedAt ? cleanText(profile.completedAt, 40) : (hash >>> 0).toString(36);
+  const planObjective = `Create a practical first-step plan for this outcome: ${JSON.stringify(outcome)}\n\nUse relevant saved profile context, but do not access connected apps, browse the web, contact anyone, schedule anything, or write to external services. Separate assumptions and open questions from facts. Do not claim the real-world outcome is complete.`;
+  const stepObjective = `Turn the stated outcome into a concise, prioritized plan with concrete first steps, dependencies, assumptions, open questions, and one recommended next action. Use only the stated goal and relevant saved profile context. Do not access connected apps, browse the web, message anyone, schedule anything, or make external changes. This is a draft plan, not completion of the real-world goal.\n\nOutcome: ${JSON.stringify(outcome)}`;
+  return {
+    idempotencyKey: `onboarding-first-plan:${keyVersion}`,
+    input: {
+      title: "Plan my first outcome",
+      objective: planObjective,
+      definitionOfDone: "A concise, prioritized draft plan lists practical first steps, assumptions, open questions, and one recommended next action. No external data or actions are used, and the real-world outcome is not represented as completed.",
+      steps: [{ id: "draft-plan", title: "Draft a bounded plan", objective: stepObjective, allowedTools: [], retryLimit: 0 }],
+      budgetCeiling: { maxDurationSeconds: 300, maxSteps: 1, maxSlices: 2, maxToolCalls: 3, maxCost: 1 },
+      maxDurationSeconds: 300,
+      maxSteps: 1,
+      maxSlices: 2,
+      maxToolCalls: 3,
+      maxCost: 1,
+    },
+  };
+}
+
 const tones = new Set<OnboardingTone>(["concise", "detailed", "professional", "warm"]);
 const autonomyModes = new Set<OnboardingAutonomy>(["ask", "suggest", "bounded"]);
 const goals = new Set(["research", "communication", "planning", "documents", "meetings", "operations", "coding", "connected_apps"]);

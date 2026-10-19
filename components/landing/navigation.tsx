@@ -16,7 +16,7 @@ const navLinks = [
   { name: "Docs", href: "/docs" },
 ];
 
-export function Navigation({ ctaLabel = "Book a pilot", ctaHref = "/contact" }: { ctaLabel?: string; ctaHref?: string }) {
+export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }: { ctaLabel?: string; ctaHref?: string }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
