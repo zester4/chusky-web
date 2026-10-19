@@ -65,7 +65,7 @@ export type CallPhoneNumber = { phoneNumber: string; displayName?: string; sourc
 export type CallNumberCountry = { code: string; callingCode: string; name: string; flag: string; regionLabel: string; regionPlaceholder: string };
 export type CallNumberPrice = { amountCents: number; currency: "USD"; interval: "month" };
 export type CallPhoneNumberOption = { sid?: string; phoneNumber: string; friendlyName?: string; locality?: string; region?: string; isoCountry?: string; customerPriceCents?: number; capabilities: { voice: boolean; sms: boolean; mms: boolean; fax: boolean } };
-export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; callProfile: "personal" | "business"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; providerStatus?: "queued" | "initiated" | "ringing" | "in-progress" | "answered" | "completed" | "busy" | "no-answer" | "failed" | "canceled" | "machine" | "unknown"; terminalReason?: string; callLengthSeconds?: number; runtimeState?: "healthy" | "degraded" | "reconnecting" | "ended"; toolPolicy?: CallToolPolicy; summary?: string; transcript?: CallTranscript; timeline?: CallTimelineEvent[]; qa?: CallQaScorecard; outcome?: { title: string; summary: string; decisions: string[]; actionItems: { task: string; owner: string; dueDate?: string }[]; openQuestions: string[] }; outcomeStatus?: "pending" | "completed" | "failed"; followUpTaskIds?: string[]; followUpStatus?: "pending" | "scheduled" | "failed"; followUpErrorCode?: string; error?: string; createdAt: string; updatedAt: string };
+export type CallRecord = { id: string; provider: "legacy" | "twilio" | "bland"; direction: "inbound" | "outbound"; callProfile: "personal" | "business"; phoneNumber: string; purpose: string; status: "starting" | "bridging" | "active" | "ended" | "failed"; providerStatus?: "queued" | "initiated" | "ringing" | "in-progress" | "answered" | "completed" | "busy" | "no-answer" | "failed" | "canceled" | "machine" | "unknown"; terminalReason?: string; callLengthSeconds?: number; runtimeState?: "healthy" | "degraded" | "reconnecting" | "ended"; toolPolicy?: CallToolPolicy; summary?: string; transcript?: CallTranscript; timeline?: CallTimelineEvent[]; qa?: CallQaScorecard; outcome?: { title: string; summary: string; decisions: string[]; actionItems: { task: string; owner: string; dueDate?: string }[]; openQuestions: string[] }; outcomeStatus?: "pending" | "completed" | "failed"; followUpTaskIds?: string[]; followUpStatus?: "pending" | "scheduled" | "blocked" | "completed" | "failed"; followUpErrorCode?: string; error?: string; createdAt: string; updatedAt: string };
 export type CallControl = { action: "hangup" } | { action: "send_dtmf"; digits: string } | { action: "transfer"; phoneNumber: string };
 export type CallRepresentation = "personal" | "business";
 export type CallMode = "general" | "sales" | "onboarding" | "support" | "scheduling";
@@ -111,6 +111,7 @@ export type AccountOverview = {
   triggers: string[];
   triggerEvents: TriggerEventActivity[];
   missionNotifications: Array<{ id: string; title: string; status: Mission["status"]; summary: string; updatedAt: string; unread: boolean; threadId?: string; runId?: string }>;
+  taskNotifications?: Array<{ id: string; title: string; status: Task["status"]; summary: string; updatedAt: string; unread: boolean; threadId?: string; webReadAt?: string }>;
   devices: Array<{ id: string; name: string; createdAt: string; lastSeenAt: string }>;
   workspace: { sandboxId: string; name: string; lastKnownState?: string; createdAt: string; updatedAt: string; ptySessions: number; lastUrl?: string } | null;
   webhooks: Array<{ id: string; url: string; createdAt: string }>;
@@ -440,6 +441,7 @@ export const chuskyApi = {
     get: (taskId: string) => request<Task>(`/tasks/${encodeURIComponent(taskId)}`),
     retry: (taskId: string) => request<Task>(`/tasks/${encodeURIComponent(taskId)}/retry`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
     cancel: (taskId: string) => request<Task>(`/tasks/${encodeURIComponent(taskId)}/cancel`, { method: "POST", headers: { "Idempotency-Key": idempotency() } }),
+    markNotificationRead: (taskId: string) => request<{ ok: boolean; taskId: string; readAt?: number }>(`/tasks/${encodeURIComponent(taskId)}/notification/read`, { method: "POST" }),
   },
   approvals: {
     list: () => request<{ data: Approval[] }>("/approvals"),
