@@ -266,7 +266,7 @@ function AppsPanel() {
           const connectionSummary = item.noAuth ? { label: "No sign-in required", tone: "gray" as const } : connectedAppSummary(accounts, connectionsLoaded);
           return <article key={item.slug} className="flex min-w-0 flex-col gap-3 p-3.5 sm:p-4">
             <div className="flex min-w-0 items-start gap-3">
-              <ToolkitLogo name={item.name} logo={item.logo} />
+              <ToolkitLogo name={item.name} logo={item.logo} fallbackLogo={triggerProviderBrand(item.slug).logo} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h2 className="text-sm font-medium">{item.name}</h2>
@@ -558,7 +558,7 @@ function ComprehensiveTriggersPanel() {
           const expanded = item.slug === toolkit;
           return <article key={item.slug} className={`flex min-w-0 flex-col gap-3 border p-3.5 transition-colors ${expanded ? "border-foreground/45 bg-foreground/[0.03] sm:col-span-2 lg:col-span-3" : "border-foreground/10"}`}>
             <button type="button" onClick={() => toggleToolkit(item.slug)} aria-expanded={expanded} aria-label={`${expanded ? "Hide" : "View"} ${item.name} triggers`} className="flex w-full min-w-0 items-start gap-3 text-left">
-              <ToolkitLogo name={item.name} logo={item.logo} />
+              <ToolkitLogo name={item.name} logo={item.logo} fallbackLogo={triggerProviderBrand(item.slug).logo} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h3 className="truncate text-sm font-medium">{item.name}</h3>
