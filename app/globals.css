@@ -45,8 +45,10 @@
   --font-jetbrains: 'JetBrains Mono', ui-monospace, monospace;
   --depth-shadow-rgb: 0 0 0;
   --depth-highlight: rgb(255 255 255 / 0.82);
-  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), 0 10px 26px rgb(var(--depth-shadow-rgb) / 0.055);
-  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.07), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.04);
+  --depth-surface-gradient: linear-gradient(145deg, color-mix(in srgb, var(--card) 99%, var(--foreground) 1%), color-mix(in srgb, var(--card) 94%, var(--background)));
+  --depth-control-gradient: linear-gradient(145deg, color-mix(in srgb, var(--background) 98%, var(--card) 2%), color-mix(in srgb, var(--card) 92%, var(--background)));
+  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), inset 0 -1px 0 rgb(0 0 0 / 0.018), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.045), 0 8px 20px rgb(var(--depth-shadow-rgb) / 0.045), 0 18px 36px rgb(var(--depth-shadow-rgb) / 0.025);
+  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72), inset 0 -1px 0 rgb(0 0 0 / 0.025), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.07), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.04);
   --depth-floating-shadow: inset 0 1px 0 rgb(255 255 255 / 0.78), 0 14px 38px rgb(var(--depth-shadow-rgb) / 0.13), 0 3px 9px rgb(var(--depth-shadow-rgb) / 0.07);
 }
 
@@ -87,8 +89,10 @@
   --chusky-amber-rgb: 255 255 255;
   --depth-shadow-rgb: 0 0 0;
   --depth-highlight: rgb(255 255 255 / 0.06);
-  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.32), 0 10px 28px rgb(var(--depth-shadow-rgb) / 0.24);
-  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.055), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.38), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.2);
+  --depth-surface-gradient: linear-gradient(145deg, color-mix(in srgb, var(--card) 99%, var(--foreground) 1%), color-mix(in srgb, var(--card) 91%, var(--background)));
+  --depth-control-gradient: linear-gradient(145deg, color-mix(in srgb, var(--card) 98%, var(--foreground) 2%), color-mix(in srgb, var(--background) 88%, var(--card) 12%));
+  --depth-surface-shadow: inset 0 1px 0 var(--depth-highlight), inset 0 -1px 0 rgb(0 0 0 / 0.24), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.32), 0 8px 22px rgb(var(--depth-shadow-rgb) / 0.2), 0 18px 38px rgb(var(--depth-shadow-rgb) / 0.1);
+  --depth-control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.055), inset 0 -1px 0 rgb(0 0 0 / 0.2), 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.38), 0 4px 10px rgb(var(--depth-shadow-rgb) / 0.2);
   --depth-floating-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 16px 40px rgb(var(--depth-shadow-rgb) / 0.42), 0 3px 10px rgb(var(--depth-shadow-rgb) / 0.3);
 }
 
@@ -336,7 +340,8 @@
 
   .app-depth-root .app-shell > aside,
   .app-depth-root .app-shell > div > header {
-    box-shadow: 1px 0 0 rgb(255 255 255 / 0.6), 8px 0 24px rgb(var(--depth-shadow-rgb) / 0.035);
+    background: var(--depth-surface-gradient);
+    box-shadow: 1px 0 0 color-mix(in srgb, var(--foreground) 9%, transparent), 8px 0 24px rgb(var(--depth-shadow-rgb) / 0.035);
   }
 
   .app-depth-root .app-shell > div > header {
@@ -346,16 +351,34 @@
   .app-depth-root .app-card,
   .app-depth-root [data-slot="card"],
   .app-depth-root [data-slot="alert"] {
+    background: var(--depth-surface-gradient);
     border-color: color-mix(in srgb, var(--foreground) 11%, transparent);
     box-shadow: var(--depth-surface-shadow);
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
 
   .app-depth-root .app-button,
   .app-depth-root [data-slot="button"],
   .app-depth-root [data-slot="select-trigger"],
   .app-depth-root [data-slot="input-group"] {
+    background-image: var(--depth-control-gradient);
     box-shadow: var(--depth-control-shadow);
     transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .app-depth-root input:not([type="checkbox"]):not([type="radio"]),
+  .app-depth-root textarea,
+  .app-depth-root select {
+    background-image: var(--depth-control-gradient);
+    box-shadow: var(--depth-control-shadow);
+    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+  }
+
+  .app-depth-root input:not([type="checkbox"]):not([type="radio"]):focus,
+  .app-depth-root textarea:focus,
+  .app-depth-root select:focus,
+  .app-depth-root [data-slot="select-trigger"]:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--chusky-amber) 12%, transparent), var(--depth-control-shadow);
   }
 
   .app-depth-root .app-button:hover,
@@ -370,6 +393,13 @@
   .app-depth-root [data-slot="select-trigger"]:active {
     transform: none;
     box-shadow: inset 0 1px 2px rgb(var(--depth-shadow-rgb) / 0.11), 0 1px 1px rgb(var(--depth-shadow-rgb) / 0.04);
+  }
+
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .app-depth-root .app-card:hover,
+    .app-depth-root [data-slot="card"]:hover {
+      box-shadow: var(--depth-floating-shadow);
+    }
   }
 
   html:not(.dark) {
@@ -1297,8 +1327,7 @@
   }
 
   .app-shell .app-card {
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, var(--background)), var(--card));
+    background: var(--depth-surface-gradient);
     transition: border-color 180ms ease, box-shadow 180ms ease;
   }
 
