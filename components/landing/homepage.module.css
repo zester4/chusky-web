@@ -27,20 +27,23 @@
 }
 
 .hero { padding-top: 152px; }
-.heroHeading { display: grid; grid-template-columns: 1.35fr 1fr; column-gap: 64px; }
-.heroHeading > .eyebrow { grid-column: 1 / -1; margin-bottom: 24px; }
-.heroTitle { grid-column: 1 / -1; font-family: var(--font-instrument-serif); font-size: clamp(68px, 7.6vw, 112px); font-weight: 400; line-height: .94; letter-spacing: -.055em; }
+.heroHeading { display: block; max-width: 920px; margin-inline: auto; text-align: center; }
+.heroHeading > .eyebrow { margin-bottom: 24px; }
+.heroTitle { font-family: var(--font-instrument); font-size: clamp(58px, 7.6vw, 104px); font-weight: 400; line-height: .94; letter-spacing: -.065em; }
 .heroTitle em, .sectionTitle em, .closing h2 em, .explorerAside h2 em, .requestGreeting em { font-weight: 400; }
-.heroIntro { grid-column: 2; align-self: end; margin-top: 32px; padding-bottom: 8px; }
-.heroIntro > p { max-width: 430px; font-size: 17px; line-height: 1.7; color: var(--muted-foreground); }
+.heroTitle em { font-family: var(--font-instrument-serif); font-style: italic; letter-spacing: -.04em; }
+.heroAccent { position: relative; display: inline-block; }
+.heroAccent::after { position: absolute; right: 2%; bottom: -.08em; left: 2%; height: 3px; border-radius: 999px; background: currentColor; content: ""; }
+.heroIntro { max-width: 650px; margin: 30px auto 0; padding-bottom: 8px; }
+.heroIntro > p { max-width: 650px; margin-inline: auto; font-size: 17px; line-height: 1.7; color: var(--muted-foreground); }
 .desktopBreak { display: none; }
-.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 24px; margin-top: 28px; }
+.actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 16px 24px; margin-top: 28px; }
 .primaryAction { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; gap: 28px; padding: 12px 24px; border: 1px solid var(--primary); border-radius: var(--radius); background: var(--primary); color: var(--primary-foreground); font-size: 14px; font-weight: 500; transition: opacity 180ms ease-out, transform 180ms ease-out; }
 .primaryAction:hover { opacity: .82; }
 .primaryAction:active { transform: translateY(1px); }
 .textAction { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; text-decoration: underline; text-underline-offset: 5px; text-decoration-color: var(--border); transition: text-decoration-color 180ms ease-out; }
 .textAction:hover { text-decoration-color: currentColor; }
-.explorer { display: grid; grid-template-columns: .82fr 1.4fr; gap: 48px; padding: 40px; margin-top: 64px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); scroll-margin-top: 96px; }
+.explorer { display: grid; grid-template-columns: .82fr 1.4fr; gap: 48px; padding: 40px; margin-top: 72px; border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); background: var(--muted); box-shadow: var(--depth-surface-shadow); scroll-margin-top: 96px; }
 .explorerAside { display: flex; flex-direction: column; justify-content: center; }
 .explorerAside h2 { font-family: var(--font-instrument-serif); font-size: 36px; line-height: 1.08; letter-spacing: -.025em; margin-top: 16px; }
 .explorerAside > p:not(.eyebrow) { font-size: 16px; line-height: 1.6; color: var(--muted-foreground); margin-top: 16px; max-width: 290px; }
@@ -51,11 +54,15 @@
 .exampleChoice:hover { background: var(--background); color: var(--foreground); }
 .exampleChoice:active { background: var(--secondary); }
 .exampleNumber { font-family: var(--font-jetbrains); font-size: 11px; }
-.requestWindow { min-width: 0; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--depth-surface-shadow); }
+.requestWindow { min-width: 0; background: var(--background); border: 1px solid var(--border); border-radius: calc(var(--radius) + 2px); box-shadow: var(--depth-floating-shadow); overflow: hidden; }
 .windowBar { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); padding: 12px 20px; font-size: 11px; color: var(--muted-foreground); }
 .windowBar > span:first-child { display: flex; align-items: center; gap: 8px; color: var(--foreground); }
-.requestBody { padding: 28px; }
+.requestBody { padding: 28px; background: var(--depth-surface-gradient); }
+.previewStatus { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); font-family: var(--font-jetbrains); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.statusDot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: var(--foreground); }
+.previewStatusLine { width: 28px; height: 1px; background: var(--border); }
 .requestGreeting { font-family: var(--font-instrument-serif); font-size: 30px; line-height: 1.15; letter-spacing: -.02em; }
+.previewStatus + .requestGreeting { margin-top: 22px; }
 .composer { margin-top: 24px; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
 .requestText { min-height: 78px; font-size: 16px; line-height: 1.6; }
 .composerBottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 20px; }
@@ -66,6 +73,8 @@
 .exampleOutcome > svg { margin-top: 3px; flex-shrink: 0; }
 .exampleOutcome p { font-size: 14px; font-weight: 500; }
 .exampleOutcome span { display: block; max-width: 420px; margin-top: 5px; font-size: 13px; line-height: 1.6; color: var(--muted-foreground); }
+.previewSteps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+.previewSteps span { padding: 6px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); font-family: var(--font-jetbrains); font-size: 10px; }
 .windowFoot { display: flex; gap: 8px; align-items: center; padding: 14px 20px; font-size: 11px; line-height: 1.6; color: var(--muted-foreground); border-top: 1px solid var(--border); }
 .windowFoot svg { flex-shrink: 0; }
 .heroFootnote { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 0 40px; font-size: 12px; color: var(--muted-foreground); }

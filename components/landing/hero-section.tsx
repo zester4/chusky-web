@@ -7,9 +7,9 @@ export function HeroSection() {
   return (
     <section className={styles.hero} aria-labelledby="home-title">
       <div className={styles.heroHeading}>
-        <p className={styles.eyebrow}>One virtual worker. The whole follow-through.</p>
+        <p className={styles.eyebrow}>One virtual worker · from goal to outcome</p>
         <h1 id="home-title" className={styles.heroTitle}>
-          Give Chusky the goal.<br /><em>Get the work back.</em>
+          Give Chusky a goal.<br /><em>It <span className={styles.heroAccent}>finishes</span> the work.</em>
         </h1>
         <div className={styles.heroIntro}>
           <p>Talk to Chusky where you already work. It can research, work across your apps, make and answer calls, join meetings, and keep the task moving—with your approval when it matters.</p>

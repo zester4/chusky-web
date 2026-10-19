@@ -53,14 +53,16 @@ export function RequestExplorer() {
         </div>
       </div>
       <div className={styles.requestWindow}>
-        <div className={styles.windowBar}><span><MessageSquare size={15} aria-hidden="true" /> Chusky workspace</span><span>Example request</span></div>
+        <div className={styles.windowBar}><span><MessageSquare size={15} aria-hidden="true" /> Chusky workspace</span><span>Product preview · example request</span></div>
         <div className={styles.requestBody} id={`${id}-example`} aria-live="polite" aria-atomic="true">
-          <p className={styles.requestGreeting}>The conversation is a start.<br /><em>What happens next matters.</em></p>
+          <div className={styles.previewStatus}><span className={styles.statusDot} aria-hidden="true" /> <span>Example flow</span><span className={styles.previewStatusLine} aria-hidden="true" /><span>Goal → outcome</span></div>
+          <p className={styles.requestGreeting}>You give the goal.<br /><em>Chusky carries it through.</em></p>
           <div className={styles.composer}>
             <p key={example.name} className={styles.requestText}>{example.prompt}</p>
             <div className={styles.composerBottom}><span>{example.tools}</span><Link href="/sign-up" aria-label={`Create an account to ${example.name.toLowerCase()}`} className={styles.composerAction}><ArrowUpRight size={20} aria-hidden="true" /></Link></div>
           </div>
           <div className={styles.exampleOutcome}><Icon size={20} strokeWidth={1.5} aria-hidden="true" /><div><p>{example.outcome}</p><span>{example.detail}</span></div></div>
+          <div className={styles.previewSteps} aria-label="Example work flow"><span>Brief</span><span>Work across tools</span><span>Finished outcome</span></div>
         </div>
         <div className={styles.windowFoot}><Link2 size={14} aria-hidden="true" /> Connect your tools when you’re ready. You choose the access.</div>
       </div>
