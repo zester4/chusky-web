@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Check, CircleAlert, Plug, Sparkles } from "lucide-react";
+import { ArrowUpRight, Check, CircleAlert, Plug, Workflow } from "lucide-react";
 import type { TriggerEventActivity, TriggerEventAction } from "@/lib/chusky-api";
 import { TriggerLogo, triggerProviderBrand } from "@/components/app/trigger-logo";
 import { MarkdownMessage } from "./markdown-message";
@@ -195,7 +195,7 @@ export function AttentionActionCard({ event, onAction, compact = false }: { even
   const statusLabel = event.status === "queued" || event.status === "running" ? "Chusky is handling this" : event.status === "awaiting_approval" ? "Approval needed" : event.status === "failed" ? "Handling failed" : "Handled";
   const outcome = event.result || (event.status === "queued" || event.status === "running" ? "Chusky is processing this event." : event.status === "awaiting_approval" ? "Chusky paused because this action needs your approval." : event.status === "failed" ? "Chusky could not complete this event." : undefined);
   const preview = outcome ? reportPreview(outcome) : undefined;
-  const ProviderIcon = event.status === "failed" || event.notificationStatus === "failed" ? CircleAlert : event.actions?.length ? Sparkles : Plug;
+  const ProviderIcon = event.status === "failed" || event.notificationStatus === "failed" ? CircleAlert : event.actions?.length ? Workflow : Plug;
   const activate = (action: TriggerEventAction) => {
     if (onAction) { onAction(action); return; }
     // Continue in the owner's existing conversation. `new=1` is reserved for
