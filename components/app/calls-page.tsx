@@ -107,7 +107,6 @@ export function CallsPage() {
   const [numberOptions, setNumberOptions] = useState<CallPhoneNumberOption[]>([]);
   const [countryCode, setCountryCode] = useState("US");
   const [numberFeatures, setNumberFeatures] = useState<NumberFeature[]>(["voice", "local_calling"]);
-  const [numberType, setNumberType] = useState<"local">("local");
   const [searchBy, setSearchBy] = useState<NumberSearchBy>("area_code");
   const [areaCodes, setAreaCodes] = useState<string[]>([]);
   const [region, setRegion] = useState("");
@@ -115,7 +114,7 @@ export function CallsPage() {
   const [postalCode, setPostalCode] = useState("");
   const [contains, setContains] = useState("");
   const [advancedNumberSearch, setAdvancedNumberSearch] = useState(false);
-  const [openNumberMenu, setOpenNumberMenu] = useState<"country" | "features" | "type" | "searchBy" | "areaCode">();
+  const [openNumberMenu, setOpenNumberMenu] = useState<"country" | "features" | "searchBy" | "areaCode">();
   const [numberSearchBusy, setNumberSearchBusy] = useState(false);
   const [numberPurchaseBusy, setNumberPurchaseBusy] = useState<string>();
   const [numbersError, setNumbersError] = useState<string>();
@@ -460,7 +459,7 @@ export function CallsPage() {
         <div className="flex items-start gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/[0.05]"><ShoppingBag size={16} /></span><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Number inventory</p><h2 className="mt-1.5 font-display text-2xl">Get a new number</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Choose where you want to be reachable. Chusky handles the carrier setup and connects the number to this workspace automatically.</p></div></div>
         {!numberManagementAvailable ? <div className="mt-5 border border-foreground/10 bg-foreground/[0.025] p-3.5 text-[11px] leading-5 text-muted-foreground">Number purchasing is temporarily unavailable right now. Any connected numbers remain available for calling.</div> : <>
           <div className="mt-5 overflow-visible rounded-xl border border-foreground/10 bg-background p-3 sm:p-4">
-            <div className="grid gap-3 lg:grid-cols-[minmax(170px,1.05fr)_minmax(210px,1.2fr)_minmax(130px,.75fr)_minmax(160px,.9fr)_minmax(220px,1.2fr)] lg:items-end">
+            <div className="grid gap-3 lg:grid-cols-[minmax(190px,1.1fr)_minmax(230px,1.3fr)_minmax(180px,1fr)_minmax(220px,1.2fr)] lg:items-end">
               <div className="relative" data-number-menu>
                 <label className="block text-[11px] text-muted-foreground">Country <span className="font-normal italic text-foreground">Required</span></label>
                 <button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "country"} onClick={() => setOpenNumberMenu(openNumberMenu === "country" ? undefined : "country")} className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-foreground/25 bg-background px-3 text-left text-xs transition-colors hover:border-foreground/45 focus:outline-none focus:ring-2 focus:ring-foreground/15"><span className="min-w-0 truncate">{selectedCountry ? `${selectedCountry.flag} ${selectedCountry.name} ${selectedCountry.callingCode}` : "Select country"}</span><ChevronDown size={14} className={openNumberMenu === "country" ? "rotate-180 transition-transform" : "transition-transform"} /></button>
@@ -471,12 +470,6 @@ export function CallsPage() {
                 <label className="block text-[11px] text-muted-foreground">Features</label>
                 <button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "features"} onClick={() => setOpenNumberMenu(openNumberMenu === "features" ? undefined : "features")} className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-foreground/25 bg-background px-2.5 text-left text-xs transition-colors hover:border-foreground/45 focus:outline-none focus:ring-2 focus:ring-foreground/15"><span className="flex min-w-0 flex-wrap gap-1">{numberFeatures.map((featureId) => { const feature = numberFeatureOptions.find((item) => item.id === featureId); return feature ? <span key={feature.id} className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.08] px-2 py-1 text-[10px] font-medium"><feature.icon size={11} />{feature.label}<X size={10} className="text-muted-foreground" /></span> : null; })}</span><ChevronDown size={14} className={openNumberMenu === "features" ? "rotate-180 transition-transform" : "shrink-0 transition-transform"} /></button>
                 {openNumberMenu === "features" && <div role="listbox" aria-label="Number features" className="absolute z-30 mt-1 max-h-72 w-full min-w-64 overflow-auto rounded-lg border border-foreground/20 bg-background p-1 shadow-xl">{numberFeatureOptions.map((feature) => { const selected = numberFeatures.includes(feature.id); const available = feature.available && featureAvailable(feature.id); return <button key={feature.id} type="button" role="option" aria-selected={selected} disabled={!available} onClick={() => { if (!available) return; setNumberFeatures((current) => selected ? (feature.id === "voice" ? current : current.filter((item) => item !== feature.id)) : [...current, feature.id]); }} className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs ${available ? "hover:bg-foreground/[0.06]" : "cursor-not-allowed opacity-45"}`}><feature.icon size={15} className="shrink-0" /><span className="min-w-0 flex-1"><span className="block">{feature.label}</span><span className="block text-[10px] text-muted-foreground">{feature.description}{!available ? " · unavailable" : ""}</span></span>{selected && <Check size={14} />}</button>; })}</div>}
-              </div>
-
-              <div className="relative" data-number-menu>
-                <label className="block text-[11px] text-muted-foreground">Type</label>
-                <button type="button" aria-haspopup="listbox" aria-expanded={openNumberMenu === "type"} onClick={() => setOpenNumberMenu(openNumberMenu === "type" ? undefined : "type")} className="mt-1.5 flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-foreground/25 bg-background px-3 text-left text-xs transition-colors hover:border-foreground/45 focus:outline-none focus:ring-2 focus:ring-foreground/15"><span>{numberType === "local" ? "Local" : numberType}</span><ChevronDown size={14} className={openNumberMenu === "type" ? "rotate-180 transition-transform" : "transition-transform"} /></button>
-                {openNumberMenu === "type" && <div role="listbox" aria-label="Number type" className="absolute z-30 mt-1 w-full rounded-lg border border-foreground/20 bg-background p-1 shadow-xl"><button type="button" role="option" aria-selected={numberType === "local"} onClick={() => { setNumberType("local"); setOpenNumberMenu(undefined); }} className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs hover:bg-foreground/[0.06]">Local {numberType === "local" && <Check size={14} />}</button></div>}
               </div>
 
               <div className="relative" data-number-menu>
