@@ -319,7 +319,15 @@ function CompactProgressRow({ progress, pending }: { progress: RunProgress; pend
     return <div className="chat-working-row" role="status" aria-live="polite" aria-label="Working"><span className="chat-working-shimmer">Working…</span></div>;
   }
   const provider = progress.provider ? triggerProviderBrand(progress.provider) : undefined;
-  const status = "Waiting for approval";
+  const status = progress.requiresApproval
+    ? "Waiting for approval"
+    : progress.phase === "waiting"
+      ? "Waiting"
+      : progress.phase === "failed"
+        ? "Needs attention"
+        : progress.phase === "cancelled"
+          ? "Cancelled"
+          : pending ? "Running" : "Pending";
   return <div className="chat-progress-row" role="status" aria-label="Agent activity">
     <ActivityBrand toolSlug={progress.provider || "CHUCK_RUN"} toolkitName={provider?.name} toolkitLogo={progress.providerLogo || provider?.logo} size={19} />
     <div className="chat-progress-copy">
