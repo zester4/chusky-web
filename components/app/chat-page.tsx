@@ -105,7 +105,6 @@ const runProgressText = (run: Run) => [...(run.events ?? [])].reverse().find((ev
 const runStatusUpdates = (run: Run) => presentRunStatusUpdates(run.events ?? []);
 const runActivityEvents = (run: Run): RunTimelineSourceEvent[] => (run.events ?? []) as RunTimelineSourceEvent[];
 const runTimeline = (run: Run) => presentRunTimeline(runActivityEvents(run));
-
 const progressPhaseForRun = (status: Run["status"], activities: RunToolActivity[]): RunProgressPhase => {
   if (status === "completed") return "completed";
   if (status === "requires_approval") return "waiting";

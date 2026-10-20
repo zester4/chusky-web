@@ -231,6 +231,8 @@ test("chat output removes only exact generic progress filler", () => {
     "Google Maps · Search Businesses",
   );
   assert.equal(stripGenericProgressText("I’m taking care of that for your customers."), "I’m taking care of that for your customers.");
+  assert.equal(stripGenericProgressText("🧠 I’m understanding what you need…\n🧭 I’m finding the relevant tools…\n📝 I’m checking your notes…"), "");
+  assert.equal(stripGenericProgressText("Pulling everything together…"), "");
 });
 
 test("run status updates remain chronological and append instead of replacing prior notes", () => {

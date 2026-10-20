@@ -65,7 +65,7 @@ const cleanActivityCopy = (value?: string): string | undefined => {
 };
 
 const genericActivityCopy = /^(?:i['’]?m|i am)?\s*(?:taking care of that|working(?: through your request| on it)?|processing (?:your request|that|it)|handling (?:that|it)|running(?: now)?|connected app action|remote connected app action|one moment)[\s.!…]*$/i;
-const genericProgressCopy = /^(?:preparing your request|researching the request|executing the next action|working(?: now| on it| through your request)?|running(?: now)?|chusky is (?:organizing|keeping the work visible|preparing)(?: the right context)?(?: before it acts)?|i['’]?m\s+(?:understanding(?: your request)?|lining up (?:the )?best way(?: to help)?|taking care of (?:that|it)))[\s.!…]*$/i;
+const genericProgressCopy = /^(?:preparing your request|researching the request|executing the next action|working(?: now| on it| through your request)?|running(?: now)?|pulling everything together|chusky is (?:organizing|keeping the work visible|preparing)(?: the right context)?(?: before it acts)?|i['’]?m\s+(?:understanding(?: your request| what you need)?|finding (?:the )?relevant tools?|checking (?:your )?(?:notes|memory|reminders|connected apps|calendar|email)|lining up (?:the )?best way(?: to help)?|taking care of (?:that|it)))[\s.!…]*$/i;
 
 /** True when a lifecycle line is only filler and adds no user-visible information. */
 export function isGenericProgressText(value?: string): boolean {
