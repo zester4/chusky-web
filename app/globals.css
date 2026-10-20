@@ -650,6 +650,29 @@
     width: 100%;
   }
 
+  .compact-execution-details + .chat-run-updates,
+  .compact-execution-list > .chat-run-updates {
+    margin-top: 0.8rem;
+  }
+
+  .chat-run-updates {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.65rem 0 0;
+    padding: 0.7rem 0 0 0.8rem;
+    border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+    border-left: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+    list-style: none;
+  }
+
+  .chat-run-update {
+    min-width: 0;
+    color: var(--foreground);
+    font-size: 0.8125rem;
+    line-height: 1.45rem;
+    overflow-wrap: anywhere;
+  }
+
   .compact-execution-summary {
     display: inline-flex;
     min-height: 1.75rem;
@@ -762,13 +785,6 @@
     font-size: 0.875rem;
     font-weight: 500;
     line-height: 1.4rem;
-  }
-
-  .chat-progress-narrative {
-    margin: 0.25rem 0 0.7rem;
-    color: var(--foreground);
-    font-size: 0.875rem;
-    line-height: 1.5rem;
   }
 
   @keyframes chusky-working-shimmer {

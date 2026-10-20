@@ -23,7 +23,7 @@ export type Run = { id: string; threadId: string; status: "queued" | "running" |
 export type RunStreamEvent =
   | { type: "run.queued"; run: Run }
   | { type: "run.started"; run: Run }
-  | { type: "run.status"; runId: string; text: string }
+  | { type: "run.status"; runId: string; id?: string; at?: number; text: string }
   | { type: "run.progress"; runId: string; progress: RunProgress }
   | { type: "run.delta"; runId: string; text: string }
   | { type: "run.tool_started"; runId: string; toolSlug: string }

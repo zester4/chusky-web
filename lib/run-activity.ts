@@ -20,6 +20,12 @@ export type PresentedToolActivity = Omit<ToolActivity, "status" | "batchActions"
   parallelBatch?: boolean;
 };
 
+export type RunStatusUpdate = {
+  id: string;
+  at: number;
+  text: string;
+};
+
 type ActivityCopy = {
   toolSlug?: string;
   toolkitSlug?: string;
@@ -124,6 +130,25 @@ export function stripGenericProgressText(value: string): string {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** Keep every meaningful human-readable run update in chronological order. */
+export function presentRunStatusUpdates(events: readonly { id: string; type: string; at: number; text?: string }[]): RunStatusUpdate[] {
+  const updates: RunStatusUpdate[] = [];
+  for (const event of events) {
+    if (event.type !== "run.status" || !event.text?.trim()) continue;
+    const text = stripGenericProgressText(event.text.replace(/\s+/g, " "));
+    if (!text || updates.at(-1)?.text === text) continue;
+    updates.push({ id: event.id, at: event.at, text });
+  }
+  return updates;
+}
+
+/** Merge live status frames with a restored run without duplicating updates. */
+export function upsertRunStatusUpdate(updates: RunStatusUpdate[], update: RunStatusUpdate): RunStatusUpdate[] {
+  if (updates.some((item) => item.id === update.id)) return updates;
+  if (updates.at(-1)?.text === update.text) return updates;
+  return [...updates, update].sort((left, right) => left.at - right.at || left.id.localeCompare(right.id));
 }
 
 export function activityStatusLabel(activity: Pick<ActivityCopy, "status" | "durationMs">, current = false): string {

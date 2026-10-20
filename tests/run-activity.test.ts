@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
+import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentRunStatusUpdates, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
 
 const activity = (id: string, status: ToolActivity["status"], at: number, overrides: Partial<ToolActivity> = {}): ToolActivity => ({
   id,
@@ -231,4 +231,20 @@ test("chat output removes only exact generic progress filler", () => {
     "Google Maps · Search Businesses",
   );
   assert.equal(stripGenericProgressText("I’m taking care of that for your customers."), "I’m taking care of that for your customers.");
+});
+
+test("run status updates remain chronological and append instead of replacing prior notes", () => {
+  const restored = presentRunStatusUpdates([
+    { id: "status-2", type: "run.status", at: 20, text: "Checking the connected calendar." },
+    { id: "status-generic", type: "run.status", at: 21, text: "Working…" },
+    { id: "status-3", type: "run.status", at: 30, text: "Checking the connected calendar." },
+    { id: "status-4", type: "run.status", at: 40, text: "I found the requested time." },
+  ]);
+  assert.deepEqual(restored.map(({ id, text }) => ({ id, text })), [
+    { id: "status-2", text: "Checking the connected calendar." },
+    { id: "status-4", text: "I found the requested time." },
+  ]);
+  const merged = upsertRunStatusUpdate(restored, { id: "status-5", at: 50, text: "The calendar is ready." });
+  assert.deepEqual(merged.map(({ id }) => id), ["status-2", "status-4", "status-5"]);
+  assert.equal(upsertRunStatusUpdate(merged, { id: "status-5", at: 50, text: "The calendar is ready." }), merged);
 });
