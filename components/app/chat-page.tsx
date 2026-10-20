@@ -33,7 +33,7 @@ import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
-import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, isGenericProgressText, presentRunStatusUpdates, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type RunStatusUpdate, type SubagentActivity } from "@/lib/run-activity";
+import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, isGenericProgressText, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type RunStatusUpdate, type RunTimelineEntry, type RunTimelineSourceEvent, type SubagentActivity } from "@/lib/run-activity";
 import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
 import { shouldUseChatReturnCache } from "@/lib/chat-cache-policy";
 import { AppShellContext } from "./app-shell";
@@ -56,6 +56,8 @@ type Message = {
   displayText?: string;
   statusText?: string;
   statusUpdates?: RunStatusUpdate[];
+  activityEvents?: RunTimelineSourceEvent[];
+  timeline?: RunTimelineEntry[];
   progress?: RunProgress;
   tool?: string;
   activities?: RunToolActivity[];
@@ -101,6 +103,8 @@ const runSubagentActivities = (run: Run): RunSubagentActivity[] => coalesceSubag
 const runDeltaText = (run: Run) => (run.events ?? []).filter((event) => event.type === "run.delta" && typeof event.text === "string").map((event) => event.text).join("");
 const runProgressText = (run: Run) => [...(run.events ?? [])].reverse().find((event) => event.type === "run.status" && typeof event.text === "string" && event.text.trim())?.text;
 const runStatusUpdates = (run: Run) => presentRunStatusUpdates(run.events ?? []);
+const runActivityEvents = (run: Run): RunTimelineSourceEvent[] => (run.events ?? []) as RunTimelineSourceEvent[];
+const runTimeline = (run: Run) => presentRunTimeline(runActivityEvents(run));
 
 const progressPhaseForRun = (status: Run["status"], activities: RunToolActivity[]): RunProgressPhase => {
   if (status === "completed") return "completed";
@@ -227,7 +231,7 @@ async function runMessagePair(run: Run, artifactCatalog: Artifact[]): Promise<{ 
   const output = run.status === "running" ? runDeltaText(run) : runStatusText(run);
   return {
     user: run.input || run.attachments?.length ? { role: "user", text: run.input || "Attached file(s)", ...(triggerDisplayText ? { displayText: triggerDisplayText } : {}), time: new Date(run.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), attachments: run.attachments, historyCommitted: run.status === "completed", historyContent: userHistoryContent } : undefined,
-    assistant: { role: "assistant", runId: run.id, text: output, statusUpdates: runStatusUpdates(run), progress: progressFromRun(run), activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
+    assistant: { role: "assistant", runId: run.id, text: output, statusUpdates: runStatusUpdates(run), activityEvents: runActivityEvents(run), timeline: runTimeline(run), progress: progressFromRun(run), activities: runActivities(run), subagentActivities: runSubagentActivities(run), artifacts: run.artifacts?.length ? run.artifacts : artifactReferencesInText(output, artifactCatalog), images: await hydrateRunImages(run.images), time: new Date(run.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), pending: active, statusText: active ? runProgressText(run) : undefined, approval: approval ? { ...approval, phase: "waiting" } : undefined, approvalState: active && run.status === "running" && run.approvalId ? "executing" : undefined, feedback: run.feedback, failure: run.status === "failed" ? safeRunFailure(run.error) : undefined, historyCommitted: run.status === "completed", historyContent: run.output ?? output },
   };
 }
 const specialistName = (worker: string) => worker.slice(0, 1).toUpperCase() + worker.slice(1);
@@ -361,24 +365,20 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
   </ol>;
 }
 
-function RunStatusUpdateList({ updates }: { updates: RunStatusUpdate[] }) {
-  if (!updates.length) return null;
-  return <ol className="chat-run-updates" aria-label="Run updates">
-    {updates.map((update) => <li key={update.id} className="chat-run-update">{update.text}</li>)}
-  </ol>;
-}
-
-function ActivityNarrative({ activities, statusUpdates, subagentActivities, toolkitCatalogue, pending, progress }: { activities: PresentedToolActivity[]; statusUpdates: RunStatusUpdate[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean; progress?: RunProgress }) {
+function ActivityNarrative({ timeline, activities, statusUpdates, subagentActivities, toolkitCatalogue, pending, progress }: { timeline?: RunTimelineEntry[]; activities: PresentedToolActivity[]; statusUpdates: RunStatusUpdate[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean; progress?: RunProgress }) {
   const waiting = Boolean(progress?.requiresApproval || progress?.phase === "waiting");
-  const showProgress = Boolean(progress && ((pending && !activities.length) || waiting));
-  if (!activities.length && !statusUpdates.length && !showProgress) return null;
-  return <div className="compact-execution-list my-2" role="status" aria-label="Agent activity">
-    {activities.length ? <details className="compact-execution-details" open>
-      <summary className="compact-execution-summary">Tool calls · {activities.length}</summary>
-      <ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} />
-    </details> : null}
+  const visibleTimeline = timeline?.length ? timeline : [
+    ...(activities.length ? [{ kind: "tools" as const, id: "legacy-tools", at: activities[0]?.at ?? 0, activities }] : []),
+    ...statusUpdates.map((update) => ({ kind: "status" as const, id: update.id, at: update.at, text: update.text })),
+  ];
+  const hasTools = visibleTimeline.some((entry) => entry.kind === "tools");
+  const showProgress = Boolean(progress && ((pending && !hasTools) || waiting));
+  if (!visibleTimeline.length && !showProgress) return null;
+  return <div className="chat-run-timeline my-2" aria-label="Agent activity">
+    {visibleTimeline.map((entry) => entry.kind === "status"
+      ? <p key={entry.id} className="chat-run-narrative" role="status" aria-live={pending ? "polite" : undefined}>{entry.text}</p>
+      : <div key={entry.id} className="chat-run-tool-group"><ActivityDetailList activities={entry.activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} /></div>)}
     {showProgress && progress ? <CompactProgressRow progress={progress} pending={pending} /> : null}
-    <RunStatusUpdateList updates={statusUpdates} />
   </div>;
 }
 
@@ -913,6 +913,12 @@ export function ChatPage() {
   const updateLastAssistant = (update: Partial<Message> | ((current: Message) => Partial<Message>)) => {
     setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, ...(typeof update === "function" ? update(item) : update) } : item));
   };
+  const appendRunActivityEvent = (item: Message, event: RunTimelineSourceEvent): Pick<Message, "activityEvents" | "timeline"> => {
+    const activityEvents = item.activityEvents?.some((candidate) => candidate.id === event.id)
+      ? item.activityEvents
+      : [...(item.activityEvents ?? []), event];
+    return { activityEvents, timeline: presentRunTimeline(activityEvents ?? []) };
+  };
   const applyRunSnapshot = async (run: Run) => {
     const approval = run.status === "requires_approval" && run.approvalId
       ? await chuskyApi.approvals.get(run.approvalId).catch(() => undefined)
@@ -920,6 +926,8 @@ export function ChatPage() {
     const snapshotActivities = runActivities(run);
     const snapshotSubagentActivities = runSubagentActivities(run);
     const snapshotStatusUpdates = runStatusUpdates(run);
+    const snapshotActivityEvents = runActivityEvents(run);
+    const snapshotTimeline = runTimeline(run);
     const images = await hydrateRunImages(run.images);
     const active = run.status === "queued" || run.status === "running";
     if (!active && activeRunIdRef.current === run.id) syncActiveRunId(undefined);
@@ -934,6 +942,8 @@ export function ChatPage() {
         text,
         progress: progressFromRun(run),
         statusUpdates: snapshotStatusUpdates.length ? snapshotStatusUpdates : item.statusUpdates,
+        activityEvents: snapshotActivityEvents.length ? snapshotActivityEvents : item.activityEvents,
+        timeline: snapshotTimeline.length ? snapshotTimeline : item.timeline,
         activities: snapshotActivities.length ? snapshotActivities : item.activities,
         subagentActivities: snapshotSubagentActivities.length ? snapshotSubagentActivities : item.subagentActivities,
         artifacts,
@@ -1426,12 +1436,16 @@ export function ChatPage() {
         if (typed.type === "run.started" || typed.type === "run.queued") {
           runStarted = true;
           syncActiveRunId(typed.run.id);
-          updateLastAssistant({ runId: typed.run.id, pending: true, progress: progressFromRun(typed.run) });
+          updateLastAssistant({ runId: typed.run.id, pending: true, activityEvents: runActivityEvents(typed.run), timeline: runTimeline(typed.run), progress: progressFromRun(typed.run) });
         } else if (typed.type === "run.progress") {
           updateLastAssistant({ progress: typed.progress, pending: true, statusText: undefined });
         } else if (typed.type === "run.status") {
           const text = stripGenericProgressText(typed.text);
-          if (text) updateLastAssistant((item) => ({ pending: true, statusText: undefined, tool: undefined, statusUpdates: upsertRunStatusUpdate(item.statusUpdates ?? [], { id: typed.id || `live-status-${typed.runId}-${typed.at ?? Date.now()}`, at: typed.at ?? Date.now(), text }), progress: item.progress || { phase: "researching", title: "Working…", detail: text } }));
+          if (text) updateLastAssistant((item) => {
+            const statusEvent: RunTimelineSourceEvent = { id: typed.id || `live-status-${typed.runId}-${typed.at ?? Date.now()}`, type: "run.status", at: typed.at ?? Date.now(), text };
+            const activityState = appendRunActivityEvent(item, statusEvent);
+            return { pending: true, statusText: undefined, tool: undefined, statusUpdates: upsertRunStatusUpdate(item.statusUpdates ?? [], { id: statusEvent.id, at: statusEvent.at, text }), ...activityState, progress: item.progress || { phase: "researching", title: "Working…", detail: text } };
+          });
         } else if (typed.type === "run.delta") {
           setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: true } : item));
         } else if (typed.type === "run.tool_started") {
@@ -1439,7 +1453,7 @@ export function ChatPage() {
         } else if (typed.type === "run.tool_activity") {
           const activity: RunToolActivity = { id: typed.id, type: "run.tool_activity", at: typed.at, toolSlug: typed.toolSlug, ...(typed.callId ? { callId: typed.callId } : {}), message: typed.message, status: typed.status, ...(typed.actionLabel ? { actionLabel: typed.actionLabel } : {}), ...(typed.toolkitSlug ? { toolkitSlug: typed.toolkitSlug } : {}), ...(typed.toolkitName ? { toolkitName: typed.toolkitName } : {}), ...(typed.toolkitLogo ? { toolkitLogo: typed.toolkitLogo } : {}), ...(typed.batchActions?.length ? { batchActions: typed.batchActions } : {}), ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
           setMessages((current) => current.map((item, index) => index === current.length - 1 && item.role === "assistant"
-            ? { ...item, runId: typed.runId, activities: upsertToolActivity(item.activities ?? [], activity), progress: progressFromLiveActivity(item.progress, activity), pending: true, statusText: undefined, tool: activity.toolSlug }
+            ? { ...item, runId: typed.runId, ...appendRunActivityEvent(item, activity), activities: upsertToolActivity(item.activities ?? [], activity), progress: progressFromLiveActivity(item.progress, activity), pending: true, statusText: undefined, tool: activity.toolSlug }
             : item));
         } else if (typed.type === "run.subagent_activity") {
           const activity: RunSubagentActivity = { id: typed.id, type: "run.subagent_activity", at: typed.at, activityId: typed.activityId, parentToolCallId: typed.parentToolCallId, handoffId: typed.handoffId, worker: typed.worker, objective: typed.objective, kind: typed.kind, status: typed.status, message: typed.message, ...(typed.toolCallId ? { toolCallId: typed.toolCallId } : {}), ...(typed.toolSlug ? { toolSlug: typed.toolSlug } : {}), ...(typed.actionLabel ? { actionLabel: typed.actionLabel } : {}), ...(typed.toolkitSlug ? { toolkitSlug: typed.toolkitSlug } : {}), ...(typed.toolkitName ? { toolkitName: typed.toolkitName } : {}), ...(typed.toolkitLogo ? { toolkitLogo: typed.toolkitLogo } : {}), ...(typed.summary ? { summary: typed.summary } : {}), ...(typed.durationMs !== undefined ? { durationMs: typed.durationMs } : {}) };
@@ -1468,13 +1482,13 @@ export function ChatPage() {
           const userHistoryContent = `${typed.run.input || "Attached file(s)"}${typed.run.attachments?.length ? `\n[Attachments: ${typed.run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
           setMessages((current) => current.map((item, index) => {
             if (index === current.length - 2 && item.role === "user") return { ...item, historyCommitted: true, historyContent: userHistoryContent };
-            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, statusUpdates: runStatusUpdates(typed.run), progress: progressFromRun(typed.run), activities: runActivities(typed.run).length ? runActivities(typed.run) : item.activities, subagentActivities: runSubagentActivities(typed.run).length ? runSubagentActivities(typed.run) : item.subagentActivities, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, privateLinks: (typed.run as Run & { privateLinks?: PrivateRunLink[] }).privateLinks, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
+            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, statusUpdates: runStatusUpdates(typed.run), activityEvents: runActivityEvents(typed.run), timeline: runTimeline(typed.run), progress: progressFromRun(typed.run), activities: runActivities(typed.run).length ? runActivities(typed.run) : item.activities, subagentActivities: runSubagentActivities(typed.run).length ? runSubagentActivities(typed.run) : item.subagentActivities, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, privateLinks: (typed.run as Run & { privateLinks?: PrivateRunLink[] }).privateLinks, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
             return item;
           }));
         } else if (typed.type === "run.approval_required") {
           notifyChuskyDataChanged();
           syncActiveRunId(undefined);
-          updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", statusUpdates: runStatusUpdates(typed.run), progress: progressFromRun(typed.run), pending: false, statusText: undefined, tool: undefined, failure: undefined, approval: typed.approval ? { ...typed.approval, phase: "waiting" } : undefined, approvalState: undefined });
+          updateLastAssistant({ text: "Chusky needs your approval to continue with this action.", statusUpdates: runStatusUpdates(typed.run), activityEvents: runActivityEvents(typed.run), timeline: runTimeline(typed.run), progress: progressFromRun(typed.run), pending: false, statusText: undefined, tool: undefined, failure: undefined, approval: typed.approval ? { ...typed.approval, phase: "waiting" } : undefined, approvalState: undefined });
         } else if (typed.type === "run.failed") {
           syncActiveRunId(undefined);
           const failure = safeRunFailure(typed.error);
@@ -1482,10 +1496,10 @@ export function ChatPage() {
           showNotice(/429|rate limit|quota|too many requests/i.test(detail)
             ? "The selected model is rate limited. Choose another model or try again in a moment."
             : "Chusky could not complete that run. Please try again.");
-          updateLastAssistant({ text: "", statusUpdates: runStatusUpdates(typed.run), progress: progressFromRun(typed.run), failure, pending: false, statusText: undefined, tool: undefined });
+          updateLastAssistant({ text: "", statusUpdates: runStatusUpdates(typed.run), activityEvents: runActivityEvents(typed.run), timeline: runTimeline(typed.run), progress: progressFromRun(typed.run), failure, pending: false, statusText: undefined, tool: undefined });
         } else if (typed.type === "run.cancelled") {
           activeRunIdRef.current = undefined;
-          updateLastAssistant({ text: "Run cancelled. The completed steps are shown above.", statusUpdates: runStatusUpdates(typed.run), progress: { phase: "waiting", title: "Run cancelled", detail: "The completed steps remain available above." }, failure: undefined, pending: false, statusText: undefined, tool: undefined });
+          updateLastAssistant({ text: "Run cancelled. The completed steps are shown above.", statusUpdates: runStatusUpdates(typed.run), activityEvents: runActivityEvents(typed.run), timeline: runTimeline(typed.run), progress: { phase: "waiting", title: "Run cancelled", detail: "The completed steps remain available above." }, failure: undefined, pending: false, statusText: undefined, tool: undefined });
         }
       }
     } catch (error) {
@@ -1710,7 +1724,7 @@ export function ChatPage() {
                       <span className="shrink-0 font-mono text-[9px] text-muted-foreground">{item.time || "Now"}</span>
                     </div>}
                     {item.role === "assistant" && <div className="mb-1.5 flex items-baseline gap-2"><p className="text-[13px] font-semibold">Chusky</p><span className="font-mono text-[10px] text-muted-foreground">{item.time || "Now"}</span></div>}
-                    {item.role === "assistant" && (visibleActivities.length || item.statusUpdates?.length || item.progress) ? <ActivityNarrative activities={visibleActivities} statusUpdates={item.statusUpdates ?? []} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
+                    {item.role === "assistant" && (item.timeline?.length || visibleActivities.length || item.statusUpdates?.length || item.progress) ? <ActivityNarrative timeline={item.timeline} activities={visibleActivities} statusUpdates={item.statusUpdates ?? []} subagentActivities={item.subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={Boolean(item.pending)} progress={item.progress} /> : null}
                     {item.text && !item.failure && !(item.role === "user" && item.text === "Attached file(s)" && item.attachments?.every((file) => file.contentType.startsWith("image/"))) ? item.role === "assistant" ? visibleAssistantText ? <MarkdownMessage content={visibleAssistantText} streaming={item.pending} /> : null : isTriggerContext ? <MarkdownMessage content={item.displayText!} className="[&_h1]:mb-1 [&_h1]:text-[12px] [&_h2]:mb-1 [&_h2]:text-[12px] [&_h3]:mb-1 [&_h3]:text-[12px] [&_p]:my-1 [&_p]:text-[11px] [&_p]:leading-[1.3rem] [&_ul]:my-1 [&_ol]:my-1 [&_li]:text-[11px]" /> : <p className="whitespace-pre-wrap text-sm leading-6">{item.text}</p> : null}
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}

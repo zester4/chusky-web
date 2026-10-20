@@ -637,6 +637,33 @@
     opacity: 0.55;
   }
 
+  .chat-run-timeline {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    gap: 0.85rem;
+    overflow: visible;
+  }
+
+  .chat-run-narrative {
+    max-width: 46rem;
+    margin: 0;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    line-height: 1.65rem;
+    overflow-wrap: anywhere;
+  }
+
+  .chat-run-tool-group {
+    min-width: 0;
+    padding: 0.1rem 0;
+  }
+
+  .chat-run-tool-group + .chat-run-narrative,
+  .chat-run-narrative + .chat-run-tool-group {
+    margin-top: 0.05rem;
+  }
+
   .compact-execution-list {
     width: 100%;
     overflow: visible;

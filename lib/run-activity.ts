@@ -26,6 +26,28 @@ export type RunStatusUpdate = {
   text: string;
 };
 
+export type RunTimelineSourceEvent = {
+  id: string;
+  type: string;
+  at: number;
+  text?: string;
+  toolSlug?: string;
+  callId?: string;
+  status?: ToolActivity["status"] | "unknown";
+  message?: string;
+  actionLabel?: string;
+  summary?: string;
+  durationMs?: number;
+  toolkitSlug?: string;
+  toolkitName?: string;
+  toolkitLogo?: string;
+  batchActions?: import("./chusky-api.js").RunBatchAction[];
+};
+
+export type RunTimelineEntry =
+  | { kind: "status"; id: string; at: number; text: string }
+  | { kind: "tools"; id: string; at: number; activities: PresentedToolActivity[] };
+
 type ActivityCopy = {
   toolSlug?: string;
   toolkitSlug?: string;
@@ -149,6 +171,124 @@ export function upsertRunStatusUpdate(updates: RunStatusUpdate[], update: RunSta
   if (updates.some((item) => item.id === update.id)) return updates;
   if (updates.at(-1)?.text === update.text) return updates;
   return [...updates, update].sort((left, right) => left.at - right.at || left.id.localeCompare(right.id));
+}
+
+const timelineActivityFromEvent = (event: RunTimelineSourceEvent): ToolActivity | undefined => {
+  if (event.type !== "run.tool_activity" || !event.toolSlug || !event.message || !event.status || !["started", "completed", "failed", "approval_required", "cancelled"].includes(event.status)) return undefined;
+  return {
+    id: event.id,
+    type: "run.tool_activity",
+    at: event.at,
+    toolSlug: event.toolSlug,
+    ...(event.callId ? { callId: event.callId } : {}),
+    status: event.status as ToolActivity["status"],
+    message: event.message,
+    ...(event.actionLabel ? { actionLabel: event.actionLabel } : {}),
+    ...(event.toolkitSlug ? { toolkitSlug: event.toolkitSlug } : {}),
+    ...(event.toolkitName ? { toolkitName: event.toolkitName } : {}),
+    ...(event.toolkitLogo ? { toolkitLogo: event.toolkitLogo } : {}),
+    ...(event.batchActions?.length ? { batchActions: event.batchActions } : {}),
+    ...(event.summary ? { summary: event.summary } : {}),
+    ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}),
+  };
+};
+
+const timelineActivityKey = (activity: Pick<ToolActivity, "toolSlug" | "message" | "callId">) => activity.callId
+  ? `call:${activity.callId}`
+  : `${activity.toolSlug}\u0000${activity.message}`;
+
+type CollapsedTimelineEntry =
+  | { kind: "status"; id: string; at: number; text: string }
+  | { kind: "tool"; id: string; at: number; activity: ToolActivity };
+
+/**
+ * Preserve the order the agent narrated and acted in. Tool start/completion
+ * frames are merged in place, but their original position is never moved past
+ * a later status message. This is what makes the UI read as prose → actions →
+ * prose instead of one giant tool drawer followed by one giant status drawer.
+ */
+export function presentRunTimeline(events: readonly RunTimelineSourceEvent[]): RunTimelineEntry[] {
+  const ordered = events
+    .map((event, index) => ({ event, index }))
+    .sort((left, right) => left.event.at - right.event.at || left.index - right.index);
+  const collapsed: CollapsedTimelineEntry[] = [];
+  const openTools = new Map<string, number[]>();
+  const seenIds = new Set<string>();
+
+  for (const { event } of ordered) {
+    if (seenIds.has(event.id)) continue;
+    seenIds.add(event.id);
+
+    if (event.type === "run.status" && event.text?.trim()) {
+      const text = stripGenericProgressText(event.text.replace(/\s+/g, " "));
+      const last = collapsed.at(-1);
+      if (text && (!last || last.kind !== "status" || last.text !== text)) {
+        collapsed.push({ kind: "status", id: event.id, at: event.at, text });
+      }
+      continue;
+    }
+
+    const activity = timelineActivityFromEvent(event);
+    if (!activity) continue;
+    const key = timelineActivityKey(activity);
+    const indices = openTools.get(key) ?? [];
+    if (activity.status === "started") {
+      const existingIndex = activity.callId && indices.length ? indices[indices.length - 1] : undefined;
+      if (existingIndex !== undefined) {
+        const existing = collapsed[existingIndex];
+        if (existing?.kind === "tool") existing.activity = { ...existing.activity, ...activity, id: existing.id, at: existing.at };
+      } else {
+        indices.push(collapsed.push({ kind: "tool", id: activity.id, at: activity.at, activity }) - 1);
+        openTools.set(key, indices);
+      }
+      continue;
+    }
+
+    const existingIndex = indices.pop();
+    if (indices.length) openTools.set(key, indices);
+    else openTools.delete(key);
+    if (existingIndex !== undefined) {
+      const existing = collapsed[existingIndex];
+      if (existing?.kind === "tool") existing.activity = { ...existing.activity, ...activity, id: existing.id, at: existing.at };
+    } else {
+      collapsed.push({ kind: "tool", id: activity.id, at: activity.at, activity });
+    }
+  }
+
+  const timeline: RunTimelineEntry[] = [];
+  let pendingTools: PresentedToolActivity[] = [];
+  let pendingToolsId = "";
+  let pendingToolsAt = 0;
+  const flushTools = () => {
+    if (!pendingTools.length) return;
+    timeline.push({ kind: "tools", id: pendingToolsId, at: pendingToolsAt, activities: pendingTools });
+    pendingTools = [];
+    pendingToolsId = "";
+    pendingToolsAt = 0;
+  };
+
+  for (const entry of collapsed) {
+    if (entry.kind === "status") {
+      flushTools();
+      timeline.push(entry);
+      continue;
+    }
+    const visible = presentToolActivities([entry.activity]);
+    if (!visible.length) continue;
+    if (!pendingTools.length) {
+      pendingToolsId = entry.id;
+      pendingToolsAt = entry.at;
+    }
+    pendingTools.push(...visible);
+  }
+  flushTools();
+  return timeline;
+}
+
+/** Add a live frame and rebuild only the small, presentation-ready timeline. */
+export function upsertRunTimelineEvent(events: RunTimelineSourceEvent[], event: RunTimelineSourceEvent): RunTimelineEntry[] {
+  if (events.some((item) => item.id === event.id)) return presentRunTimeline(events);
+  return presentRunTimeline([...events, event]);
 }
 
 export function activityStatusLabel(activity: Pick<ActivityCopy, "status" | "durationMs">, current = false): string {

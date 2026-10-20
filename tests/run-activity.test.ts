@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentRunStatusUpdates, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
+import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
 
 const activity = (id: string, status: ToolActivity["status"], at: number, overrides: Partial<ToolActivity> = {}): ToolActivity => ({
   id,
@@ -247,4 +247,23 @@ test("run status updates remain chronological and append instead of replacing pr
   const merged = upsertRunStatusUpdate(restored, { id: "status-5", at: 50, text: "The calendar is ready." });
   assert.deepEqual(merged.map(({ id }) => id), ["status-2", "status-4", "status-5"]);
   assert.equal(upsertRunStatusUpdate(merged, { id: "status-5", at: 50, text: "The calendar is ready." }), merged);
+});
+
+test("run timeline keeps narrative and tool groups interleaved", () => {
+  const timeline = presentRunTimeline([
+    { id: "status-1", type: "run.status", at: 10, text: "I found the relevant files." },
+    { id: "tool-1-start", type: "run.tool_activity", at: 20, toolSlug: "CHUCK_EDIT_FILES", status: "started", message: "Editing the selected files…", callId: "call-1" },
+    { id: "tool-1-done", type: "run.tool_activity", at: 30, toolSlug: "CHUCK_EDIT_FILES", status: "completed", message: "Editing the selected files…", callId: "call-1", summary: "Edited 3 files" },
+    { id: "tool-2-start", type: "run.tool_activity", at: 40, toolSlug: "CHUCK_RUN_TESTS", status: "started", message: "Running the focused tests…", callId: "call-2" },
+    { id: "tool-2-done", type: "run.tool_activity", at: 50, toolSlug: "CHUCK_RUN_TESTS", status: "completed", message: "Running the focused tests…", callId: "call-2", summary: "234 tests passed" },
+    { id: "status-2", type: "run.status", at: 60, text: "The verification passed." },
+    { id: "tool-3-start", type: "run.tool_activity", at: 70, toolSlug: "CHUCK_SEARCH_FILES", status: "started", message: "Searching the repository…", callId: "call-3" },
+    { id: "tool-3-done", type: "run.tool_activity", at: 80, toolSlug: "CHUCK_SEARCH_FILES", status: "completed", message: "Searching the repository…", callId: "call-3", summary: "1 search returned" },
+  ]);
+
+  assert.deepEqual(timeline.map((entry) => entry.kind), ["status", "tools", "status", "tools"]);
+  assert.equal(timeline[0]?.kind === "status" ? timeline[0].text : "", "I found the relevant files.");
+  assert.equal(timeline[1]?.kind === "tools" ? timeline[1].activities.length : 0, 2);
+  assert.equal(timeline[2]?.kind === "status" ? timeline[2].text : "", "The verification passed.");
+  assert.equal(timeline[3]?.kind === "tools" ? timeline[3].activities[0]?.summary : "", "1 search returned");
 });
