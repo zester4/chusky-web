@@ -4,6 +4,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
+  BookOpen,
+  Search,
+  Terminal,
+  CalendarDays,
+  Mail,
+  Brain,
+  ListChecks,
   CheckCircle2,
   Check,
   Clock4,
@@ -36,6 +43,7 @@ import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
 import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, isGenericProgressText, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type RunStatusUpdate, type RunTimelineEntry, type RunTimelineSourceEvent, type SubagentActivity } from "@/lib/run-activity";
 import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
 import { shouldUseChatReturnCache } from "@/lib/chat-cache-policy";
+import { remainingTimelineAnswer } from "@/lib/run-activity";
 import { AppShellContext } from "./app-shell";
 import { MarkdownMessage } from "./markdown-message";
 import { ToolkitLogo } from "./toolkit-logo";
@@ -241,7 +249,15 @@ function ActivityBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo, size =
   const isMonid = [toolkitSlug, toolkitName, toolSlug].some((value) => value?.split(/[_\s-]+/).some((part) => part.toLowerCase() === "monid"));
   if (isTreg) return <ToolkitLogo name="Treg" logo="/logos/treg.svg" size={size} />;
   if (isMonid) return <ToolkitLogo name="Monid" logo="/logos/monid.png" size={size} />;
-  if (toolSlug?.startsWith("CHUCK_")) return <img src="/brand/chusky-logo.png" alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: size, height: size }} />;
+  if (toolSlug?.startsWith("CHUCK_")) {
+    const Icon = /SEARCH|FIND|DISCOVER/.test(toolSlug) ? Search
+      : /READ|FILE|CONTEXT/.test(toolSlug) ? BookOpen
+        : /CALENDAR|MEETING|SCHEDULE/.test(toolSlug) ? CalendarDays
+          : /EMAIL|MAIL/.test(toolSlug) ? Mail
+            : /MEMORY/.test(toolSlug) ? Brain
+              : /TASK|JOB|REMINDER/.test(toolSlug) ? ListChecks : Terminal;
+    return <Icon size={size} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
+  }
   const brand = resolveProviderBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo });
   if (brand.logo || toolkitName || toolkitSlug || toolkitLogo || toolSlug?.startsWith("COMPOSIO_")) {
     return <ToolkitLogo name={brand.name} logo={brand.logo} size={size} />;
@@ -350,14 +366,18 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
       const title = activityTitle(displayActivity);
       const detail = activityDetailLine(displayActivity, isCurrent);
       return <li key={activity.id} className="compact-execution-item">
-        <div className="compact-execution-row">
-          <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={19} />
-          <div className="compact-execution-copy">
-            <p className="compact-execution-label">{title}</p>
-            {detail ? <p className="compact-execution-detail">{detail}</p> : null}
+        <details className="chat-tool-disclosure">
+          <summary className="chat-tool-summary">
+            <ActivityBrand toolSlug={activity.toolSlug} toolkitSlug={toolkit.slug} toolkitName={toolkit.name} toolkitLogo={toolkit.logo} size={16} />
+            <span className="chat-tool-title" title={title}>{title}</span>
+            {isCurrent || activity.status !== "completed" ? <CompactActivityStatus activity={activity} current={isCurrent} /> : null}
+            <ChevronRight size={14} aria-hidden="true" className="chat-tool-chevron" />
+          </summary>
+          <div className="chat-tool-content">
+            {detail && detail !== activityStatusLabel(activity, isCurrent) ? <p>{detail}</p> : null}
+            <p>{activityStatusLabel(activity, isCurrent)}</p>
           </div>
-          <span className="compact-execution-status-wrap"><CompactActivityStatus activity={activity} current={isCurrent} /><span className="compact-execution-state">{activityStatusLabel(activity, isCurrent)}</span></span>
-        </div>
+        </details>
         {activity.callId && subagentActivities?.length ? <SubagentTree activities={subagentActivities} parentToolCallId={activity.callId} live={pending} /> : null}
       </li>;
     })}
@@ -1446,7 +1466,7 @@ export function ChatPage() {
             return { pending: true, statusText: undefined, tool: undefined, statusUpdates: upsertRunStatusUpdate(item.statusUpdates ?? [], { id: statusEvent.id, at: statusEvent.at, text }), ...activityState, progress: item.progress || { phase: "researching", title: "Working…", detail: text } };
           });
         } else if (typed.type === "run.delta") {
-          setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, text: item.text + typed.text, pending: true } : item));
+          setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, ...appendRunActivityEvent(item, { id: `delta-${typed.runId}-${item.activityEvents?.length ?? 0}`, type: "run.delta", at: (item.activityEvents?.at(-1)?.at ?? Date.now()) + 0.001, text: typed.text }), text: item.text + typed.text, pending: true } : item));
         } else if (typed.type === "run.tool_started") {
           updateLastAssistant({ pending: true, statusText: undefined, tool: typed.toolSlug });
         } else if (typed.type === "run.tool_activity") {
@@ -1714,7 +1734,7 @@ export function ChatPage() {
                 const visibleActivities = item.activities?.length ? presentToolActivities(item.activities) : [];
                 const isTriggerContext = item.role === "user" && Boolean(item.displayText);
                 const visibleUserText = item.displayText || item.text;
-                const visibleAssistantText = item.role === "assistant" ? stripGenericProgressText(stripArtifactLinks(item.text, item.artifacts || [])) : "";
+                const visibleAssistantText = item.role === "assistant" ? stripGenericProgressText(stripArtifactLinks(remainingTimelineAnswer(item.text, item.activityEvents ?? []), item.artifacts || [])) : "";
                 return <div key={`${item.role}-${index}`} className={isTriggerContext ? "group relative ml-auto w-full max-w-[min(94%,42rem)]" : item.role === "user" ? "group relative ml-auto w-fit max-w-[min(94%,42rem)]" : "group relative w-full max-w-3xl"} onClick={() => setActiveMessageIndex(index)}>
                   <div className={isTriggerContext ? "relative w-full min-w-0 break-words rounded-xl border border-foreground/10 bg-background px-3 py-3 shadow-sm [overflow-wrap:anywhere]" : item.role === "user" ? "relative w-fit max-w-full min-w-0 break-words rounded-2xl border border-foreground/15 bg-foreground px-4 py-2.5 text-sm leading-6 text-background [overflow-wrap:anywhere]" : "relative w-full min-w-0 break-words bg-transparent p-0 [overflow-wrap:anywhere]"}>
                     {isTriggerContext && <div className="mb-2 flex items-center gap-2 border-b border-foreground/10 pb-2">

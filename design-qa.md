@@ -1,28 +1,43 @@
-# Chat tool-activity design QA
+# Chat activity review
 
-## Evidence
+Source: the user's attached chat activity screenshot (864 × 1280 image pixels).
+Scope: adapt its interleaved commentary, single-line action rows, aligned icons,
+and disclosure behavior to the existing Chusky chat; preserve the app's fonts
+and theme. This is a component comparison, not a clone of the reference app.
 
-- Source visual truth: `C:\Users\mseyy\AppData\Local\Temp\codex-clipboard-a3c4ead2-16be-4f6c-8e46-b1bd15b5ea03.png` (user-provided chat activity example).
-- Implementation screenshot: unavailable. The local `/app/chat` route redirected to `/sign-in?callbackURL=%2Fapp%2Fchat`; no authenticated browser session was available.
-- Viewport and pixel dimensions: not captured; source and implementation could not be normalized to a matching viewport or density.
-- State: signed-in chat conversation with completed tool activity and subagent activity, as represented by the source image.
-- Full-view comparison: blocked because the authenticated implementation could not be rendered.
-- Focused-region comparison: not performed; no implementation capture was available.
+Implementation captures:
+- /tmp/chusky-chat-mobile.png — 390 × 844 CSS pixels, device scale factor 1.
+- /tmp/chusky-chat-desktop.png — 1280 × 900 CSS pixels, device scale factor 1.
 
-## Review surfaces
+State: completed fixture run with two commentary segments, two completed tools,
+and a final answer. Browser requests use isolated mock data; no real user data
+or provider actions were used. Dark and light captures were inspected.
 
-- Typography, spacing/layout, colors, and overall hierarchy were not visually verified against the source.
-- Image/brand assets are wired to provider logos when safe toolkit metadata exists, with native and generic fallbacks; visual fidelity of those assets was not verified in a rendered chat.
-- Copy and states are covered by code and automated tests, but their rendered wrapping and visual treatment were not verified.
+Findings and changes:
+- Repeated detail/status lines now live inside each collapsed tool disclosure.
+- Native icons are 16px, vertically centered alongside 14px text in 32px rows.
+- Provider logos remain supplied by the existing branding component.
+- Streaming text before a tool boundary is committed in chronological order;
+  only the exact already-rendered text prefix is removed from the answer.
+- Runtime status messages identical to a tool label are suppressed.
+- Mobile rows have no horizontal overflow; long titles truncate with a full
+  title attribute. Disclosures work with pointer and keyboard input.
 
-## Findings
+Fidelity surfaces:
+- Typography: existing app fonts and normal chat type scale retained.
+- Spacing: compact rows and clear separation between prose and action groups.
+- Colors: existing foreground/muted tokens in both themes.
+- Assets: library action icons; existing connected-app logos; no emoji icons.
+- Content: actual event copy, with a single label per collapsed tool.
 
-- Blocker: authenticated chat rendering is unavailable, so this implementation cannot be visually compared with the supplied source. Obtain a signed-in browser capture and review desktop/mobile activity states before claiming visual QA passed.
+Verification: 19 activity tests pass; TypeScript and ESLint pass. Browser
+interaction checks pass, with no uncaught page errors after correcting the
+preview harness's analytics interception. Real authenticated streaming against
+the deployed backend was not tested in this local fixture review.
 
-## Comparison history
+Comparison history: initial implementation repeated labels and status in
+multiple lines; revised mobile and desktop captures show compact disclosures
+between persistent commentary segments. No remaining blocking issue was found
+in this scoped component review.
 
-- No P0/P1/P2 visual iterations were completed because the implementation could not be captured.
-
-## Final result
-
-blocked — local chat redirected to sign-in and there was no authenticated browser session to capture the implementation.
+final result: passed

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { remainingTimelineAnswer } from "../lib/run-activity.js";
 import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
 
 const activity = (id: string, status: ToolActivity["status"], at: number, overrides: Partial<ToolActivity> = {}): ToolActivity => ({
@@ -11,6 +12,22 @@ const activity = (id: string, status: ToolActivity["status"], at: number, overri
   message: "Finding the right connected capability…",
   ...(status === "completed" ? { summary: "Result returned", durationMs: 2600 } : {}),
   ...overrides,
+});
+
+test("streamed commentary stays before its tools and the final answer appears only once", () => {
+  const events = [
+    { id: "d1", type: "run.delta", at: 1, text: "I’ll check " },
+    { id: "d2", type: "run.delta", at: 2, text: "your calendar." },
+    { id: "status", type: "run.status", at: 2.5, text: "Read calendar" },
+    activity("start", "started", 3, { toolSlug: "GOOGLECALENDAR_LIST_EVENTS", callId: "call", message: "Read calendar" }),
+    activity("end", "completed", 4, { toolSlug: "GOOGLECALENDAR_LIST_EVENTS", callId: "call", message: "Read calendar" }),
+    { id: "d3", type: "run.delta", at: 5, text: "You have two meetings." },
+  ];
+  const timeline = presentRunTimeline(events);
+  assert.deepEqual(timeline.map((entry) => entry.kind), ["status", "tools"]);
+  assert.equal(timeline[0].kind === "status" && timeline[0].text, "I’ll check your calendar.");
+  assert.equal(remainingTimelineAnswer("I’ll check your calendar.You have two meetings.", events), "You have two meetings.");
+  assert.equal(remainingTimelineAnswer("A separately generated final answer.", events), "A separately generated final answer.");
 });
 
 test("restored activity history folds each tool start and terminal result into one step", () => {

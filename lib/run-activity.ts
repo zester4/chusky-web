@@ -208,18 +208,39 @@ type CollapsedTimelineEntry =
  * prose instead of one giant tool drawer followed by one giant status drawer.
  */
 export function presentRunTimeline(events: readonly RunTimelineSourceEvent[]): RunTimelineEntry[] {
+  const toolMessages = new Set(events.filter((event) => event.type === "run.tool_activity")
+    .flatMap((event) => [event.message, event.actionLabel])
+    .map(cleanActivityCopy).filter(Boolean));
   const ordered = events
     .map((event, index) => ({ event, index }))
     .sort((left, right) => left.event.at - right.event.at || left.index - right.index);
   const collapsed: CollapsedTimelineEntry[] = [];
   const openTools = new Map<string, number[]>();
   const seenIds = new Set<string>();
+  let spokenText = "";
+  let spokenId = "";
+  let spokenAt = 0;
 
   for (const { event } of ordered) {
     if (seenIds.has(event.id)) continue;
     seenIds.add(event.id);
 
+    if (event.type === "run.delta" && event.text) {
+      if (!spokenText) { spokenId = event.id; spokenAt = event.at; }
+      spokenText += event.text;
+      continue;
+    }
+
+    // A tool boundary commits the preceding model text to its original place.
+    // The trailing text remains the streaming/final answer below the timeline.
+    if (event.type === "run.tool_activity" && event.status === "started" && spokenText) {
+      const text = stripGenericProgressText(spokenText);
+      if (text) collapsed.push({ kind: "status", id: spokenId, at: spokenAt, text });
+      spokenText = "";
+    }
+
     if (event.type === "run.status" && event.text?.trim()) {
+      if (toolMessages.has(cleanActivityCopy(event.text))) continue;
       const text = stripGenericProgressText(event.text.replace(/\s+/g, " "));
       const last = collapsed.at(-1);
       if (text && (!last || last.kind !== "status" || last.text !== text)) {
@@ -283,6 +304,20 @@ export function presentRunTimeline(events: readonly RunTimelineSourceEvent[]): R
   }
   flushTools();
   return timeline;
+}
+
+/** Remove only an exact streamed prefix already committed above tool rows. */
+export function remainingTimelineAnswer(text: string, events: readonly RunTimelineSourceEvent[]): string {
+  let buffer = "";
+  let committed = "";
+  for (const event of events) {
+    if (event.type === "run.delta") buffer += event.text ?? "";
+    if (event.type === "run.tool_activity" && event.status === "started") {
+      committed += buffer;
+      buffer = "";
+    }
+  }
+  return committed && text.startsWith(committed) ? text.slice(committed.length).trimStart() : text;
 }
 
 /** Add a live frame and rebuild only the small, presentation-ready timeline. */
