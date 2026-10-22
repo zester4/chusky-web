@@ -146,7 +146,7 @@ export function CallActivityTabs({ call, tasks, tasksLoading, tasksError, busy, 
   const counts: Record<CallTab, number> = { logs: call.timeline?.length ?? 0, transcript: call.transcript?.turns.length ?? 0, outcome: call.outcome || call.summary ? 1 : 0, tasks: taskCount };
   const actionBusy = (name: string) => busy === `${call.id}:${name}`;
 
-  return <div className="border-b border-foreground/10 p-4 last:border-0">
+  return <div className="min-w-0 border-b border-foreground/10 p-3 last:border-0 sm:p-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-foreground/10"><Phone size={14} /></span>
       <div className="min-w-0 flex-1">

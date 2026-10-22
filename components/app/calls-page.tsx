@@ -10,8 +10,9 @@ import { ProviderVoiceSettings } from "./provider-voice-settings";
 import { CallActivityTabs } from "./call-activity-tabs";
 import { resolveProviderBrand } from "./trigger-logo";
 import { ToolkitLogo } from "./toolkit-logo";
+import { VoiceCompliancePanel } from "./voice-compliance-panel";
 
-type CallsSection = "numbers" | "representative" | "activity";
+type CallsSection = "numbers" | "representative" | "activity" | "compliance";
 type NumberFeature = "voice" | "sms" | "mms" | "emergency" | "fax" | "local_calling" | "international_sms";
 type NumberSearchBy = "area_code" | "region" | "locality" | "postal_code" | "contains";
 
@@ -80,6 +81,8 @@ function CallReadinessCard({ readiness, loading, onRefresh }: { readiness?: Call
 export function CallsPage() {
   const [section, setSection] = useState<CallsSection>("numbers");
   const [calls, setCalls] = useState<CallRecord[]>();
+  const [nextCallsCursor, setNextCallsCursor] = useState<number>();
+  const [callsLoading, setCallsLoading] = useState(false);
   const [readiness, setReadiness] = useState<CallReadiness>();
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>();
@@ -186,11 +189,15 @@ export function CallsPage() {
     }
   };
 
-  const load = async () => {
+  const load = async (cursor?: number) => {
+    if (cursor !== undefined && callsLoading) return;
+    setCallsLoading(true);
     setError(undefined);
     try {
-      const result = await chuskyApi.account.calls.list();
-      setCalls(result.data);
+      const result = await chuskyApi.account.calls.list(cursor);
+      const loadedCalls = cursor ? [...(calls ?? []), ...result.data] : result.data;
+      setCalls(loadedCalls.filter((call, index, all) => all.findIndex((candidate) => candidate.id === call.id) === index));
+      setNextCallsCursor(result.nextCursor);
       setAvailable(result.available);
       setProvider(result.provider);
       try {
@@ -201,7 +208,7 @@ export function CallsPage() {
         setCallAccounts([]);
         setCallToolkits([]);
       }
-      const taskIds = [...new Set(result.data.flatMap((call) => call.followUpTaskIds ?? []))];
+      const taskIds = [...new Set(loadedCalls.flatMap((call) => call.followUpTaskIds ?? []))];
       setTasksError(undefined);
       if (taskIds.length) {
         setTasksLoading(true);
@@ -219,10 +226,13 @@ export function CallsPage() {
         setTasksLoading(false);
       }
     } catch (cause) {
-      setCalls([]);
+      if (!cursor) setCalls([]);
+      setNextCallsCursor(undefined);
       setTasks([]);
       setTasksLoading(false);
       setError(cause instanceof Error ? cause.message : "Could not load calls.");
+    } finally {
+      setCallsLoading(false);
     }
   };
 
@@ -486,6 +496,11 @@ export function CallsPage() {
     }
   };
 
+  const loadOlderCalls = async () => {
+    if (nextCallsCursor === undefined || callsLoading) return;
+    await load(nextCallsCursor);
+  };
+
   const setupRequired = error?.toLowerCase().includes("verify your web account") ?? false;
   const continuableCalls = calls?.filter((call) => call.status === "ended" && (call.outcome || call.summary)) ?? [];
   const visibleNumbers = phoneNumbers.length ? phoneNumbers : inboundRoutes.map(profileFromRoute);
@@ -495,19 +510,20 @@ export function CallsPage() {
     { id: "numbers", label: "Phone numbers", description: "Buy and manage the numbers customers call." },
     { id: "representative", label: "Representative", description: "Define how Chusky represents you or your business." },
     { id: "activity", label: "Activity", description: "Place calls and review logs, transcripts, outcomes, and tasks." },
+    { id: "compliance", label: "Compliance & health", description: "Prepare emergency address, privacy, regulatory, and provider-health settings." },
   ];
 
-  return <>
+  return <div data-calls-page className="min-w-0 max-w-full overflow-x-clip">
     <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadReadiness(); void loadProfile(); void loadPersonas(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
     {error && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 sm:mb-5 sm:p-4"><div className="flex gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><div><p>{error}</p>{setupRequired && <p className="mt-1.5 text-amber-900/70">Verify your web account in Settings before using voice calls.</p>}</div></div></Card>}
     <CallReadinessCard readiness={readiness} loading={readinessLoading} onRefresh={() => void loadReadiness()} />
 
-    <nav aria-label="Calls sections" className="mb-5 flex min-w-0 gap-1 overflow-x-auto border-b border-foreground/10">
-      {sections.map((item) => <button key={item.id} type="button" title={item.description} onClick={() => setSection(item.id)} aria-current={section === item.id ? "page" : undefined} className={`min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-left text-xs font-medium transition-colors ${section === item.id ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{item.label}</button>)}
+    <nav aria-label="Calls sections" className="mb-5 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-foreground/10 sm:flex sm:gap-1 sm:overflow-x-auto sm:rounded-none sm:border-x-0 sm:border-b">
+      {sections.map((item) => <button key={item.id} type="button" title={item.description} onClick={() => setSection(item.id)} aria-current={section === item.id ? "page" : undefined} className={`min-h-12 min-w-0 border-b-2 px-2 py-2 text-center text-[11px] font-medium leading-4 transition-colors sm:min-h-11 sm:shrink-0 sm:whitespace-nowrap sm:px-3 sm:py-3 sm:text-left ${section === item.id ? "border-foreground bg-foreground/[0.04] text-foreground" : "border-transparent text-muted-foreground hover:bg-foreground/[0.03] hover:text-foreground"}`}>{item.label}</button>)}
     </nav>
 
     {section === "numbers" && <div className="flex flex-col space-y-4 sm:space-y-5">
-      <Card className="order-2 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Your phone numbers</p><h2 className="mt-1.5 font-display text-2xl">Ready for callers</h2><p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Every number here is routed to your representative. Customers only see the number and the experience you configure—not the underlying voice service.</p></div><Phone size={20} className="text-muted-foreground" /></div>{numbersError && <p className="mt-4 border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">{numbersError}</p>}{visibleNumbers.length ? <div className="mt-5 grid gap-3 md:grid-cols-2">{visibleNumbers.map((number) => <article key={number.phoneNumber} className="flex items-start justify-between gap-3 rounded-lg border border-foreground/10 p-3.5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium tracking-wide">{number.phoneNumber}</p><Status tone="green">Ready</Status></div><p className="mt-1.5 text-[11px] text-muted-foreground">{number.displayName || "Chusky phone number"}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{number.source === "managed" ? "Customers can call this number now." : "Connected number · routing is active."}</p><p className="mt-2 text-[10px] text-muted-foreground">Updated {date(new Date(number.updatedAt).toISOString())}</p></div>{number.source === "managed" && <Button secondary disabled={numberPurchaseBusy === number.phoneNumber} onClick={() => void releaseNumber(number)} aria-label={`Release ${number.phoneNumber}`}>{numberPurchaseBusy === number.phoneNumber ? <LoaderCircle size={12} className="animate-spin" /> : <Trash2 size={12} />}<span className="hidden sm:inline">Release</span></Button>}</article>)}</div> : <div className="mt-5 border border-dashed border-foreground/15 p-5 text-xs leading-5 text-muted-foreground">You do not have a phone number yet. Find a number below to give customers a direct line to your representative.</div>}</Card>
+      <Card className="order-2 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Your phone numbers</p><h2 className="mt-1.5 font-display text-2xl">Ready for callers</h2><p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">Every number here is routed to your representative. Customers only see the number and the experience you configure—not the underlying voice service.</p></div><Phone size={20} className="shrink-0 text-muted-foreground" /></div>{numbersError && <p className="mt-4 border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">{numbersError}</p>}{visibleNumbers.length ? <div className="mt-5 grid gap-3 md:grid-cols-2">{visibleNumbers.map((number) => <article key={number.phoneNumber} className="flex flex-col items-stretch gap-3 rounded-lg border border-foreground/10 p-3.5 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="break-all text-sm font-medium tracking-wide">{number.phoneNumber}</p><Status tone="green">Ready</Status></div><p className="mt-1.5 text-[11px] text-muted-foreground">{number.displayName || "Chusky phone number"}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{number.source === "managed" ? "Customers can call this number now." : "Connected number · routing is active."}</p><p className="mt-2 text-[10px] text-muted-foreground">Updated {date(new Date(number.updatedAt).toISOString())}</p></div>{number.source === "managed" && <Button className="w-full sm:w-fit" secondary disabled={numberPurchaseBusy === number.phoneNumber} onClick={() => void releaseNumber(number)} aria-label={`Release ${number.phoneNumber}`}>{numberPurchaseBusy === number.phoneNumber ? <LoaderCircle size={12} className="animate-spin" /> : <Trash2 size={12} />}<span>Release</span></Button>}</article>)}</div> : <div className="mt-5 border border-dashed border-foreground/15 p-5 text-xs leading-5 text-muted-foreground">You do not have a phone number yet. Find a number below to give customers a direct line to your representative.</div>}</Card>
 
       <Card className="relative z-20 order-1 overflow-visible p-4 sm:p-5">
         <div className="flex items-start gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/[0.05]"><ShoppingBag size={16} /></span><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Number inventory</p><h2 className="mt-1.5 font-display text-2xl">Get a new number</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Choose where you want to be reachable. Chusky handles the carrier setup and connects the number to this workspace automatically.</p></div></div>
@@ -564,8 +580,10 @@ export function CallsPage() {
       </div></Card>
     </div>}
 
-    {section === "activity" && <div className="space-y-4 sm:space-y-5"><div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] sm:gap-5"><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Outbound call</p><h2 className="mt-1.5 font-display text-2xl">Place a call</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Enter the destination and purpose. Chusky uses the saved representative and connected-app policy.</p><div className="mt-5 space-y-3"><label className="block text-xs font-medium">Phone number<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="+1 555 010 0123" inputMode="tel" maxLength={24} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs font-medium">Purpose<textarea value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="Confirm tomorrow's appointment" maxLength={1000} rows={3} className="mt-1.5 w-full resize-none border border-foreground/15 bg-background px-2.5 py-2 text-xs leading-5" /></label>{continuableCalls.length > 0 && <label className="block text-xs text-muted-foreground">Continue from a completed call<select value={continuityFromCallId} onChange={(event) => setContinuityFromCallId(event.target.value)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Start fresh</option>{continuableCalls.map((call) => <option key={call.id} value={call.id}>{call.purpose} · {date(call.updatedAt)}</option>)}</select></label>}<div className="flex flex-wrap items-center gap-2"><Button disabled={!available || !normalizePhone(phoneNumber.trim()) || !purpose.trim() || Boolean(busy)} onClick={() => setConfirm(true)}>{busy === "request" ? <LoaderCircle size={13} className="animate-spin" /> : <Phone size={13} />}{available ? "Place call" : "Voice unavailable"}</Button><Button secondary onClick={() => setSection("representative")}><SlidersHorizontal size={13} /> Configure representative</Button></div></div></Card><Card className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call handling</p><h2 className="mt-1.5 font-display text-2xl">Everything stays traceable</h2></div><ShieldCheck size={18} className="text-emerald-600" /></div><div className="mt-4 space-y-3 text-xs text-muted-foreground"><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Call state is reconciled as ringing, answered, voicemail, failed, or completed.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Deepgram transcripts and structured outcomes remain attached to the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Follow-up tasks, reminders, and tool receipts appear with the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Provider credentials and transport details stay out of the customer workflow.</p></div></Card></div><Card><div className="flex items-center justify-between border-b border-foreground/10 p-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call activity</p><h2 className="mt-1 font-display text-2xl">Logs, transcripts, outcomes, and tasks</h2><p className="mt-1 text-[10px] text-muted-foreground">Raw audio is not stored. Transcripts follow the retention setting and can be deleted by the workspace owner.</p></div></div>{calls === undefined ? <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> Loading calls…</div> : !calls.length ? <div className="p-5 text-xs leading-5 text-muted-foreground">No calls yet. Place a call above or wait for a customer to call one of your numbers.</div> : <div>{calls.map((call) => <CallActivityTabs key={call.id} call={call} tasks={tasks} tasksLoading={tasksLoading} tasksError={tasksError} busy={busy} onControl={(input) => void control(call, input)} onDeleteTranscript={() => void deleteTranscript(call)} />)}</div>}</Card></div>}
+    {section === "activity" && <div className="space-y-4 sm:space-y-5"><div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] sm:gap-5"><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Outbound call</p><h2 className="mt-1.5 font-display text-2xl">Place a call</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Enter the destination and purpose. Chusky uses the saved representative and connected-app policy.</p><div className="mt-5 space-y-3"><label className="block text-xs font-medium">Phone number<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="+1 555 010 0123" inputMode="tel" maxLength={24} className="mt-1.5 min-h-10 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs font-medium">Purpose<textarea value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="Confirm tomorrow's appointment" maxLength={1000} rows={3} className="mt-1.5 w-full resize-none border border-foreground/15 bg-background px-2.5 py-2 text-xs leading-5" /></label>{continuableCalls.length > 0 && <label className="block text-xs text-muted-foreground">Continue from a completed call<select value={continuityFromCallId} onChange={(event) => setContinuityFromCallId(event.target.value)} className="mt-1.5 min-h-10 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Start fresh</option>{continuableCalls.map((call) => <option key={call.id} value={call.id}>{call.purpose} · {date(call.updatedAt)}</option>)}</select></label>}<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"><Button className="w-full sm:w-fit" disabled={!available || !normalizePhone(phoneNumber.trim()) || !purpose.trim() || Boolean(busy)} onClick={() => setConfirm(true)}>{busy === "request" ? <LoaderCircle size={13} className="animate-spin" /> : <Phone size={13} />}{available ? "Place call" : "Voice unavailable"}</Button><Button className="w-full sm:w-fit" secondary onClick={() => setSection("representative")}><SlidersHorizontal size={13} /> Configure representative</Button></div></div></Card><Card className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call handling</p><h2 className="mt-1.5 font-display text-2xl">Everything stays traceable</h2></div><ShieldCheck size={18} className="shrink-0 text-emerald-600" /></div><div className="mt-4 space-y-3 text-xs text-muted-foreground"><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Call state is reconciled as ringing, answered, voicemail, failed, or completed.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Deepgram transcripts and structured outcomes remain attached to the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Follow-up tasks, reminders, and tool receipts appear with the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Provider credentials and transport details stay out of the customer workflow.</p></div></Card></div><Card><div className="flex items-start justify-between gap-3 border-b border-foreground/10 p-3 sm:p-4"><div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call activity</p><h2 className="mt-1 font-display text-xl sm:text-2xl">Logs, transcripts, outcomes, and tasks</h2><p className="mt-1 text-[10px] leading-4 text-muted-foreground">Raw audio is not stored. Transcripts follow the retention setting and can be deleted by the workspace owner.</p></div></div>{calls === undefined ? <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> Loading calls…</div> : !calls.length ? <div className="p-5 text-xs leading-5 text-muted-foreground">No calls yet. Place a call above or wait for a customer to call one of your numbers.</div> : <div>{calls.map((call) => <CallActivityTabs key={call.id} call={call} tasks={tasks} tasksLoading={tasksLoading} tasksError={tasksError} busy={busy} onControl={(input) => void control(call, input)} onDeleteTranscript={() => void deleteTranscript(call)} />)}{nextCallsCursor !== undefined && <div className="border-t border-foreground/10 p-4 text-center"><Button className="w-full sm:w-fit" secondary onClick={() => void loadOlderCalls()} disabled={callsLoading || Boolean(busy)}>{callsLoading ? <LoaderCircle size={13} className="animate-spin" /> : null} Load older calls</Button></div>}</div>}</Card></div>}
+
+    {section === "compliance" && <VoiceCompliancePanel />}
 
     <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Place this phone call?" description={`Chusky will dial ${phoneNumber || "this number"} now about: ${purpose || "the stated purpose"}.`} confirmLabel="Place call" onConfirm={() => { setConfirm(false); return requestCall(); }} />
-  </>;
+  </div>;
 }

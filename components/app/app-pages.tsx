@@ -19,6 +19,7 @@ import { ComposerPage } from "./composer-page";
 import { MissionsPage } from "./missions-page";
 import { AutonomyPage } from "./autonomy-page";
 import { OverviewPage } from "./overview-page";
+import { BillingPage } from "./billing-page";
 
 type WorkTab = "tasks" | "reminders" | "jobs" | "workers";
 
@@ -59,6 +60,7 @@ function ContextPage({ initialTab }: { initialTab: ContextTab }) {
 export function AppPage({ section }: { section: string }) {
   if (section === "organizations") return <OrganizationsPage />;
   if (section === "developer-api") return <DeveloperApiPage />;
+  if (section === "billing") return <BillingPage />;
   if (section === "calls") return <CallsPage />;
   if (section === "meetings") return <MeetingsPage />;
   if (section === "channels") return <ChannelsPage />;
