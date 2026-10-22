@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, FileText, Globe2, Image, LoaderCircle, MapPin, MessageSquare, Phone, RefreshCw, Search, ShieldAlert, ShieldCheck, ShoppingBag, SlidersHorizontal, Trash2, UserRound, X } from "lucide-react";
-import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallNumberCapabilities, type CallNumberCountry, type CallNumberPrice, type CallPersona, type CallPersonaId, type CallPhoneNumber, type CallPhoneNumberOption, type CallProfile, type CallRecord, type CallTone, type Task } from "@/lib/chusky-api";
+import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallNumberCapabilities, type CallNumberCountry, type CallNumberPrice, type CallPersona, type CallPersonaId, type CallPhoneNumber, type CallPhoneNumberOption, type CallProfile, type CallReadiness, type CallRecord, type CallTone, type Task } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -54,9 +54,34 @@ function profileFromRoute(route: CallInboundRoute): CallPhoneNumber {
   return { phoneNumber: route.phoneNumber, displayName: route.voiceProfile.organization || route.voiceProfile.identity, source: "external", callProfile: route.callProfile, provider: route.provider, purpose: route.purpose, updatedAt: route.updatedAt };
 }
 
+function readinessTone(status: CallReadiness["status"]): "green" | "amber" | "gray" {
+  return status === "ready" ? "green" : status === "blocked" ? "amber" : "gray";
+}
+
+function readinessLabel(status: CallReadiness["status"]) {
+  return status === "ready" ? "Ready for controlled activation" : status === "blocked" ? "Activation blocked" : "Verification pending";
+}
+
+function CallReadinessCard({ readiness, loading, onRefresh }: { readiness?: CallReadiness; loading: boolean; onRefresh: () => void }) {
+  if (!readiness && !loading) return null;
+  const unresolved = readiness?.checks.filter((check) => check.required && check.status !== "complete") ?? [];
+  return <Card className="mb-4 border-foreground/15 p-4 sm:mb-5 sm:p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05]"><ShieldCheck size={16} /></span>
+        <div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Voice readiness</p><h2 className="mt-1 text-sm font-medium">Production activation checklist</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Calling can be tested only as far as the verified deployment gates allow. Customer number sales stay protected until billing and regulatory checks pass.</p></div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2"><Status tone={readiness ? readinessTone(readiness.status) : "gray"}>{readiness ? readinessLabel(readiness.status) : "Loading"}</Status><Button secondary onClick={onRefresh} disabled={loading} aria-label="Refresh voice readiness">{loading ? <LoaderCircle size={12} className="animate-spin" /> : <RefreshCw size={12} />}</Button></div>
+    </div>
+    {readiness && <details className="mt-4 border-t border-foreground/10 pt-3"><summary className="cursor-pointer text-[11px] font-medium">{unresolved.length ? `${unresolved.length} required check${unresolved.length === 1 ? "" : "s"} remain` : "View activation checks"}</summary><div className="mt-3 grid gap-2 sm:grid-cols-2">{readiness.checks.map((check) => <div key={check.id} className="flex items-start gap-2 border border-foreground/10 p-2.5"><span className="mt-0.5 shrink-0">{check.status === "complete" ? <CheckCircle2 size={13} className="text-emerald-600" /> : check.status === "blocked" ? <ShieldAlert size={13} className="text-amber-700" /> : <AlertTriangle size={13} className="text-muted-foreground" />}</span><div className="min-w-0"><p className="text-[11px] font-medium">{check.title}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{check.detail}</p></div></div>)}</div></details>}
+  </Card>;
+}
+
 export function CallsPage() {
   const [section, setSection] = useState<CallsSection>("numbers");
   const [calls, setCalls] = useState<CallRecord[]>();
+  const [readiness, setReadiness] = useState<CallReadiness>();
+  const [readinessLoading, setReadinessLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>();
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksError, setTasksError] = useState<string>();
@@ -201,6 +226,18 @@ export function CallsPage() {
     }
   };
 
+  const loadReadiness = async () => {
+    setReadinessLoading(true);
+    try {
+      const result = await chuskyApi.account.calls.readiness();
+      setReadiness(result.data);
+    } catch {
+      setReadiness(undefined);
+    } finally {
+      setReadinessLoading(false);
+    }
+  };
+
   const loadProfile = async () => {
     try {
       const result = await chuskyApi.account.calls.profile.get();
@@ -239,6 +276,7 @@ export function CallsPage() {
 
   useEffect(() => {
     void load();
+    void loadReadiness();
     void loadProfile();
     void loadPersonas();
     void loadNumbers();
@@ -246,6 +284,7 @@ export function CallsPage() {
   }, []);
   useLiveData(() => {
     void load();
+    void loadReadiness();
     void loadProfile();
     void loadPersonas();
     void loadNumbers();
@@ -433,6 +472,20 @@ export function CallsPage() {
     }
   };
 
+  const deleteTranscript = async (call: CallRecord) => {
+    if (!call.transcript || !window.confirm("Delete this call transcript? The call outcome and audit timeline will remain.")) return;
+    setBusy(`${call.id}:delete_transcript`);
+    setError(undefined);
+    try {
+      await chuskyApi.account.calls.deleteTranscript(call.id);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The transcript could not be deleted.");
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
   const setupRequired = error?.toLowerCase().includes("verify your web account") ?? false;
   const continuableCalls = calls?.filter((call) => call.status === "ended" && (call.outcome || call.summary)) ?? [];
   const visibleNumbers = phoneNumbers.length ? phoneNumbers : inboundRoutes.map(profileFromRoute);
@@ -445,8 +498,9 @@ export function CallsPage() {
   ];
 
   return <>
-    <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadProfile(); void loadPersonas(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
+    <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadReadiness(); void loadProfile(); void loadPersonas(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
     {error && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 sm:mb-5 sm:p-4"><div className="flex gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><div><p>{error}</p>{setupRequired && <p className="mt-1.5 text-amber-900/70">Verify your web account in Settings before using voice calls.</p>}</div></div></Card>}
+    <CallReadinessCard readiness={readiness} loading={readinessLoading} onRefresh={() => void loadReadiness()} />
 
     <nav aria-label="Calls sections" className="mb-5 flex min-w-0 gap-1 overflow-x-auto border-b border-foreground/10">
       {sections.map((item) => <button key={item.id} type="button" title={item.description} onClick={() => setSection(item.id)} aria-current={section === item.id ? "page" : undefined} className={`min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-left text-xs font-medium transition-colors ${section === item.id ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{item.label}</button>)}
@@ -510,7 +564,7 @@ export function CallsPage() {
       </div></Card>
     </div>}
 
-    {section === "activity" && <div className="space-y-4 sm:space-y-5"><div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] sm:gap-5"><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Outbound call</p><h2 className="mt-1.5 font-display text-2xl">Place a call</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Enter the destination and purpose. Chusky uses the saved representative and connected-app policy.</p><div className="mt-5 space-y-3"><label className="block text-xs font-medium">Phone number<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="+1 555 010 0123" inputMode="tel" maxLength={24} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs font-medium">Purpose<textarea value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="Confirm tomorrow's appointment" maxLength={1000} rows={3} className="mt-1.5 w-full resize-none border border-foreground/15 bg-background px-2.5 py-2 text-xs leading-5" /></label>{continuableCalls.length > 0 && <label className="block text-xs text-muted-foreground">Continue from a completed call<select value={continuityFromCallId} onChange={(event) => setContinuityFromCallId(event.target.value)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Start fresh</option>{continuableCalls.map((call) => <option key={call.id} value={call.id}>{call.purpose} · {date(call.updatedAt)}</option>)}</select></label>}<div className="flex flex-wrap items-center gap-2"><Button disabled={!available || !normalizePhone(phoneNumber.trim()) || !purpose.trim() || Boolean(busy)} onClick={() => setConfirm(true)}>{busy === "request" ? <LoaderCircle size={13} className="animate-spin" /> : <Phone size={13} />}{available ? "Place call" : "Voice unavailable"}</Button><Button secondary onClick={() => setSection("representative")}><SlidersHorizontal size={13} /> Configure representative</Button></div></div></Card><Card className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call handling</p><h2 className="mt-1.5 font-display text-2xl">Everything stays traceable</h2></div><ShieldCheck size={18} className="text-emerald-600" /></div><div className="mt-4 space-y-3 text-xs text-muted-foreground"><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Call state is reconciled as ringing, answered, voicemail, failed, or completed.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Deepgram transcripts and structured outcomes remain attached to the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Follow-up tasks, reminders, and tool receipts appear with the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Provider credentials and transport details stay out of the customer workflow.</p></div></Card></div><Card><div className="flex items-center justify-between border-b border-foreground/10 p-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call activity</p><h2 className="mt-1 font-display text-2xl">Logs, transcripts, outcomes, and tasks</h2></div></div>{calls === undefined ? <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> Loading calls…</div> : !calls.length ? <div className="p-5 text-xs leading-5 text-muted-foreground">No calls yet. Place a call above or wait for a customer to call one of your numbers.</div> : <div>{calls.map((call) => <CallActivityTabs key={call.id} call={call} tasks={tasks} tasksLoading={tasksLoading} tasksError={tasksError} busy={busy} onControl={(input) => void control(call, input)} />)}</div>}</Card></div>}
+    {section === "activity" && <div className="space-y-4 sm:space-y-5"><div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] sm:gap-5"><Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Outbound call</p><h2 className="mt-1.5 font-display text-2xl">Place a call</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Enter the destination and purpose. Chusky uses the saved representative and connected-app policy.</p><div className="mt-5 space-y-3"><label className="block text-xs font-medium">Phone number<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="+1 555 010 0123" inputMode="tel" maxLength={24} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-xs font-medium">Purpose<textarea value={purpose} onChange={(event) => setPurpose(event.target.value)} placeholder="Confirm tomorrow's appointment" maxLength={1000} rows={3} className="mt-1.5 w-full resize-none border border-foreground/15 bg-background px-2.5 py-2 text-xs leading-5" /></label>{continuableCalls.length > 0 && <label className="block text-xs text-muted-foreground">Continue from a completed call<select value={continuityFromCallId} onChange={(event) => setContinuityFromCallId(event.target.value)} className="mt-1.5 min-h-9 w-full border border-foreground/15 bg-background px-2.5 text-xs"><option value="">Start fresh</option>{continuableCalls.map((call) => <option key={call.id} value={call.id}>{call.purpose} · {date(call.updatedAt)}</option>)}</select></label>}<div className="flex flex-wrap items-center gap-2"><Button disabled={!available || !normalizePhone(phoneNumber.trim()) || !purpose.trim() || Boolean(busy)} onClick={() => setConfirm(true)}>{busy === "request" ? <LoaderCircle size={13} className="animate-spin" /> : <Phone size={13} />}{available ? "Place call" : "Voice unavailable"}</Button><Button secondary onClick={() => setSection("representative")}><SlidersHorizontal size={13} /> Configure representative</Button></div></div></Card><Card className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call handling</p><h2 className="mt-1.5 font-display text-2xl">Everything stays traceable</h2></div><ShieldCheck size={18} className="text-emerald-600" /></div><div className="mt-4 space-y-3 text-xs text-muted-foreground"><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Call state is reconciled as ringing, answered, voicemail, failed, or completed.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Deepgram transcripts and structured outcomes remain attached to the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Follow-up tasks, reminders, and tool receipts appear with the call.</p><p className="flex gap-2"><CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> Provider credentials and transport details stay out of the customer workflow.</p></div></Card></div><Card><div className="flex items-center justify-between border-b border-foreground/10 p-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Call activity</p><h2 className="mt-1 font-display text-2xl">Logs, transcripts, outcomes, and tasks</h2><p className="mt-1 text-[10px] text-muted-foreground">Raw audio is not stored. Transcripts follow the retention setting and can be deleted by the workspace owner.</p></div></div>{calls === undefined ? <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> Loading calls…</div> : !calls.length ? <div className="p-5 text-xs leading-5 text-muted-foreground">No calls yet. Place a call above or wait for a customer to call one of your numbers.</div> : <div>{calls.map((call) => <CallActivityTabs key={call.id} call={call} tasks={tasks} tasksLoading={tasksLoading} tasksError={tasksError} busy={busy} onControl={(input) => void control(call, input)} onDeleteTranscript={() => void deleteTranscript(call)} />)}</div>}</Card></div>}
 
     <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Place this phone call?" description={`Chusky will dial ${phoneNumber || "this number"} now about: ${purpose || "the stated purpose"}.`} confirmLabel="Place call" onConfirm={() => { setConfirm(false); return requestCall(); }} />
   </>;

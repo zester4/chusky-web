@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardCheck, FileText, List, ListChecks, LoaderCircle, Phone } from "lucide-react";
+import { ClipboardCheck, FileText, List, ListChecks, LoaderCircle, Phone, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import type { CallControl, CallRecord, Task } from "@/lib/chusky-api";
@@ -75,14 +75,14 @@ function LogsPanel({ call }: { call: CallRecord }) {
   </ol>;
 }
 
-function TranscriptPanel({ call }: { call: CallRecord }) {
+function TranscriptPanel({ call, onDelete, busy }: { call: CallRecord; onDelete: () => void; busy: boolean }) {
   const transcript = call.transcript;
-  if (!transcript?.turns.length) return <EmptyPanel>The transcript is not available for this call yet.</EmptyPanel>;
+  if (!transcript?.turns.length) return <EmptyPanel>{call.transcriptStatus === "deleted" ? "The workspace owner deleted this transcript." : call.transcriptStatus === "expired" ? "This transcript expired under the configured retention policy." : "The transcript is not available for this call yet."}</EmptyPanel>;
 
   return <div>
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
       <span>Deepgram transcript · {transcript.turns.length} turns</span>
-      {transcript.truncated && <Status tone="amber">Truncated</Status>}
+      <div className="flex items-center gap-2">{transcript.truncated && <Status tone="amber">Truncated</Status>}<button type="button" onClick={onDelete} disabled={busy} className="inline-flex min-h-8 items-center gap-1.5 border border-foreground/15 px-2 text-[10px] text-muted-foreground transition-colors hover:border-foreground/35 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50" aria-label="Delete transcript">{busy ? <LoaderCircle size={11} className="animate-spin" /> : <Trash2 size={11} />} Delete</button></div>
     </div>
     <div className="space-y-3">
       {transcript.turns.map((turn) => <article key={turn.id} className="rounded-md border border-foreground/10 bg-foreground/[0.02] p-3">
@@ -139,7 +139,7 @@ function TasksPanel({ call, tasks, tasksLoading, tasksError }: { call: CallRecor
   </div>;
 }
 
-export function CallActivityTabs({ call, tasks, tasksLoading, tasksError, busy, onControl }: { call: CallRecord; tasks?: Task[]; tasksLoading: boolean; tasksError?: string; busy?: string; onControl: (input: CallControl) => void }) {
+export function CallActivityTabs({ call, tasks, tasksLoading, tasksError, busy, onControl, onDeleteTranscript }: { call: CallRecord; tasks?: Task[]; tasksLoading: boolean; tasksError?: string; busy?: string; onControl: (input: CallControl) => void; onDeleteTranscript: () => void }) {
   const [activeTab, setActiveTab] = useState<CallTab>("logs");
   const active = ["starting", "bridging", "active"].includes(call.status);
   const taskCount = call.followUpTaskIds?.length ?? 0;
@@ -167,7 +167,7 @@ export function CallActivityTabs({ call, tasks, tasksLoading, tasksError, busy, 
 
     <div role="tabpanel" className="mt-4 min-h-20">
       {activeTab === "logs" && <LogsPanel call={call} />}
-      {activeTab === "transcript" && <TranscriptPanel call={call} />}
+      {activeTab === "transcript" && <TranscriptPanel call={call} onDelete={onDeleteTranscript} busy={busy === `${call.id}:delete_transcript`} />}
       {activeTab === "outcome" && <OutcomePanel call={call} />}
       {activeTab === "tasks" && <TasksPanel call={call} tasks={tasks} tasksLoading={tasksLoading} tasksError={tasksError} />}
     </div>
