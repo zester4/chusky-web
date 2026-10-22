@@ -6,6 +6,9 @@ export interface BuilderVoiceControl {
   personaLibraryEnabled: boolean;
   changedAt?: number;
 }
+export type BuilderVoiceActivationStatus = "complete" | "pending" | "blocked" | "manual";
+export interface BuilderVoiceActivationCheck { id: string; title: string; status: BuilderVoiceActivationStatus; required: boolean; detail: string; variables?: string[] }
+export interface BuilderVoiceReadiness { status: "ready" | "pending" | "blocked"; generatedAt: number; current: { provider: string; voiceEnabled: boolean; inboundEnabled: boolean; subaccountManagementEnabled: boolean; numberManagementEnabled: boolean; customerBillingReady: boolean; regulatoryReady: boolean }; checks: BuilderVoiceActivationCheck[]; activationOrder: string[]; protectedSwitches: Array<{ variable: string; keep: "false"; reason: string }> }
 export interface BuilderControl { version: number; agentEnabled: boolean; changedAt?: number; voice?: Omit<BuilderVoiceControl, "version" | "changedAt"> }
 export interface BuilderPerson { id: string; name: string; email: string; emailVerified: boolean; createdAt: string | null; role: string; banned: boolean }
 export interface BuilderOverview {

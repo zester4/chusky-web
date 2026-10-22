@@ -55,6 +55,31 @@ function profileFromRoute(route: CallInboundRoute): CallPhoneNumber {
   return { phoneNumber: route.phoneNumber, displayName: route.voiceProfile.organization || route.voiceProfile.identity, source: "external", callProfile: route.callProfile, provider: route.provider, purpose: route.purpose, updatedAt: route.updatedAt };
 }
 
+type PurchaseAddress = { name: string; street: string; city: string; region: string; postalCode: string; countryCode: string };
+const emptyPurchaseAddress: PurchaseAddress = { name: "", street: "", city: "", region: "", postalCode: "", countryCode: "US" };
+
+function NumberPurchaseAddressDialog({ option, address, busy, error, onChange, onCancel, onConfirm }: {
+  option: CallPhoneNumberOption;
+  address: PurchaseAddress;
+  busy: boolean;
+  error?: string;
+  onChange: (field: keyof PurchaseAddress, value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const requirement = option.addressRequirements ?? "any";
+  const requirementLabel = requirement === "local" ? "an address in the number’s country" : requirement === "foreign" ? "an address outside the number’s country" : "a physical address";
+  const complete = Object.values(address).every((value) => value.trim().length > 0);
+  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-5" role="presentation">
+    <div role="dialog" aria-modal="true" aria-labelledby="number-purchase-address-title" className="max-h-[92svh] w-full max-w-lg overflow-y-auto rounded-xl border border-foreground/15 bg-background p-4 shadow-2xl sm:p-6">
+      <div className="flex items-start justify-between gap-4"><div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Number purchase</p><h2 id="number-purchase-address-title" className="mt-1 font-display text-2xl">Address required for {option.phoneNumber}</h2><p className="mt-2 text-xs leading-5 text-muted-foreground">Twilio says this number requires {requirementLabel}. Provide the physical address before purchase; it will be created on the tenant Twilio account and attached to the number. This is requested here only for the selected number.</p></div><button type="button" onClick={onCancel} className="rounded-full p-2 text-muted-foreground hover:bg-foreground/5" aria-label="Close address form"><X size={16} /></button></div>
+      {error && <p role="alert" className="mt-4 border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">{error}</p>}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="block text-[11px] text-muted-foreground">Contact or business name<input autoFocus value={address.name} onChange={(event) => onChange("name", event.target.value)} maxLength={120} className="mt-1.5 min-h-10 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-[11px] text-muted-foreground">Country code<input value={address.countryCode} onChange={(event) => onChange("countryCode", event.target.value.toUpperCase())} maxLength={2} placeholder="US" className="mt-1.5 min-h-10 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs uppercase" /></label><label className="block text-[11px] text-muted-foreground sm:col-span-2">Street<input value={address.street} onChange={(event) => onChange("street", event.target.value)} maxLength={180} className="mt-1.5 min-h-10 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-[11px] text-muted-foreground">City<input value={address.city} onChange={(event) => onChange("city", event.target.value)} maxLength={100} className="mt-1.5 min-h-10 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-[11px] text-muted-foreground">State or region<input value={address.region} onChange={(event) => onChange("region", event.target.value)} maxLength={100} className="mt-1.5 min-h-10 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label><label className="block text-[11px] text-muted-foreground">Postal code<input value={address.postalCode} onChange={(event) => onChange("postalCode", event.target.value)} maxLength={40} className="mt-1.5 min-h-10 w-full rounded-lg border border-foreground/15 bg-background px-2.5 text-xs" /></label></div>
+      <div className="mt-5 flex flex-col-reverse gap-2 border-t border-foreground/10 pt-4 sm:flex-row sm:justify-end"><Button secondary onClick={onCancel}>Cancel</Button><Button disabled={busy || !complete} onClick={onConfirm}>{busy ? <LoaderCircle size={13} className="animate-spin" /> : <ShoppingBag size={13} />} Purchase number</Button></div>
+    </div>
+  </div>;
+}
+
 export function CallsPage() {
   const [section, setSection] = useState<CallsSection>("numbers");
   const [calls, setCalls] = useState<CallRecord[]>();
@@ -121,6 +146,9 @@ export function CallsPage() {
   const [numberSearchBusy, setNumberSearchBusy] = useState(false);
   const [numberPurchaseBusy, setNumberPurchaseBusy] = useState<string>();
   const [numbersError, setNumbersError] = useState<string>();
+  const [purchaseOption, setPurchaseOption] = useState<CallPhoneNumberOption>();
+  const [purchaseAddress, setPurchaseAddress] = useState<PurchaseAddress>(emptyPurchaseAddress);
+  const [purchaseError, setPurchaseError] = useState<string>();
 
   const applyProfile = (profile?: CallProfile) => {
     if (!profile) return;
@@ -336,18 +364,31 @@ export function CallsPage() {
     }
   };
 
-  const purchaseNumber = async (option: CallPhoneNumberOption) => {
+  const completeNumberPurchase = async (option: CallPhoneNumberOption, address?: PurchaseAddress) => {
     setNumberPurchaseBusy(option.phoneNumber);
     setNumbersError(undefined);
+    setPurchaseError(undefined);
     try {
-      await chuskyApi.account.calls.numbers.purchase({ phoneNumber: option.phoneNumber, countryCode, features: { voice: numberFeatures.includes("voice"), sms: numberFeatures.includes("sms"), mms: numberFeatures.includes("mms"), fax: numberFeatures.includes("fax") }, ...(option.friendlyName ? { displayName: option.friendlyName } : {}) });
+      await chuskyApi.account.calls.numbers.purchase({ phoneNumber: option.phoneNumber, countryCode: option.isoCountry ?? countryCode, features: { voice: numberFeatures.includes("voice"), sms: numberFeatures.includes("sms"), mms: numberFeatures.includes("mms"), fax: numberFeatures.includes("fax") }, ...(option.friendlyName ? { displayName: option.friendlyName } : {}), ...(address ? { address } : {}) });
       setNumberOptions((current) => current.filter((item) => item.phoneNumber !== option.phoneNumber));
+      setPurchaseOption(undefined);
       await Promise.all([loadNumbers(), loadInboundRoutes()]);
     } catch (cause) {
-      setNumbersError(cause instanceof Error ? cause.message : "That number could not be purchased.");
+      const message = cause instanceof Error ? cause.message : "That number could not be purchased.";
+      if (address) setPurchaseError(message); else setNumbersError(message);
     } finally {
       setNumberPurchaseBusy(undefined);
     }
+  };
+
+  const purchaseNumber = async (option: CallPhoneNumberOption) => {
+    setPurchaseError(undefined);
+    if (option.addressRequirements && option.addressRequirements !== "none") {
+      setPurchaseAddress({ ...emptyPurchaseAddress, countryCode: option.isoCountry ?? countryCode });
+      setPurchaseOption(option);
+      return;
+    }
+    await completeNumberPurchase(option);
   };
 
   const releaseNumber = async (number: CallPhoneNumber) => {
@@ -471,7 +512,7 @@ export function CallsPage() {
     { id: "numbers", label: "Phone numbers", description: "Buy and manage the numbers customers call." },
     { id: "representative", label: "Representative", description: "Define how Chusky represents you or your business." },
     { id: "activity", label: "Activity", description: "Place calls and review logs, transcripts, outcomes, and tasks." },
-    { id: "compliance", label: "Compliance & health", description: "Prepare emergency address, privacy, regulatory, and provider-health settings." },
+    { id: "compliance", label: "Compliance", description: "Prepare privacy and regulatory coverage settings." },
   ];
 
   return <div data-calls-page className="min-w-0 max-w-full overflow-x-clip">
@@ -545,5 +586,6 @@ export function CallsPage() {
     {section === "compliance" && <VoiceCompliancePanel />}
 
     <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Place this phone call?" description={`Chusky will dial ${phoneNumber || "this number"} now about: ${purpose || "the stated purpose"}.`} confirmLabel="Place call" onConfirm={() => { setConfirm(false); return requestCall(); }} />
+    {purchaseOption && <NumberPurchaseAddressDialog option={purchaseOption} address={purchaseAddress} busy={numberPurchaseBusy === purchaseOption.phoneNumber} error={purchaseError} onChange={(field, value) => setPurchaseAddress((current) => ({ ...current, [field]: value }))} onCancel={() => { if (!numberPurchaseBusy) { setPurchaseOption(undefined); setPurchaseError(undefined); } }} onConfirm={() => void completeNumberPurchase(purchaseOption, purchaseAddress)} />}
   </div>;
 }
