@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, FileText, Globe2, Image, LoaderCircle, MapPin, MessageSquare, Phone, RefreshCw, Search, ShieldAlert, ShieldCheck, ShoppingBag, SlidersHorizontal, Trash2, UserRound, X } from "lucide-react";
-import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallNumberCapabilities, type CallNumberCountry, type CallNumberPrice, type CallPersona, type CallPersonaId, type CallPhoneNumber, type CallPhoneNumberOption, type CallProfile, type CallReadiness, type CallRecord, type CallTone, type Task } from "@/lib/chusky-api";
+import { chuskyApi, type CallCapability, type CallConnectedAccount, type CallDisclosure, type CallInboundRoute, type CallMode, type CallNumberCapabilities, type CallNumberCountry, type CallNumberPrice, type CallPersona, type CallPersonaId, type CallPhoneNumber, type CallPhoneNumberOption, type CallProfile, type CallRecord, type CallTone, type Task } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -55,36 +55,11 @@ function profileFromRoute(route: CallInboundRoute): CallPhoneNumber {
   return { phoneNumber: route.phoneNumber, displayName: route.voiceProfile.organization || route.voiceProfile.identity, source: "external", callProfile: route.callProfile, provider: route.provider, purpose: route.purpose, updatedAt: route.updatedAt };
 }
 
-function readinessTone(status: CallReadiness["status"]): "green" | "amber" | "gray" {
-  return status === "ready" ? "green" : status === "blocked" ? "amber" : "gray";
-}
-
-function readinessLabel(status: CallReadiness["status"]) {
-  return status === "ready" ? "Ready for controlled activation" : status === "blocked" ? "Activation blocked" : "Verification pending";
-}
-
-function CallReadinessCard({ readiness, loading, onRefresh }: { readiness?: CallReadiness; loading: boolean; onRefresh: () => void }) {
-  if (!readiness && !loading) return null;
-  const unresolved = readiness?.checks.filter((check) => check.required && check.status !== "complete") ?? [];
-  return <Card className="mb-4 border-foreground/15 p-4 sm:mb-5 sm:p-5">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.05]"><ShieldCheck size={16} /></span>
-        <div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Voice readiness</p><h2 className="mt-1 text-sm font-medium">Production activation checklist</h2><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Calling can be tested only as far as the verified deployment gates allow. Customer number sales stay protected until billing and regulatory checks pass.</p></div>
-      </div>
-      <div className="flex shrink-0 items-center gap-2"><Status tone={readiness ? readinessTone(readiness.status) : "gray"}>{readiness ? readinessLabel(readiness.status) : "Loading"}</Status><Button secondary onClick={onRefresh} disabled={loading} aria-label="Refresh voice readiness">{loading ? <LoaderCircle size={12} className="animate-spin" /> : <RefreshCw size={12} />}</Button></div>
-    </div>
-    {readiness && <details className="mt-4 border-t border-foreground/10 pt-3"><summary className="cursor-pointer text-[11px] font-medium">{unresolved.length ? `${unresolved.length} required check${unresolved.length === 1 ? "" : "s"} remain` : "View activation checks"}</summary><div className="mt-3 grid gap-2 sm:grid-cols-2">{readiness.checks.map((check) => <div key={check.id} className="flex items-start gap-2 border border-foreground/10 p-2.5"><span className="mt-0.5 shrink-0">{check.status === "complete" ? <CheckCircle2 size={13} className="text-emerald-600" /> : check.status === "blocked" ? <ShieldAlert size={13} className="text-amber-700" /> : <AlertTriangle size={13} className="text-muted-foreground" />}</span><div className="min-w-0"><p className="text-[11px] font-medium">{check.title}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{check.detail}</p></div></div>)}</div></details>}
-  </Card>;
-}
-
 export function CallsPage() {
   const [section, setSection] = useState<CallsSection>("numbers");
   const [calls, setCalls] = useState<CallRecord[]>();
   const [nextCallsCursor, setNextCallsCursor] = useState<number>();
   const [callsLoading, setCallsLoading] = useState(false);
-  const [readiness, setReadiness] = useState<CallReadiness>();
-  const [readinessLoading, setReadinessLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>();
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksError, setTasksError] = useState<string>();
@@ -236,18 +211,6 @@ export function CallsPage() {
     }
   };
 
-  const loadReadiness = async () => {
-    setReadinessLoading(true);
-    try {
-      const result = await chuskyApi.account.calls.readiness();
-      setReadiness(result.data);
-    } catch {
-      setReadiness(undefined);
-    } finally {
-      setReadinessLoading(false);
-    }
-  };
-
   const loadProfile = async () => {
     try {
       const result = await chuskyApi.account.calls.profile.get();
@@ -286,7 +249,6 @@ export function CallsPage() {
 
   useEffect(() => {
     void load();
-    void loadReadiness();
     void loadProfile();
     void loadPersonas();
     void loadNumbers();
@@ -294,7 +256,6 @@ export function CallsPage() {
   }, []);
   useLiveData(() => {
     void load();
-    void loadReadiness();
     void loadProfile();
     void loadPersonas();
     void loadNumbers();
@@ -514,9 +475,8 @@ export function CallsPage() {
   ];
 
   return <div data-calls-page className="min-w-0 max-w-full overflow-x-clip">
-    <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadReadiness(); void loadProfile(); void loadPersonas(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
+    <PageHeading eyebrow="Voice workspace" title="Calls, with you in control." description="Choose a phone number, configure your representative, and keep every call outcome in one place." action={<Button secondary onClick={() => { void load(); void loadProfile(); void loadPersonas(); void loadNumbers(); }}><RefreshCw size={13} /> <span className="hidden sm:inline">Refresh</span></Button>} />
     {error && <Card className="mb-4 border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 sm:mb-5 sm:p-4"><div className="flex gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0" /><div><p>{error}</p>{setupRequired && <p className="mt-1.5 text-amber-900/70">Verify your web account in Settings before using voice calls.</p>}</div></div></Card>}
-    <CallReadinessCard readiness={readiness} loading={readinessLoading} onRefresh={() => void loadReadiness()} />
 
     <nav aria-label="Calls sections" className="mb-5 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-foreground/10 sm:flex sm:gap-1 sm:overflow-x-auto sm:rounded-none sm:border-x-0 sm:border-b">
       {sections.map((item) => <button key={item.id} type="button" title={item.description} onClick={() => setSection(item.id)} aria-current={section === item.id ? "page" : undefined} className={`min-h-12 min-w-0 border-b-2 px-2 py-2 text-center text-[11px] font-medium leading-4 transition-colors sm:min-h-11 sm:shrink-0 sm:whitespace-nowrap sm:px-3 sm:py-3 sm:text-left ${section === item.id ? "border-foreground bg-foreground/[0.04] text-foreground" : "border-transparent text-muted-foreground hover:bg-foreground/[0.03] hover:text-foreground"}`}>{item.label}</button>)}
