@@ -65,12 +65,18 @@ const cleanActivityCopy = (value?: string): string | undefined => {
 };
 
 const genericActivityCopy = /^(?:i['’]?m|i am)?\s*(?:taking care of that|working(?: through your request| on it)?|processing (?:your request|that|it)|handling (?:that|it)|running(?: now)?|connected app action|remote connected app action|one moment)[\s.!…]*$/i;
-const genericProgressCopy = /^(?:preparing your request|researching the request|executing the next action|working(?: now| on it| through your request)?|running(?: now)?|pulling everything together|chusky is (?:organizing|keeping the work visible|preparing)(?: the right context)?(?: before it acts)?|i['’]?m\s+(?:understanding(?: your request| what you need)?|finding (?:the )?relevant tools?|checking (?:your )?(?:notes|memory|reminders|connected apps|calendar|email)|lining up (?:the )?best way(?: to help)?|taking care of (?:that|it)))[\s.!…]*$/i;
+const genericProgressCopy = /^(?:preparing your request|researching the request|executing the next action|working(?: now| on it| through your request)?|running(?: now)?|pulling everything together|chusky is (?:organizing|keeping the work visible|preparing)(?: the right context)?(?: before it acts)?|i['’]?m\s+(?:understanding(?: your request| what you need)?|finding (?:the )?relevant tools?|finding the right connected capability|checking (?:your )?(?:notes|memory|reminders|connected apps|calendar|email)|checking how (?:that )?capability works|carrying (?:those )?steps? out through the connected apps?|using [^.!?…]+ to [^.!?…]+|lining up (?:the )?best way(?: to help)?|taking care of (?:that|it)))[\s.!…]*$/i;
+
+// Tool lifecycle events are already rendered with the real toolkit logo and
+// action name. The older status stream also emits an emoji-prefixed sentence
+// for the same event (for example, “I’m using Gmail to fetch…”). Keep that
+// narration for Telegram, but never let it become a duplicate chat message.
+const internalToolStatusCopy = /^i['’]?m\s+[^.!?]{2,220}(?:…|\.{3})[\s.!]*$/i;
 
 /** True when a lifecycle line is only filler and adds no user-visible information. */
 export function isGenericProgressText(value?: string): boolean {
   const candidate = cleanActivityCopy(value);
-  return Boolean(candidate && (genericActivityCopy.test(candidate) || genericProgressCopy.test(candidate)));
+  return Boolean(candidate && (genericActivityCopy.test(candidate) || genericProgressCopy.test(candidate) || internalToolStatusCopy.test(candidate)));
 }
 
 const providerNameForActivity = (activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName">): string | undefined => {
@@ -127,9 +133,9 @@ export function activityTitle(activity: Pick<ActivityCopy, "toolSlug" | "toolkit
   const supplied = [activity.actionLabel, activity.message]
     .map(cleanActivityCopy)
     .map((value) => value && legacyLabel && looksLikeLegacyToolLabel(value, activity.toolSlug) ? legacyLabel : value)
-    .find((value) => value && !genericActivityCopy.test(value));
+    .find((value) => value && !isGenericProgressText(value));
   const provider = providerNameForActivity(activity);
-  if (supplied && !genericActivityCopy.test(supplied)) {
+  if (supplied && !isGenericProgressText(supplied)) {
     if (!provider || supplied.toLowerCase().startsWith(`${provider.toLowerCase()} ·`)) return supplied;
     return `${provider} · ${supplied}`;
   }
@@ -342,7 +348,7 @@ export function activityDetailLine(activity: ActivityCopy, current = false): str
   const summary = activityDetailSummary(activity.summary);
   if (summary && summary.toLowerCase() !== title.toLowerCase()) return summary;
   const message = cleanActivityCopy(activity.message);
-  if (message && !genericActivityCopy.test(message) && message.toLowerCase() !== title.toLowerCase()) return message;
+  if (message && !isGenericProgressText(message) && message.toLowerCase() !== title.toLowerCase()) return message;
   if (current) return "Running now";
   return activityStatusLabel(activity);
 }
@@ -370,6 +376,39 @@ export function actionTokenForActivity(activity: Pick<PresentedToolActivity, "to
     ? normalizedSlug.slice(compactToolkit.length + 1)
     : normalizedSlug;
   return withoutToolkit.toLowerCase() || "action";
+}
+
+type ActivityGroupKind = "searches" | "lists" | "reads" | "commands" | "changes" | "actions";
+const activityGroupLabels: Record<ActivityGroupKind, string> = {
+  searches: "search",
+  lists: "list",
+  reads: "read",
+  commands: "command",
+  changes: "change",
+  actions: "action",
+};
+
+const activityGroupKind = (activity: Pick<PresentedToolActivity, "toolSlug" | "toolkitSlug">): ActivityGroupKind => {
+  const token = actionTokenForActivity(activity);
+  if (/(?:search|find|query|lookup|explor)/i.test(token)) return "searches";
+  if (/(?:^|_)(?:list|enumerat)/i.test(token)) return "lists";
+  if (/(?:read|open|fetch|get|inspect|load|view)/i.test(token)) return "reads";
+  if (/(?:run|execut|command|shell|bash|terminal|workbench|pty)/i.test(token)) return "commands";
+  if (/(?:edit|write|update|replace|create|delete|move|save|set)/i.test(token)) return "changes";
+  return "actions";
+};
+
+/** A compact, data-derived label for a collapsible group of consecutive tools. */
+export function activityGroupSummary(activities: readonly PresentedToolActivity[]): string {
+  const counts = new Map<ActivityGroupKind, number>();
+  for (const activity of activities) {
+    const kind = activityGroupKind(activity);
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  const details = [...counts.entries()]
+    .map(([kind, count]) => `${count} ${activityGroupLabels[kind]}${count === 1 ? "" : "s"}`)
+    .join(" · ");
+  return `${activities.length} tool call${activities.length === 1 ? "" : "s"}${details ? ` · ${details}` : ""}`;
 }
 
 /** Result summaries are optional detail, not the primary action label. */

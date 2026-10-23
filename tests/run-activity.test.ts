@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { remainingTimelineAnswer } from "../lib/run-activity.js";
-import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
+import { actionTokenForActivity, activityDetailLine, activityDetailSummary, activityGroupSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, isGenericProgressText, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type SubagentActivity, type ToolActivity } from "../lib/run-activity.js";
 
 const activity = (id: string, status: ToolActivity["status"], at: number, overrides: Partial<ToolActivity> = {}): ToolActivity => ({
   id,
@@ -250,6 +250,36 @@ test("chat output removes only exact generic progress filler", () => {
   assert.equal(stripGenericProgressText("I’m taking care of that for your customers."), "I’m taking care of that for your customers.");
   assert.equal(stripGenericProgressText("🧠 I’m understanding what you need…\n🧭 I’m finding the relevant tools…\n📝 I’m checking your notes…"), "");
   assert.equal(stripGenericProgressText("Pulling everything together…"), "");
+});
+
+test("chat hides duplicate emoji lifecycle narration while keeping concrete tool rows", () => {
+  const duplicateStatus = [
+    "🧩 I’m checking how that capability works…",
+    "🔎 I’m finding the right connected capability…",
+    "⚡ I’m carrying those steps out through the connected apps…",
+    "⚙️ I’m using Gmail to fetch message by message id…",
+  ];
+  for (const text of duplicateStatus) assert.equal(isGenericProgressText(text), true, text);
+
+  const statuses = presentRunStatusUpdates(duplicateStatus.map((text, index) => ({ id: `status-${index}`, type: "run.status", at: index, text })));
+  assert.deepEqual(statuses, []);
+
+  const timeline = presentRunTimeline([
+    { id: "generic", type: "run.status", at: 1, text: duplicateStatus[0] },
+    { id: "tool-start", type: "run.tool_activity", at: 2, toolSlug: "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID", toolkitSlug: "gmail", toolkitName: "Gmail", status: "started", message: duplicateStatus[3], callId: "gmail-1" },
+    { id: "tool-done", type: "run.tool_activity", at: 3, toolSlug: "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID", toolkitSlug: "gmail", toolkitName: "Gmail", status: "completed", message: duplicateStatus[3], summary: "Message loaded", callId: "gmail-1" },
+  ]);
+  assert.deepEqual(timeline.map((entry) => entry.kind), ["tools"]);
+  assert.equal(timeline[0]?.kind === "tools" ? timeline[0].activities[0]?.toolkitName : undefined, "Gmail");
+});
+
+test("tool groups expose a compact data-derived summary", () => {
+  const activities: PresentedToolActivity[] = [
+    { ...activity("search", "completed", 1, { toolSlug: "CHUCK_SEARCH_FILES", toolkitName: "Chusky" }), status: "completed" },
+    { ...activity("read", "completed", 2, { toolSlug: "CHUCK_READ_FILE", toolkitName: "Chusky" }), status: "completed" },
+    { ...activity("command", "completed", 3, { toolSlug: "CHUCK_EXECUTE_COMMAND", toolkitName: "Chusky" }), status: "completed" },
+  ];
+  assert.equal(activityGroupSummary(activities), "3 tool calls · 1 search · 1 read · 1 command");
 });
 
 test("run status updates remain chronological and append instead of replacing prior notes", () => {

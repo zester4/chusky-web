@@ -40,7 +40,7 @@ import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
-import { activityDetailLine, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, isGenericProgressText, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type RunStatusUpdate, type RunTimelineEntry, type RunTimelineSourceEvent, type SubagentActivity } from "@/lib/run-activity";
+import { activityDetailLine, activityGroupSummary, activityStatusLabel, activityTitle, coalesceSubagentActivities, coalesceToolActivities, isGenericProgressText, presentRunStatusUpdates, presentRunTimeline, presentToolActivities, stripGenericProgressText, toolkitSlugForActivity, upsertRunStatusUpdate, upsertSubagentActivity, upsertToolActivity, type PresentedToolActivity, type RunStatusUpdate, type RunTimelineEntry, type RunTimelineSourceEvent, type SubagentActivity } from "@/lib/run-activity";
 import { CHUSKY_DATA_CHANGED, notifyChuskyDataChanged } from "@/lib/live-sync";
 import { shouldUseChatReturnCache } from "@/lib/chat-cache-policy";
 import { remainingTimelineAnswer } from "@/lib/run-activity";
@@ -384,6 +384,31 @@ function ActivityDetailList({ activities, subagentActivities, toolkitCatalogue, 
   </ol>;
 }
 
+function ActivityGroupBrand({ activities }: { activities: PresentedToolActivity[] }) {
+  const first = activities[0];
+  const providerKey = (activity: PresentedToolActivity) => activity.toolSlug.startsWith("CHUCK_") ? "native" : activity.toolkitSlug?.toLowerCase() || activity.toolkitName?.toLowerCase() || activity.toolSlug;
+  const sameProvider = Boolean(first && providerKey(first) !== "native" && activities.every((activity) => providerKey(activity) === providerKey(first)));
+  if (first && sameProvider) return <ActivityBrand toolSlug={first.toolSlug} toolkitSlug={first.toolkitSlug} toolkitName={first.toolkitName} toolkitLogo={first.toolkitLogo} size={16} />;
+  return <ListChecks size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
+}
+
+function ActivityToolGroup({ activities, subagentActivities, toolkitCatalogue, pending }: { activities: PresentedToolActivity[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean }) {
+  if (activities.length <= 1) return <ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} />;
+  const active = activities.some((activity) => pending && activity.status === "started");
+  const hasAttention = activities.some((activity) => activity.status === "failed" || activity.status === "approval_required");
+  return <details className="chat-tool-group-disclosure" open>
+    <summary className="chat-tool-group-summary">
+      <ActivityGroupBrand activities={activities} />
+      <span className="chat-tool-group-title" title={activityGroupSummary(activities)}>{activityGroupSummary(activities)}</span>
+      <span className={`chat-tool-group-state ${active ? "is-active" : hasAttention ? "is-attention" : ""}`}>{active ? "Running" : hasAttention ? "Needs attention" : "Done"}</span>
+      <ChevronDown size={14} aria-hidden="true" className="chat-tool-group-chevron" />
+    </summary>
+    <div className="chat-tool-group-content">
+      <ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} />
+    </div>
+  </details>;
+}
+
 function ActivityNarrative({ timeline, activities, statusUpdates, subagentActivities, toolkitCatalogue, pending, progress }: { timeline?: RunTimelineEntry[]; activities: PresentedToolActivity[]; statusUpdates: RunStatusUpdate[]; subagentActivities?: RunSubagentActivity[]; toolkitCatalogue: Record<string, Toolkit>; pending: boolean; progress?: RunProgress }) {
   const waiting = Boolean(progress?.requiresApproval || progress?.phase === "waiting");
   const visibleTimeline = timeline?.length ? timeline : [
@@ -396,7 +421,7 @@ function ActivityNarrative({ timeline, activities, statusUpdates, subagentActivi
   return <div className="chat-run-timeline my-2" aria-label="Agent activity">
     {visibleTimeline.map((entry) => entry.kind === "status"
       ? <p key={entry.id} className="chat-run-narrative" role="status" aria-live={pending ? "polite" : undefined}>{entry.text}</p>
-      : <div key={entry.id} className="chat-run-tool-group"><ActivityDetailList activities={entry.activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} /></div>)}
+      : <div key={entry.id} className="chat-run-tool-group"><ActivityToolGroup activities={entry.activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} /></div>)}
     {showProgress && progress ? <CompactProgressRow progress={progress} pending={pending} /> : null}
   </div>;
 }
