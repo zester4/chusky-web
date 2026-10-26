@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Activity, Clock3, Database, ExternalLink, Gauge, Radio, RefreshCw, Server, ShieldCheck, TriangleAlert, Wifi } from "lucide-react";
 import { chuskyApi, type AccountOverview, type HealthSnapshot, type ReliabilityHealth, type OperatorTraceEvent, type Compensation } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
+import { DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ChannelLogo, channelBrand } from "./channel-brand";
 
@@ -42,7 +43,7 @@ export function OperationsDashboard({ deliveryOnly = false }: { deliveryOnly?: b
     }
   };
   useEffect(() => { void load(); }, []);
-  useLiveData(load, 30_000);
+  useLiveData(load, DASHBOARD_REFRESH_INTERVAL_MS);
 
   return <>
     <PageHeading eyebrow={deliveryOnly ? "Delivery control" : "Operations center"} title={deliveryOnly ? "Delivery you can trust." : "Everything is in view."} description={deliveryOnly ? "Watch the channels and failure signals that move work from Chusky to your people." : "A clear read on Chusky’s runtime, connected channels, and durable delivery path."} action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13} /></span> Refresh</Button>} />

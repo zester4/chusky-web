@@ -6,6 +6,7 @@ import { Activity, Building2, CalendarClock, Check, Clock3, ExternalLink, Langua
 import { chuskyApi, type ConnectedAccount, type Meeting, type MeetingCapability, type MeetingContact, type MeetingContextSnapshot, type MeetingNativeCapability, type MeetingProviderCapabilities, type MeetingRepresentativeProfile, type MeetingRoom, type MeetingRoomPolicy, type MeetingWorkspace } from "@/lib/chusky-api";
 import { authClient } from "@/lib/auth-client";
 import { useLiveData } from "@/lib/live-sync";
+import { DASHBOARD_REFRESH_INTERVAL_MS } from "@/lib/polling-policy";
 import { Button, Card, PageHeading, Status } from "./app-shell";
 import { ConfirmDialog } from "./confirm-dialog";
 import { ProviderVoiceSettings } from "./provider-voice-settings";
@@ -116,7 +117,7 @@ export function MeetingsPage() {
     };
   }, [organizationId]);
   const hasActiveMeetings = Boolean(workspace?.meetings.some((meeting) => ["creating", "scheduled", "joining", "waiting_room", "in_call", "leaving"].includes(meeting.status)));
-  useLiveData(() => load(false), hasActiveMeetings ? 5_000 : 15_000);
+  useLiveData(() => load(false), hasActiveMeetings ? 10_000 : DASHBOARD_REFRESH_INTERVAL_MS);
 
   const saveProfile = async () => {
     setBusy("profile"); setError(undefined); setNotice(undefined);

@@ -12,8 +12,11 @@ export const ACTIVE_MISSION_REFRESH_INTERVAL_MS = 60_000; // 1 min — was 15 s
 /** Stop background refreshes sooner when a dashboard has been left unattended. */
 export const DASHBOARD_IDLE_TIMEOUT_MS = 60_000; // 1 min idle → pause polling (was 2 min)
 
-/** Avoid duplicate API refreshes caused by focus and visibility events firing together. */
-export const DASHBOARD_RETURN_REFRESH_COOLDOWN_MS = 30_000; // 30 s cooldown (was 15 s)
+/**
+ * Avoid duplicate API refreshes caused by focus and visibility events firing together.
+ * Refreshes on return only if away from the tab for at least 5 minutes.
+ */
+export const DASHBOARD_RETURN_REFRESH_COOLDOWN_MS = 300_000; // 5 min cooldown before return refresh
 
 /** Fallback cadence used only while a run is genuinely active and SSE is unavailable. */
 export const ACTIVE_RUN_RECOVERY_INTERVAL_MS = 10_000; // 10 s — was 5 s

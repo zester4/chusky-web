@@ -36,7 +36,7 @@ import {
     X,
 } from "lucide-react";
 import { chuskyApi, type AccountOverview, type Artifact, type AttentionCandidate, type Model, type PrivateRunLink, type Run, type RunImage, type RunProgress, type RunProgressPhase, type RunStreamEvent, type RunSubagentActivity, type RunToolActivity, type Thread, type Toolkit, type TriggerEventAction, type TriggerEventActivity } from "@/lib/chusky-api";
-import { ACTIVE_RUN_RECOVERY_INTERVAL_MS } from "@/lib/polling-policy";
+import { ACTIVE_RUN_RECOVERY_INTERVAL_MS, DASHBOARD_RETURN_REFRESH_COOLDOWN_MS } from "@/lib/polling-policy";
 import { authClient } from "@/lib/auth-client";
 import { approvalRecoveryState } from "@/lib/approval-recovery";
 import { consumeOnboardingActivationDraft } from "@/lib/onboarding";
@@ -1059,7 +1059,7 @@ export function ChatPage() {
     if (!thread?.id) return;
     const recover = () => {
       if (document.visibilityState === "hidden") return;
-      if (Date.now() - lastReturnRefreshAtRef.current < 15_000) return;
+      if (Date.now() - lastReturnRefreshAtRef.current < DASHBOARD_RETURN_REFRESH_COOLDOWN_MS) return;
       void refreshCurrentThreadRef.current?.();
     };
     window.addEventListener("focus", recover);
