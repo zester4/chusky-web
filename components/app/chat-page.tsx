@@ -1084,7 +1084,8 @@ export function ChatPage() {
       }));
       if (active && runIds.length) timer = window.setTimeout(() => void poll(), ACTIVE_RUN_RECOVERY_INTERVAL_MS);
     };
-    timer = window.setTimeout(() => void poll(), ACTIVE_RUN_RECOVERY_INTERVAL_MS);
+    const initialRunIds = [...new Set(messagesRef.current.filter((item) => item.role === "assistant" && item.pending && item.runId).map((item) => item.runId!))];
+    if (initialRunIds.length) timer = window.setTimeout(() => void poll(), ACTIVE_RUN_RECOVERY_INTERVAL_MS);
     return () => { active = false; if (timer !== undefined) window.clearTimeout(timer); };
   }, [thread?.id]);
 

@@ -1,21 +1,22 @@
 /**
  * Dashboard refreshes are a freshness fallback, not a transport mechanism.
- * Successful writes and visibility/focus events already trigger immediate
- * refreshes through useLiveData, so background polling stays bounded.
+ * SSE (EventSource) delivers real-time updates instantly; background polling
+ * is only a safety net for when the SSE connection is disrupted. Keep these
+ * intervals long to avoid unnecessary Redis reads on the server.
  */
-export const DASHBOARD_REFRESH_INTERVAL_MS = 60_000;
+export const DASHBOARD_REFRESH_INTERVAL_MS = 300_000; // 5 min — SSE handles real-time delivery
 
-/** More frequent, still bounded refreshes while durable missions can transition. */
-export const ACTIVE_MISSION_REFRESH_INTERVAL_MS = 15_000;
+/** Bounded fallback while durable missions can transition; SSE fires first. */
+export const ACTIVE_MISSION_REFRESH_INTERVAL_MS = 60_000; // 1 min — was 15 s
 
-/** Stop background refreshes when a dashboard has been left unattended. */
-export const DASHBOARD_IDLE_TIMEOUT_MS = 120_000;
+/** Stop background refreshes sooner when a dashboard has been left unattended. */
+export const DASHBOARD_IDLE_TIMEOUT_MS = 60_000; // 1 min idle → pause polling (was 2 min)
 
 /** Avoid duplicate API refreshes caused by focus and visibility events firing together. */
-export const DASHBOARD_RETURN_REFRESH_COOLDOWN_MS = 15_000;
+export const DASHBOARD_RETURN_REFRESH_COOLDOWN_MS = 30_000; // 30 s cooldown (was 15 s)
 
-/** Fallback cadence used only while a run is genuinely active. */
-export const ACTIVE_RUN_RECOVERY_INTERVAL_MS = 5_000;
+/** Fallback cadence used only while a run is genuinely active and SSE is unavailable. */
+export const ACTIVE_RUN_RECOVERY_INTERVAL_MS = 10_000; // 10 s — was 5 s
 
 export function shouldPollDashboard(input: { visibilityState: string; lastActivityAt: number; now: number }): boolean {
   return input.visibilityState === "visible" && input.now - input.lastActivityAt < DASHBOARD_IDLE_TIMEOUT_MS;

@@ -4,9 +4,9 @@ import { CHAT_RETURN_CACHE_MAX_AGE_MS, shouldUseChatReturnCache } from "../lib/c
 import { ACTIVE_MISSION_REFRESH_INTERVAL_MS, ACTIVE_RUN_RECOVERY_INTERVAL_MS, DASHBOARD_IDLE_TIMEOUT_MS, DASHBOARD_REFRESH_INTERVAL_MS, DASHBOARD_RETURN_REFRESH_COOLDOWN_MS, shouldPollDashboard, shouldRefreshAfterReturn } from "../lib/polling-policy";
 
 test("dashboard refreshes use a bounded background cadence", () => {
-  assert.equal(DASHBOARD_REFRESH_INTERVAL_MS, 60_000);
+  assert.equal(DASHBOARD_REFRESH_INTERVAL_MS, 300_000);
   assert.ok(DASHBOARD_REFRESH_INTERVAL_MS >= 30_000);
-  assert.equal(ACTIVE_MISSION_REFRESH_INTERVAL_MS, 15_000);
+  assert.equal(ACTIVE_MISSION_REFRESH_INTERVAL_MS, 60_000);
   assert.ok(ACTIVE_MISSION_REFRESH_INTERVAL_MS < DASHBOARD_REFRESH_INTERVAL_MS);
 });
 
@@ -25,7 +25,7 @@ test("returning to the dashboard does not duplicate a recent refresh", () => {
 });
 
 test("run recovery is bounded while remaining faster than dashboard refresh", () => {
-  assert.equal(ACTIVE_RUN_RECOVERY_INTERVAL_MS, 5_000);
+  assert.equal(ACTIVE_RUN_RECOVERY_INTERVAL_MS, 10_000);
   assert.ok(ACTIVE_RUN_RECOVERY_INTERVAL_MS >= 5_000);
   assert.ok(ACTIVE_RUN_RECOVERY_INTERVAL_MS < DASHBOARD_REFRESH_INTERVAL_MS);
 });
