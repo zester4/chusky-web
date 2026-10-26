@@ -680,7 +680,7 @@ export function ChatPage() {
   const uploadAbortControllersRef = useRef(new Map<string, AbortController>());
   const refreshCurrentThreadRef = useRef<(() => Promise<void>) | undefined>(undefined);
   const refreshInFlightRef = useRef(false);
-  const lastReturnRefreshAtRef = useRef(0);
+  const lastReturnRefreshAtRef = useRef(Date.now());
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const noticeTimerRef = useRef<number | undefined>(undefined);
   const toolkitLookupsRef = useRef(new Set<string>());

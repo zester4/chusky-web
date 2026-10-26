@@ -156,7 +156,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [dismissedPulseReceiptId, setDismissedPulseReceiptId] = useState<string>();
   const [missionToastId, setMissionToastId] = useState<string>();
   const [readTaskIds, setReadTaskIds] = useState<Set<string>>(() => new Set());
-  const lastActivityRefreshAtRef = useRef(0);
+  const lastActivityRefreshAtRef = useRef(Date.now());
   const dashboardLastActivityAtRef = useRef(0);
   const accountRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const { data: session } = authClient.useSession();

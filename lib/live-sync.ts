@@ -46,7 +46,7 @@ export function useLiveData(load: () => void | Promise<void>, intervalMs = DASHB
   const loadRef = useRef(load);
   const loadingRef = useRef(false);
   const mountedActiveRef = useRef(false);
-  const lastRefreshAtRef = useRef(0);
+  const lastRefreshAtRef = useRef(Date.now());
   const lastActivityAtRef = useRef(0);
   const lastActivityAt = useDashboardActivity();
   useEffect(() => { loadRef.current = load; }, [load]);
