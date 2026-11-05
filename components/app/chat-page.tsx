@@ -319,21 +319,28 @@ function RunFailureCard({ failure, onRetry }: { failure: Message["failure"]; onR
 
 function PrivateBrowserLinkCard({ link }: { link: PrivateRunLink }) {
   const liveView = link.kind === "browser_live_view";
-  const expires = link.expiresAt
-    ? new Date(link.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    : undefined;
-  return <div className={`max-w-xl rounded-lg border p-3 ${liveView ? "border-foreground/10 bg-muted/40" : "border-amber-500/30 bg-amber-500/5"}`}>
+  if (liveView) {
+    return <div className="w-full overflow-hidden rounded-lg border border-foreground/10 bg-black">
+      <iframe
+        src={link.url}
+        title="Live browser view"
+        className="block aspect-video w-full border-0"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        sandbox="allow-scripts allow-same-origin"
+      />
+    </div>;
+  }
+  return <div className="max-w-xl rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
     <div className="flex items-start gap-2">
       <Globe2 size={14} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="min-w-0">
-        <p className="text-xs font-medium">{liveView ? "Live browser view" : "Action needed in the private browser"}</p>
+        <p className="text-xs font-medium">Action needed in the private browser</p>
         <a href={link.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center rounded-full bg-foreground px-3 py-2 text-[11px] text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
           {link.label}
         </a>
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-          {liveView
-            ? `Private view of the open browser tab.${expires ? ` Expires at ${expires}.` : " This link expires soon."}`
-            : "Complete the website step, then return here and say “continue”. This link expires soon."}
+          Complete the website step, then return here and say “continue”. This link expires soon.
         </p>
       </div>
     </div>
