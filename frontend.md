@@ -64,6 +64,8 @@ history or connection state.
 
 - `components/app/chat-page.tsx` has bordered, rounded message bubbles, a
   rounded composer, and an upward-arrow send button.
+- Private browser links in chat use a compact card that distinguishes a
+  read-only live view from a human handoff and shows the live-view expiry.
 - The chat workspace keeps a compact saved-chat rail with explicit **New chat**
   and **View all conversations** actions. Starting a chat creates a new durable
   thread; it does not replace or clear the previous thread. The first message

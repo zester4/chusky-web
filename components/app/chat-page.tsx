@@ -317,6 +317,29 @@ function RunFailureCard({ failure, onRetry }: { failure: Message["failure"]; onR
   </div>;
 }
 
+function PrivateBrowserLinkCard({ link }: { link: PrivateRunLink }) {
+  const liveView = link.kind === "browser_live_view";
+  const expires = link.expiresAt
+    ? new Date(link.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : undefined;
+  return <div className={`max-w-xl rounded-lg border p-3 ${liveView ? "border-foreground/10 bg-muted/40" : "border-amber-500/30 bg-amber-500/5"}`}>
+    <div className="flex items-start gap-2">
+      <Globe2 size={14} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium">{liveView ? "Live browser view" : "Action needed in the private browser"}</p>
+        <a href={link.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center rounded-full bg-foreground px-3 py-2 text-[11px] text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+          {link.label}
+        </a>
+        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+          {liveView
+            ? `Private view of the open browser tab.${expires ? ` Expires at ${expires}.` : " This link expires soon."}`
+            : "Complete the website step, then return here and say “continue”. This link expires soon."}
+        </p>
+      </div>
+    </div>
+  </div>;
+}
+
 const lookupActivityToolkit = (activity: PresentedToolActivity, catalogue: Record<string, Toolkit>) => {
   const slug = toolkitSlugForActivity(activity);
   const toolkit = slug ? catalogue[slug] : undefined;
@@ -1782,7 +1805,7 @@ export function ChatPage() {
                     {item.failure ? <RunFailureCard failure={item.failure} onRetry={() => retryFailedMessage(index)} /> : null}
                     {item.role === "assistant" && item.artifacts?.length ? <div className="mt-2 space-y-2">{item.artifacts.map((artifact) => <ArtifactCard key={artifact.id} artifact={artifact} />)}</div> : null}
                     {item.role === "assistant" && item.images?.length ? item.images.length > 1 ? <GeneratedImageGallery images={item.images} /> : <GeneratedImageCard image={item.images[0]} /> : null}
-                    {item.role === "assistant" && item.privateLinks?.length ? <div className="mt-3 space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3"><p className="text-xs font-medium">Action needed in the private browser</p>{item.privateLinks.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-foreground px-3 py-2 text-[11px] text-background">{link.label}</a>)}<p className="text-[10px] leading-4 text-muted-foreground">Complete the website step, then return here and say “continue”. This link expires soon.</p></div> : null}
+                    {item.role === "assistant" && item.privateLinks?.length ? <div className="mt-3 space-y-2">{item.privateLinks.map((link) => <PrivateBrowserLinkCard key={link.url} link={link} />)}</div> : null}
                     {item.attachments?.length ? <div className="mt-2 flex flex-wrap gap-2">{item.attachments.map((file) => <SentAttachment key={file.id} file={file} />)}</div> : null}
                     {item.role === "assistant" && item.approvalState === "accepted" ? <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-700 dark:text-emerald-300" role="status"><LoaderCircle size={11} className="animate-spin motion-reduce:animate-none" /> Approval accepted · executing</div> : null}
                     {item.approval && <div className="approval-card mt-4"><div className="approval-card-header"><span className="approval-card-icon"><TriggerLogoGroup text={item.approval.toolSlug} slugs={[item.approval.toolSlug]} size={26} /></span><div className="min-w-0 flex-1"><p className="approval-card-eyebrow"><ShieldCheck size={12} aria-hidden="true" /> Approval required</p><h3 className="approval-card-title">Review before Chusky continues</h3></div></div><p className="approval-card-request">{item.approval.request || `Chusky is waiting to run ${item.approval.toolSlug}.`}</p><div className="approval-card-meta"><span>{triggerProviderBrand(item.approval.toolSlug).name}</span>{formatApprovalExpiry(item.approval.expiresAt) ? <span>Expires {formatApprovalExpiry(item.approval.expiresAt)}</span> : null}</div><div className="approval-card-actions"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="approval-primary">{item.approval.deciding ? "Updating…" : "Approve action"}</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="approval-secondary">Deny</button></div></div>}
