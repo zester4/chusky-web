@@ -69,7 +69,8 @@ export function WorkModesSection() {
             {["Provider-enabled", "Owner-scoped", "Reviewable"].map((value) => (
               <div key={value} className="border border-foreground/10 px-3 py-3 text-[10px] leading-tight text-muted-foreground sm:px-4 sm:py-4 sm:text-xs">
                 <div className="font-medium text-foreground">{value}</div>
-                <div className="mt-1">Availability depends on workspace configuration.</div>
+                {/* Availability note consolidated on Pricing. */}
+                {/* <div className="mt-1">Availability depends on workspace configuration.</div> */}
               </div>
             ))}
           </div>
