@@ -48,7 +48,7 @@
 .explorerAside h2 { font-family: var(--font-instrument-serif); font-size: 36px; line-height: 1.08; letter-spacing: -.025em; margin-top: 16px; }
 .explorerAside > p:not(.eyebrow) { font-size: 16px; line-height: 1.6; color: var(--muted-foreground); margin-top: 16px; max-width: 290px; }
 .exampleChoices { margin-top: 24px; border-top: 1px solid var(--border); }
-.exampleChoice { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid var(--border); padding: 10px 8px; text-align: left; font-size: 14px; color: var(--muted-foreground); cursor: pointer; transition: background 180ms ease-out, color 180ms ease-out; }
+.exampleChoice { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid var(--border); padding: 10px 8px; text-align: left; font-size: 14px; color: var(--muted-foreground); cursor: pointer; transition: background 220ms ease, color 220ms ease, padding 220ms ease, transform 220ms ease; }
 .exampleChoice svg { margin-left: auto; flex-shrink: 0; }
 .exampleChoice[aria-pressed="true"] { color: var(--foreground); background: var(--background); }
 .exampleChoice:hover { background: var(--background); color: var(--foreground); }
@@ -164,7 +164,7 @@
   .heroIntro { margin-top: 24px; }
   .heroIntro > p { font-size: 14px; line-height: 1.55; max-width: 520px; }
   .actions { margin-top: 24px; gap: 12px 20px; }
-  .explorer { grid-template-columns: 1fr; margin-top: 40px; padding: 24px; gap: 24px; }
+  .explorer { grid-template-columns: 1fr; width: calc(100% - 24px); margin-top: 40px; padding: 18px; gap: 24px; }
   .explorerAside h2 { font-size: 32px; }
   .explorerAside > p:not(.eyebrow) { max-width: none; }
   .requestGreeting { font-size: 28px; }

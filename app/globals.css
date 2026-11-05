@@ -38,8 +38,11 @@
   --sidebar-accent-foreground: oklch(0 0 0);
   --sidebar-border: oklch(0.9400 0 0);
   --sidebar-ring: oklch(0 0 0);
-  --chusky-amber: var(--primary);
-  --chusky-amber-rgb: 0 0 0;
+  --chusky-amber: oklch(0.78 0.16 72);
+  --chusky-amber-rgb: 222 157 44;
+  --motion-fast: 160ms;
+  --motion-standard: 240ms;
+  --motion-spring: cubic-bezier(.22, 1, .36, 1);
   --font-instrument: 'Instrument Sans', system-ui, sans-serif;
   --font-instrument-serif: 'Instrument Serif', Georgia, serif;
   --font-jetbrains: 'JetBrains Mono', ui-monospace, monospace;
@@ -85,8 +88,11 @@
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(0.3200 0 0);
   --sidebar-ring: oklch(0.7200 0 0);
-  --chusky-amber: var(--primary);
-  --chusky-amber-rgb: 255 255 255;
+  --chusky-amber: oklch(0.78 0.16 72);
+  --chusky-amber-rgb: 222 157 44;
+  --motion-fast: 160ms;
+  --motion-standard: 240ms;
+  --motion-spring: cubic-bezier(.22, 1, .36, 1);
   --depth-shadow-rgb: 0 0 0;
   --depth-highlight: rgb(255 255 255 / 0.06);
   --depth-surface-gradient: linear-gradient(145deg, color-mix(in srgb, var(--card) 99%, var(--foreground) 1%), color-mix(in srgb, var(--card) 91%, var(--background)));
@@ -137,6 +143,19 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-chusky-amber: var(--chusky-amber);
+}
+
+@keyframes chusky-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chusky-enter {
+  animation: chusky-enter var(--motion-standard) var(--motion-spring) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chusky-enter { animation: none; }
 }
 
 @layer base {

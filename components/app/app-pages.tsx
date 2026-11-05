@@ -77,7 +77,7 @@ export function AppPage({ section }: { section: string }) {
   if (section === "scratchpad") return <ContextPage initialTab="scratchpad" />;
   if (section === "chat") return <ChatPage />;
   if (section === "conversations") return <BackendConversationsPage />;
-  if (["approvals", "reminders", "jobs", "memory", "scratchpad", "devices", "settings"].includes(section)) {
+  if (["approvals", "reminders", "jobs", "memory", "scratchpad", "settings"].includes(section)) {
     return <AccountDataPage kind={section as "approvals" | "apps" | "reminders" | "jobs" | "memory" | "scratchpad" | "triggers" | "devices" | "settings"} />;
   }
   if (section === "tasks") return <WorkPage initialTab="tasks" />;
