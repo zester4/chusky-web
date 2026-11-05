@@ -46,7 +46,7 @@ const features = [
   },
   { 
     title: "Explicit server credentials",
-    description: "Keep project keys on your trusted server and derive caller identity from your own authentication."
+    description: "Keep API keys on your trusted server and derive caller identity from your own authentication."
   },
   { 
     title: "Server-side integration",

@@ -116,7 +116,7 @@ const updates = [
     title: "Generated images are available to API and SDK clients",
     summary: "Completed runs include metadata for generated images saved to the owner's private image store, and the dashboard can render those previews.",
     details: [
-      "The SDK can request a fresh, short-lived download URL through an owner-scoped endpoint; project keys need images:read.",
+      "The SDK can request a fresh, short-lived download URL through an owner-scoped endpoint; API keys need images:read.",
       "Image bytes, object-storage keys, and signed URLs are not stored in run records. The web client refreshes the link when it loads the image.",
     ],
   },

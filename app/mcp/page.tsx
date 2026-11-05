@@ -22,13 +22,13 @@ const config = `{
 }`;
 
 const steps = [
-  { number: "01", icon: KeyRound, title: "Create a project key", description: "In the Chusky app, open Developer API or your organization project and create a project-scoped key with only the permissions your host needs." },
+  { number: "01", icon: KeyRound, title: "Create a API key", description: "In the Chusky app, open Developer API or your organization project and create a project-scoped key with only the permissions your host needs." },
   { number: "02", icon: Plug, title: "Connect your MCP host", description: "Add the Chusky endpoint to Claude, Cursor, an IDE agent, or your own server. Store the key in that host’s secret manager, never in browser code." },
   { number: "03", icon: ShieldCheck, title: "Run with control", description: "Give each caller a stable application identity. Chusky keeps runs, tools, files, approvals, and durable work scoped to that identity." },
 ];
 
 const guarantees = [
-  [LockKeyhole, "Scoped by design", "Project keys carry explicit scopes. Start read-only, then add run or management access only when the workflow requires it."],
+  [LockKeyhole, "Scoped by design", "API keys carry explicit scopes. Start read-only, then add run or management access only when the workflow requires it."],
   [ShieldCheck, "Human approval stays human", "MCP hosts can inspect approval status, but they cannot approve their own external actions."],
   [Terminal, "Built for durable work", "A dropped connection does not erase a run. Reconnect with the returned thread and run IDs to inspect progress or continue safely."],
 ] as const;
@@ -48,7 +48,7 @@ export default function McpLandingPage() {
           <div className="max-w-2xl">
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">From setup to first run</p>
             <h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">A clean path from key to capability.</h2>
-            <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">MCP is the connection layer. Your project key defines what the host may do, and the end-user identity defines whose work it can see.</p>
+            <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">MCP is the connection layer. Your API key defines what the host may do, and the end-user identity defines whose work it can see.</p>
           </div>
           <div className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-foreground/10 bg-foreground/10 md:grid-cols-3">
             {steps.map(({ number, icon: Icon, title, description }) => (

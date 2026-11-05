@@ -5,19 +5,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+// Theme switcher is intentionally hidden while the monochrome homepage is being refined.
 
 const navLinks = [
   { name: "Capabilities", href: "/features" },
   { name: "How it works", href: "/how-it-works" },
   { name: "Integrations", href: "/integrations" },
-  { name: "Developers", href: "/developers" },
+  { name: "Pricing", href: "/pricing" },
+  // { name: "Developers", href: "/developers" },
   // MCP and Docs remain available by direct URL while their navigation placement is being revised.
   // { name: "MCP", href: "/mcp" },
   // { name: "Docs", href: "/docs" },
 ];
 
-export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }: { ctaLabel?: string; ctaHref?: string }) {
+export function Navigation({ ctaLabel = "Get started", ctaHref = "/sign-up" }: { ctaLabel?: string; ctaHref?: string }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -53,9 +54,11 @@ export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }
     >
       <nav 
         className={`relative z-50 mx-auto transition-all duration-500 ${
-          isScrolled || isMobileMenuOpen
-            ? "bg-background/80 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-lg max-w-[1200px]"
-            : "bg-transparent max-w-[1400px]"
+          isMobileMenuOpen
+            ? "bg-background border-b border-foreground/10 rounded-none shadow-none max-w-none"
+            : isScrolled
+              ? "bg-background/80 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-lg max-w-[1200px]"
+              : "bg-transparent max-w-[1400px]"
         }`}
       >
         <div 
@@ -94,7 +97,7 @@ export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }
 
           {/* Desktop CTA */}
           <div className="hidden items-center gap-2 lg:flex xl:gap-3">
-            <ThemeSwitcher className="mr-1" />
+            {/* <ThemeSwitcher className="mr-1" /> */}
             <Link href="/sign-in" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
               Sign in
             </Link>
@@ -136,9 +139,9 @@ export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }
         }`}
         style={{ top: 0 }}
       >
-          <div className="flex h-full flex-col px-5 pt-24 pb-6 sm:px-8 sm:pt-28 sm:pb-8">
+          <div className="flex h-full flex-col px-5 pt-20 pb-5 sm:px-8 sm:pt-24 sm:pb-6">
           {/* Navigation Links */}
-          <div className="flex flex-1 flex-col justify-center gap-6">
+          <div className="flex flex-1 flex-col justify-start gap-4">
             {navLinks.map((link, i) => (
               <a
                 key={link.name}
@@ -164,10 +167,10 @@ export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <ThemeSwitcher className="absolute bottom-[7.25rem] left-5 sm:left-8" />
+            {/* <ThemeSwitcher className="absolute bottom-[7.25rem] left-5 sm:left-8" /> */}
             <Button 
               variant="outline" 
-              className="h-10 flex-1 rounded-full text-sm"
+              className="h-9 flex-1 rounded-full px-3 text-xs"
               asChild
             >
               <Link href="/sign-in" onClick={() => setIsMobileMenuOpen(false)}>Sign in</Link>

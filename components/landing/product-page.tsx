@@ -16,7 +16,7 @@ export function ProductPageHero({ eyebrow, title, description }: ProductPageHero
       <div className={styles.heroLabel}><Link href="/">Chusky</Link><span aria-hidden="true">/</span><span>{eyebrow}</span></div>
       <div className={styles.heroGrid}>
         <h1 id="page-title">{title}</h1>
-        <div className={styles.heroIntro}><p>{description}</p><div className={styles.heroActions}><Link href="/sign-up" className={styles.primaryAction}>Start for Free <ArrowUpRight size={18} aria-hidden="true" /></Link><Link href="/sign-in" className={styles.secondaryAction}>Sign in <ArrowUpRight size={15} aria-hidden="true" /></Link></div></div>
+        <div className={styles.heroIntro}><p>{description}</p><div className={styles.heroActions}><Link href="/sign-up" className={styles.primaryAction}>Get started <ArrowUpRight size={18} aria-hidden="true" /></Link><Link href="/sign-in" className={styles.secondaryAction}>Sign in <ArrowUpRight size={15} aria-hidden="true" /></Link></div></div>
       </div>
     </section>
   );
