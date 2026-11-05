@@ -8,7 +8,7 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <a href="#main-content" className={styles.skipLink}>Skip to content</a>
-      <Navigation ctaLabel="Start for Free" ctaHref="/sign-up" />
+      <Navigation ctaLabel="Get started" ctaHref="/sign-up" />
       <main id="main-content">
         <HeroSection />
         <HomepageSections />

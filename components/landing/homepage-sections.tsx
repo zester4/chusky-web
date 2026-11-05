@@ -61,7 +61,7 @@ export function HomepageSections() {
 
       <section className={styles.faq} aria-labelledby="faq-title"><div><p className={styles.eyebrow}>Before you begin</p><h2 id="faq-title" className={styles.sectionTitle}>A few things<br /><em>worth knowing.</em></h2><Link href="/docs" className={styles.textAction}>Visit the documentation <ArrowUpRight size={17} aria-hidden="true" /></Link></div><div className={styles.faqList}>{questions.map(({ question, answer }) => <details key={question}><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div></section>
 
-      <section className={styles.closing} aria-labelledby="closing-title"><div className={styles.sectionHeader}><p className={styles.eyebrow}>Make room for the work that matters</p><span className={styles.sectionIndex}>Your next step</span></div><div className={styles.closingRow}><h2 id="closing-title">Start<br /><em>for free.</em></h2><div><p>One goal. The steps it takes.<br />The finished work back in your hands.</p><Link href="/sign-up" className={styles.primaryAction}>Start for Free <ArrowUpRight size={18} aria-hidden="true" /></Link></div></div></section>
+      <section className={styles.closing} aria-labelledby="closing-title"><div className={styles.sectionHeader}><p className={styles.eyebrow}>Make room for the work that matters</p><span className={styles.sectionIndex}>Your next step</span></div><div className={styles.closingRow}><h2 id="closing-title">Get<br /><em>started.</em></h2><div><p>One goal. The steps it takes.<br />The finished work back in your hands.</p><Link href="/sign-up" className={styles.primaryAction}>Start for Free <ArrowUpRight size={18} aria-hidden="true" /></Link></div></div></section>
     </>
   );
 }

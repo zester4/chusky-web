@@ -12,7 +12,7 @@ const securityFeatures = [
   {
     icon: Lock,
     title: "Server-side credentials",
-    description: "Provider credentials and project keys stay behind the service boundary instead of being exposed to browser code.",
+    description: "Provider credentials and API keys stay behind the service boundary instead of being exposed to browser code.",
   },
   {
     icon: Eye,

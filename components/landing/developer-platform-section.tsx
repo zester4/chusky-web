@@ -24,7 +24,7 @@ const entryPoints = [
     icon: Braces,
     label: "Remote MCP",
     title: "Give another agent a governed Chusky connection",
-    description: "Connect a compatible remote MCP host with a project key and stable end-user identity. It can discover and call Chusky operations without receiving provider credentials.",
+    description: "Connect a compatible remote MCP host with a API key and stable end-user identity. It can discover and call Chusky operations without receiving provider credentials.",
     href: "/docs/mcp",
     action: "Connect through MCP",
   },
@@ -89,10 +89,10 @@ export function DeveloperPlatformSection() {
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">The integration contract</p>
             <h2 className="mt-4 font-display text-3xl tracking-tight sm:text-5xl">One request, with a durable identity behind it.</h2>
             <p className="mt-5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Call Chusky from a trusted server. Your project key identifies the application; your authenticated user ID identifies whose private threads, files, memories, approvals, and connected accounts the run may use.
+              Call Chusky from a trusted server. Your API key identifies the application; your authenticated user ID identifies whose private threads, files, memories, approvals, and connected accounts the run may use.
             </p>
             <div className="mt-8 space-y-3 text-sm">
-              {["Keep project keys out of browser code", "Derive userId from your own authenticated session", "Persist thread and run IDs in your application", "Treat a disconnected stream as recoverable, not automatically failed"].map((item) => (
+              {["Keep API keys out of browser code", "Derive userId from your own authenticated session", "Persist thread and run IDs in your application", "Treat a disconnected stream as recoverable, not automatically failed"].map((item) => (
                 <div key={item} className="flex items-start gap-3 border-t border-foreground/10 pt-3 text-foreground/80">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
                   <span>{item}</span>

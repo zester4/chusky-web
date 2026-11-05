@@ -34,9 +34,9 @@ const footerLinks: Record<string, Array<{ name: string; href: string; badge?: st
   ],
 };
 
-const socialLinks = [
-  { name: "GitHub", href: "https://github.com/zester4/chusky-web" },
-  { name: "MCP source", href: "https://github.com/zester4/chusky-mcp" },
+const socialLinks: { name: string; href: string }[] = [
+  // { name: "GitHub", href: "https://github.com/zester4/chusky-web" },
+  // { name: "MCP source", href: "https://github.com/zester4/chusky-mcp" },
 ];
 
 export function FooterSection({ quiet = false }: { quiet?: boolean }) {
