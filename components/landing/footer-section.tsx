@@ -15,7 +15,7 @@ const footerLinks: Record<string, Array<{ name: string; href: string; badge?: st
     { name: "Integrations", href: "/integrations" },
   ],
   Developers: [
-    { name: "Documentation", href: "/docs" },
+    // { name: "Documentation", href: "/docs" },
     { name: "API Reference", href: "/api-reference" },
     { name: "SDK", href: "/developers" },
     { name: "Run states", href: "/status" },

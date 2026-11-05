@@ -9,7 +9,7 @@ export function HeroSection() {
       <div className={styles.heroHeading}>
         <p className={styles.eyebrow}>Your virtual worker</p>
         <h1 id="home-title" className={styles.heroTitle}>
-          Give Chusky the goal.<br /><em>Get the <span className={styles.heroAccent}>work</span> back.</em>
+          Tell Chusky what matters.<br /><em>It handles the <span className={styles.heroAccent}>rest.</span></em>
         </h1>
         <div className={styles.heroIntro}>
           <p>One worker for calls, meetings, research, and the follow-through between them.</p>
@@ -21,7 +21,7 @@ export function HeroSection() {
       </div>
       <RequestExplorer />
       <div className={styles.heroFootnote}>
-        <span>Talk to Chusky. Give it a task. Get the outcome.</span>
+        <span>One clear ask. A finished outcome.</span>
         <span>Research <span aria-hidden="true">/</span> Apps <span aria-hidden="true">/</span> Calls &amp; meetings <span aria-hidden="true">/</span> Follow-through</span>
       </div>
     </section>

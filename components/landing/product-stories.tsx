@@ -53,7 +53,7 @@ export function CallWorkSection() {
           <li><span>01</span><div><h4>Answer with context.</h4><p>Give Chusky the brief, connected information, and boundaries it needs to handle the conversation.</p></div></li>
           <li><span>02</span><div><h4>Make the call.</h4><p>Reach a lead, supplier, or customer to ask the question, confirm the detail, or move a conversation forward.</p></div></li>
           <li><span>03</span><div><h4>Turn talk into work.</h4><p>Prepare the follow-up, book the next meeting, update the CRM, or bring an important send back for approval.</p></div></li>
-        </ol><p className={styles.note}>Calling depends on the voice provider, number, permissions, and instructions configured for the workspace.</p></div>
+        </ol>{/* Setup note consolidated on Pricing. */}{/* <p className={styles.note}>Calling depends on the voice provider, number, permissions, and instructions configured for the workspace.</p> */}</div>
       </div>
     </div></section>
   );
@@ -71,7 +71,7 @@ export function ConversationWorkSection({ includeCallSummary = true }: { include
           <li><span>03</span><div><h4>Follow through.</h4><p>Prepare the follow-up, update a customer record, or set the next task in motion using the apps you have connected.</p></div></li>
         </ol><div className={styles.logoLine} aria-label="Meeting platforms">{meetingPlatforms.map(item => <span key={item.name}><ConnectionLogo item={item} />{item.name}</span>)}</div></div>
       </div>
-      {includeCallSummary && <div className={styles.callRow}><p className={styles.eyebrow}>On the phone, too</p><h3>Answer the call.<br /><em>Make the follow-up.</em></h3><div><p>Chusky can take incoming business calls and make outgoing calls with a clear brief. Answer a customer’s question, confirm a detail, or follow up on something already agreed—then keep the outcome with the rest of the work.</p><p className={styles.note}>Meetings and calls need the relevant providers connected. Meeting admission and available actions depend on the platform and permissions.</p></div></div>}
+      {includeCallSummary && <div className={styles.callRow}><p className={styles.eyebrow}>On the phone, too</p><h3>Answer the call.<br /><em>Make the follow-up.</em></h3><div><p>Chusky can take incoming business calls and make outgoing calls with a clear brief. Answer a customer’s question, confirm a detail, or follow up on something already agreed—then keep the outcome with the rest of the work.</p>{/* Setup note consolidated on Pricing. */}{/* <p className={styles.note}>Meetings and calls need the relevant providers connected. Meeting admission and available actions depend on the platform and permissions.</p> */}</div></div>}
     </div></section>
   );
 }
@@ -85,7 +85,8 @@ export function BackgroundWorkSection() {
         <article><p className={styles.eyebrow}>Projects that take time</p><h3>A goal that stays<br />on the board.</h3><p>Give Chusky a project that takes days or weeks. It can work through the steps, wait for a reply or a missing detail, and pick up again with the progress saved. You set the budget and agree what a finished job should look like.</p><dl className={styles.definitions}><div><dt>A plan to work through.</dt><dd>Steps, handoffs, and a clear finish line.</dd></div><div><dt>Limits you can see.</dt><dd>A budget for the work and a record of the actions.</dd></div><div><dt>A result you can inspect.</dt><dd>Files, evidence, and progress that stay with the project.</dd></div></dl></article>
       </div>
       <div className={styles.eventStrip}><p className={styles.eyebrow}>Start from a change</p><p>New email <span aria-hidden="true">/</span> Calendar changes <span aria-hidden="true">/</span> HubSpot deal updates <span aria-hidden="true">/</span> Slack events</p><Link href="/how-it-works#ongoing-work" className={styles.link}>See how it stays on track <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
-      <p className={styles.note}>Scheduled watches and background work follow your setup and permissions. Chusky checks what you configure; it does not monitor every connected app by default.</p>
+      {/* Setup note consolidated on Pricing. */}
+      {/* <p className={styles.note}>Scheduled watches and background work follow your setup and permissions. Chusky checks what you configure; it does not monitor every connected app by default.</p> */}
     </div></section>
   );
 }
@@ -111,7 +112,8 @@ export function MissionLifecycleSection() {
   return <section className={styles.section} id="missions" aria-labelledby="mission-title"><div className={styles.inner}>
     <div className={styles.heading}><p className={styles.eyebrow}>One mission, start to finish</p><h2 id="mission-title">Runs work that takes<br /><em>days, not seconds.</em></h2><div><p>Give Chusky a goal. It can find relevant people, enrich the list, save the work, reach out, join the meeting, follow up, and keep the relationship moving.</p><p>From finding the right people to following up, meeting them, and keeping the relationship healthy—Chusky can run the whole mission.</p></div></div>
     <ol className={styles.missionJourney}>{missionStages.map(([number, title, description]) => <li key={number}><span>{number}</span><h3>{title}</h3><p>{description}</p></li>)}</ol>
-    <p className={styles.note}>Available signals, contact details, channels, and actions depend on the providers and accounts you connect. Chusky can continue toward a target, but enrichment, replies, meetings, and deals are not guaranteed.</p>
+    {/* Setup note consolidated on Pricing. */}
+    {/* <p className={styles.note}>Available signals, contact details, channels, and actions depend on the providers and accounts you connect. Chusky can continue toward a target, but enrichment, replies, meetings, and deals are not guaranteed.</p> */}
   </div></section>;
 }
 

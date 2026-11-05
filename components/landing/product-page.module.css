@@ -103,11 +103,11 @@
 @media (max-width: 760px) {
   .hero { width: calc(100% - 40px); padding: 112px 0 48px; }
   .heroGrid { grid-template-columns: 1fr; gap: 28px; margin-top: 24px; }
-  .hero h1 { font-size: clamp(48px, 10vw, 64px); }
+  .hero h1 { font-size: clamp(42px, 9vw, 56px); }
   .heroIntro > p { font-size: 16px; }
   .main > section:not(.hero) { padding-block: 56px; }
   .main > section:not(.hero) > div { width: calc(100% - 40px); }
-  .main > section:not(.hero) h2 { font-size: 38px; }
+  .main > section:not(.hero) h2 { font-size: 34px; }
   .sectionHeading, .steps, .accessPanel { grid-template-columns: 1fr; gap: 24px; }
   .sectionHeading > p { padding-top: 0; }
   .description { margin-top: 20px; }

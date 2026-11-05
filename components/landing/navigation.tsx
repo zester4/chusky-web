@@ -12,8 +12,9 @@ const navLinks = [
   { name: "How it works", href: "/how-it-works" },
   { name: "Integrations", href: "/integrations" },
   { name: "Developers", href: "/developers" },
-  { name: "MCP", href: "/mcp" },
-  { name: "Docs", href: "/docs" },
+  // MCP and Docs remain available by direct URL while their navigation placement is being revised.
+  // { name: "MCP", href: "/mcp" },
+  // { name: "Docs", href: "/docs" },
 ];
 
 export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }: { ctaLabel?: string; ctaHref?: string }) {
@@ -143,7 +144,7 @@ export function Navigation({ ctaLabel = "Start for Free", ctaHref = "/sign-up" }
                 key={link.name}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`text-3xl font-display text-foreground hover:text-muted-foreground transition-all duration-500 sm:text-4xl ${
+                className={`text-2xl font-display text-foreground hover:text-muted-foreground transition-all duration-500 sm:text-3xl ${
                   isMobileMenuOpen 
                     ? "opacity-100 translate-y-0" 
                     : "opacity-0 translate-y-4"

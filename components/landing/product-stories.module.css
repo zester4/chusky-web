@@ -63,7 +63,7 @@
 @media (max-width: 760px) {
   .section { padding-block: 56px; }
   .inner { width: calc(100% - 40px); }
-  .section h2 { font-size: 42px; }
+  .section h2 { font-size: 36px; }
   .section h3 { font-size: 30px; }
   .heading, .meetingLayout, .splitHeading, .backgroundGrid, .callRow, .widget { grid-template-columns: 1fr; gap: 24px; }
   .meetingLayout, .backgroundGrid { margin-top: 32px; }

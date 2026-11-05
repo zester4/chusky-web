@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import styles from "./homepage.module.css";
-import { BackgroundWorkSection, CallWorkSection, ControlSection, ConversationWorkSection, MissionLifecycleSection, TaskOutcomeLoopSection, WorkChannelsSection } from "./product-stories";
+import { BackgroundWorkSection, CallWorkSection, ControlSection, ConversationWorkSection, TaskOutcomeLoopSection, WorkChannelsSection } from "./product-stories";
 
 const apps = [
   { name: "Gmail", src: "/logos/gmail.svg" },
@@ -46,12 +46,13 @@ export function HomepageSections() {
         <div><p className={styles.eyebrow}>6,000+ tools through one connection</p><h2 id="connections-title">Work across your<br />connected tools.</h2></div>
         <div className={styles.connectionsRight}>
           <div className={styles.appNames} aria-label="Connected tools and channels">{apps.map((app) => <span key={app.name} title={app.name}><Image src={app.src} alt={app.name} width={32} height={32} className={styles.appLogo} /></span>)}</div>
-          <div className={styles.connectionNote}><p>Chusky can work across 6,000+ connected tools and take action within 1,000+ of them. Availability depends on your setup and permissions.</p><Link href="/integrations">Explore integrations <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+          <div className={styles.connectionNote}><p>Chusky can work across 6,000+ connected tools and take action within 1,000+ of them.</p><Link href="/integrations">Explore integrations <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
         </div>
       </section>
 
       <BackgroundWorkSection />
-      <MissionLifecycleSection />
+      {/* Mission lifecycle: intentionally moved to How it works for a calmer homepage. */}
+      {/* <MissionLifecycleSection /> */}
       <CallWorkSection />
       <ConversationWorkSection includeCallSummary={false} />
       <ControlSection />
