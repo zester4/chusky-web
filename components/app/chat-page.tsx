@@ -23,6 +23,10 @@ import {
   PlugZap,
   FileText,
   FileImage,
+  FileOutput,
+  Phone,
+  Globe2,
+  Video,
   LoaderCircle,
   MoreHorizontal,
   Mic,
@@ -151,7 +155,7 @@ function progressFromRun(run: Run): RunProgress {
     : run.status === "completed"
       ? "Work completed"
       : run.status === "failed"
-        ? "This run needs attention"
+        ? "This run needs review"
         : run.status === "cancelled"
           ? "Run cancelled"
           : (action ? activityTitle(action) : undefined) || savedProgressText || "Working…";
@@ -183,7 +187,7 @@ function progressFromLiveActivity(current: RunProgress | undefined, activity: { 
   const detail = waiting
     ? "Chusky paused safely before a consequential action. Review the approval below."
     : failed
-      ? "This step needs attention; the run will report what was confirmed."
+      ? "This step needs review; the run will report what was confirmed."
       : activityDetailLine({ ...activity, status: activity.status === "waiting" ? "waiting" : activity.status }, activity.status === "started") || current?.detail;
   return {
     phase: waiting ? "waiting" : failed ? "waiting" : current?.phase === "completed" ? "acting" : current?.phase || "acting",
@@ -250,12 +254,16 @@ function ActivityBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo, size =
   if (isTreg) return <ToolkitLogo name="Treg" logo="/logos/treg.svg" size={size} />;
   if (isMonid) return <ToolkitLogo name="Monid" logo="/logos/monid.png" size={size} />;
   if (toolSlug?.startsWith("CHUCK_")) {
-    const Icon = /SEARCH|FIND|DISCOVER/.test(toolSlug) ? Search
-      : /READ|FILE|CONTEXT/.test(toolSlug) ? BookOpen
-        : /CALENDAR|MEETING|SCHEDULE/.test(toolSlug) ? CalendarDays
-          : /EMAIL|MAIL/.test(toolSlug) ? Mail
-            : /MEMORY/.test(toolSlug) ? Brain
-              : /TASK|JOB|REMINDER/.test(toolSlug) ? ListChecks : Terminal;
+  const Icon = /SEARCH|FIND|DISCOVER/.test(toolSlug) ? Search
+  : /BROWSER|WEB|NAVIGATE|URL/.test(toolSlug) ? Globe2
+  : /ARTIFACT|OUTPUT|EXPORT|DOWNLOAD/.test(toolSlug) ? FileOutput
+  : /IMAGE|PHOTO|SCREENSHOT/.test(toolSlug) ? FileImage
+  : /VIDEO|RECORDING/.test(toolSlug) ? Video
+  : /CALL|PHONE|DIAL/.test(toolSlug) ? Phone
+  : /READ|FILE|CONTEXT/.test(toolSlug) ? BookOpen
+  : /CALENDAR|MEETING|SCHEDULE/.test(toolSlug) ? CalendarDays
+  : /EMAIL|MAIL/.test(toolSlug) ? Mail
+  : /TASK|JOB|REMINDER/.test(toolSlug) ? ListChecks : Terminal;
     return <Icon size={size} aria-hidden="true" className="shrink-0 text-muted-foreground" />;
   }
   const brand = resolveProviderBrand({ toolSlug, toolkitSlug, toolkitName, toolkitLogo });

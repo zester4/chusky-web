@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Check, Copy, Link2, LoaderCircle, RefreshCw, Unlink } from "lucide-react";
 import { chuskyApi, type ChannelConnection, type ChannelLinkCode, type Delivery, type TelegramLinkCode } from "@/lib/chusky-api";
 import { useLiveData } from "@/lib/live-sync";
 import { Button, Card, PageHeading, Status } from "./app-shell";
+import { AccountDataPage } from "./account-pages";
 import { ConfirmDialog } from "./confirm-dialog";
 import { ChannelLogo, channelBrand } from "./channel-brand";
 
@@ -14,6 +14,7 @@ const linkable = ["slack", "whatsapp", "sendblue", "sms", "x"] as const;
 function date(value: string) { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
 
 export function ChannelsPage() {
+  const [activeTab, setActiveTab] = useState<"channels" | "devices">("channels");
   const [channels, setChannels] = useState<ChannelConnection[]>();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [provider, setProvider] = useState<(typeof linkable)[number]>("slack");
@@ -81,6 +82,8 @@ export function ChannelsPage() {
 
   return <>
     <PageHeading eyebrow="Account connections" title="Channels" description="Your Chusky web account is the workspace owner. Connect optional channels to route messages and notifications into this same workspace." action={<Button secondary onClick={() => void load()}><span className="hidden sm:inline-flex"><RefreshCw size={13}/></span> Refresh</Button>} />
+    <nav aria-label="Channel settings" className="mb-5 flex min-w-0 overflow-x-auto border-b border-foreground/10 pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><div className="flex min-w-max gap-1" role="tablist"><button type="button" role="tab" aria-selected={activeTab === "channels"} onClick={() => setActiveTab("channels")} className={`min-h-11 border-b-2 px-4 text-xs font-medium transition-colors ${activeTab === "channels" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground"}`}>Connected channels</button><button type="button" role="tab" aria-selected={activeTab === "devices"} onClick={() => setActiveTab("devices")} className={`min-h-11 border-b-2 px-4 text-xs font-medium transition-colors ${activeTab === "devices" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground"}`}>CLI devices</button></div></nav>
+    {activeTab === "devices" ? <AccountDataPage kind="devices" /> : <>
     {error && <div role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">{error}</div>}
     {notice && <p role="status" className="mb-3 text-xs text-emerald-700">{notice}</p>}
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
@@ -94,7 +97,6 @@ export function ChannelsPage() {
       <Card className="p-4 sm:p-5"><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Link an optional channel</p><h2 className="mt-1.5 font-display text-2xl">Reach the same workspace anywhere</h2><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Connect Telegram, Slack, WhatsApp, iMessage, SMS, X, or the CLI. Channels are addresses for your web-owned workspace; they are never the account identity. Codes expire after ten minutes.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">{channels === undefined ? <p className="border border-dashed border-foreground/15 p-3 text-xs text-muted-foreground">Loading available channels…</p> : <>
           {availableLinkable.length ? availableLinkable.map((item) => { const brand = channelBrand(item); const selected = provider === item; return <button key={item} type="button" aria-pressed={selected} onClick={() => { setProvider(item); setLinkCode(undefined); }} className={`flex min-h-16 items-center gap-3 border px-3 text-left transition-colors ${selected ? "border-foreground bg-foreground/[0.04]" : "border-foreground/10 hover:border-foreground/30"}`}><ChannelLogo provider={item} size={34}/><span className="min-w-0"><span className="block text-xs font-medium">{brand.name}</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{brand.description}</span></span></button>; }) : <p className="border border-dashed border-foreground/15 p-3 text-xs text-muted-foreground sm:col-span-2">All pairable channels are already linked. Unlink a channel above if you need to pair it again.</p>}
-          <Link href="/app/devices" className="flex min-h-16 items-center gap-3 border border-foreground/10 px-3 text-left transition-colors hover:border-foreground/30"><ChannelLogo provider="cli" size={34}/><span className="min-w-0"><span className="block text-xs font-medium">Chusky CLI</span><span className="mt-0.5 block truncate text-[10px] text-muted-foreground">Use Chusky from your terminal · Manage CLI devices</span></span></Link>
         </>}</div>
         {channels !== undefined && availableLinkable.length > 0 && <div className="mt-3"><Button disabled={busy === "link"} onClick={() => void createCode()}>{busy === "link" ? <LoaderCircle size={13} className="animate-spin"/> : <Link2 size={13}/>} Generate link code</Button></div>}
         {linkCode && <div className="mt-4 border border-foreground/10 bg-foreground/[0.02] p-3"><p className="text-[11px] leading-5">{linkCode.instructions}</p>{linkCode.installUrl && <a className="mt-2 block break-all text-[11px] underline" href={linkCode.installUrl} target="_blank" rel="noreferrer">Open Slack installation</a>}<div className="mt-3 flex flex-wrap items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">{linkCode.provider === "slack" ? linkCode.code : linkCode.instructions.match(/\/link\s+\S+/)?.[0] ?? linkCode.code}</code><Button secondary onClick={() => void copyCode()}><Copy size={13}/> Copy</Button></div><p className="mt-2 text-[10px] text-muted-foreground">This code is private to your account. Complete linking within ten minutes.</p></div>}
@@ -106,6 +108,6 @@ export function ChannelsPage() {
       {deliveryError && <p role="alert" className="border-b border-amber-300/70 bg-amber-50 p-3 text-xs text-amber-950">{deliveryError}</p>}
       {deliveries.length ? <div className="divide-y divide-foreground/10">{deliveries.slice(0, 8).map((item) => <div key={item.id} className="flex flex-col gap-2 p-4 text-[11px] sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="flex min-w-0 items-center gap-2"><ChannelLogo provider={item.provider} size={22}/><p className="font-medium">{channelBrand(item.provider).name} · {item.kind}</p></div><Status tone={item.status === "delivered" ? "green" : item.status === "failed" || item.status === "ambiguous" ? "amber" : "gray"}>{item.status === "delivered" && item.providerStatus === "owner_confirmed_delivered" ? "confirmed by you" : item.status}</Status></div><p className="mt-1 text-muted-foreground">{date(item.deliveredAt || item.updatedAt)} · {item.attempts} attempt{item.attempts === 1 ? "" : "s"}{item.lastError ? ` · ${item.lastError}` : ""}</p></div>{item.status === "ambiguous" && <span className="shrink-0 text-muted-foreground">Outcome uncertain</span>}</div>)}</div> : !deliveryError && <p className="p-4 text-xs text-muted-foreground">No outbound deliveries have been recorded for this account yet.</p>}
     </Card>
-    {confirm && <ConfirmDialog open onOpenChange={(open) => !open && setConfirm(undefined)} title={`Unlink ${channelBrand(confirm.provider).name}?`} description="Chusky will stop accepting messages for this linked identity. The provider-side app or workspace installation will remain in place." confirmLabel="Unlink channel" destructive onConfirm={unlink}/>}
+    {confirm && <ConfirmDialog open onOpenChange={(open) => !open && setConfirm(undefined)} title={`Unlink ${channelBrand(confirm.provider).name}?`} description="Chusky will stop accepting messages for this linked identity. The provider-side app or workspace installation will remain in place." confirmLabel="Unlink channel" destructive onConfirm={unlink}/>}</>}
   </>;
 }
