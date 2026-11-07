@@ -64,6 +64,14 @@ const cleanActivityCopy = (value?: string): string | undefined => {
   return normalized || undefined;
 };
 
+const productCopyForActivity = (value: string | undefined, toolSlug?: string): string | undefined => {
+  const copy = cleanActivityCopy(value);
+  if (!copy) return undefined;
+  if (toolSlug?.startsWith("CHUCK_CAMOFOX_")) return copy.replace(/\bCamofox\b/gi, "Browser");
+  if (toolSlug?.startsWith("CHUCK_DAYTONA_")) return copy.replace(/\bDaytona\b/gi, "Computer");
+  return copy;
+};
+
 const genericActivityCopy = /^(?:i['’]?m|i am)?\s*(?:taking care of that|working(?: through your request| on it)?|processing (?:your request|that|it)|handling (?:that|it)|running(?: now)?|connected app action|remote connected app action|one moment)[\s.!…]*$/i;
 const genericProgressCopy = /^(?:preparing your request|researching the request|executing the next action|working(?: now| on it| through your request)?|running(?: now)?|pulling everything together|chusky is (?:organizing|keeping the work visible|preparing)(?: the right context)?(?: before it acts)?|i['’]?m\s+(?:understanding(?: your request| what you need)?|finding (?:the )?relevant tools?|finding the right connected capability|checking (?:your )?(?:notes|memory|reminders|connected apps|calendar|email)|checking how (?:that )?capability works|carrying (?:those )?steps? out through the connected apps?|using [^.!?…]+ to [^.!?…]+|lining up (?:the )?best way(?: to help)?|taking care of (?:that|it)))[\s.!…]*$/i;
 
@@ -79,12 +87,23 @@ export function isGenericProgressText(value?: string): boolean {
   return Boolean(candidate && (genericActivityCopy.test(candidate) || genericProgressCopy.test(candidate) || internalToolStatusCopy.test(candidate)));
 }
 
+const productProviderName = (value: string): string | undefined => {
+  const normalized = value.replace(/^CHUCK_/i, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+  if (normalized.startsWith("camofox") || normalized.startsWith("browser")) return "Browser";
+  if (normalized.startsWith("daytona") || normalized.startsWith("computer")) return "Computer";
+  if (normalized.startsWith("agentcard")) return "AgentCard";
+  return undefined;
+};
+
 const providerNameForActivity = (activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName">): string | undefined => {
   const supplied = cleanActivityCopy(activity.toolkitName || activity.toolkitSlug);
-  if (supplied) return supplied.split(/[_\s-]+/).filter(Boolean).map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`).join(" ");
+  if (supplied) {
+    return productProviderName(supplied)
+      || supplied.split(/[_\s-]+/).filter(Boolean).map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`).join(" ");
+  }
   const slug = activity.toolSlug?.replace(/^(CHUCK|COMPOSIO|MCP)_/i, "");
   const provider = slug?.split("_", 1)[0];
-  return provider ? provider.split(/[_-]+/).map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`).join(" ") : undefined;
+  return provider ? productProviderName(provider) || provider.split(/[_-]+/).map((part) => part.length <= 3 ? part.toUpperCase() : `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`).join(" ") : undefined;
 };
 
 const titleCaseActivityToken = (value: string) => value
@@ -131,7 +150,7 @@ const looksLikeLegacyToolLabel = (value: string, toolSlug?: string): boolean => 
 export function activityTitle(activity: Pick<ActivityCopy, "toolSlug" | "toolkitSlug" | "toolkitName" | "actionLabel" | "message">): string {
   const legacyLabel = legacyActionLabelForTool(activity.toolSlug);
   const supplied = [activity.actionLabel, activity.message]
-    .map(cleanActivityCopy)
+    .map((value) => productCopyForActivity(value, activity.toolSlug))
     .map((value) => value && legacyLabel && looksLikeLegacyToolLabel(value, activity.toolSlug) ? legacyLabel : value)
     .find((value) => value && !isGenericProgressText(value));
   const provider = providerNameForActivity(activity);
@@ -140,7 +159,8 @@ export function activityTitle(activity: Pick<ActivityCopy, "toolSlug" | "toolkit
     return `${provider} · ${supplied}`;
   }
 
-  let token = activity.toolSlug?.replace(/^(CHUCK|COMPOSIO|MCP)_/i, "") || "step";
+  if (activity.toolSlug?.toUpperCase() === "CHUCK_DAYTONA_COMPUTER") return "Computer";
+  let token = activity.toolSlug?.replace(/^(CHUCK|COMPOSIO|MCP)_/i, "").replace(/^(CAMOFOX|DAYTONA|AGENTCARD)_/i, "") || "step";
   const toolkit = (activity.toolkitSlug || activity.toolkitName)?.replace(/[^a-z0-9]/gi, "").toUpperCase();
   if (toolkit && token.toUpperCase().startsWith(`${toolkit}_`)) token = token.slice(toolkit.length + 1);
   const concrete = titleCaseActivityToken(token);
@@ -345,9 +365,9 @@ export function activityStatusLabel(activity: Pick<ActivityCopy, "status" | "dur
 /** Keep the exact step visible without repeating a generic label or mechanical provider receipt. */
 export function activityDetailLine(activity: ActivityCopy, current = false): string | undefined {
   const title = activityTitle(activity);
-  const summary = activityDetailSummary(activity.summary);
+  const summary = productCopyForActivity(activityDetailSummary(activity.summary), activity.toolSlug);
   if (summary && summary.toLowerCase() !== title.toLowerCase()) return summary;
-  const message = cleanActivityCopy(activity.message);
+  const message = productCopyForActivity(activity.message, activity.toolSlug);
   if (message && !isGenericProgressText(message) && message.toLowerCase() !== title.toLowerCase()) return message;
   if (current) return "Running now";
   return activityStatusLabel(activity);

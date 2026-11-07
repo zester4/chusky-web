@@ -57,6 +57,14 @@ import { INTERNAL_SESSION_RECOVERY_MESSAGE, safeRunFailure, safeUserFacingError 
 
 type ChatArtifact = Pick<Artifact, "id" | "name" | "type" | "contentType" | "size">;
 
+function mergePrivateRunLinks(...groups: Array<PrivateRunLink[] | undefined>): PrivateRunLink[] | undefined {
+  const links = new Map<string, PrivateRunLink>();
+  for (const group of groups) {
+    for (const link of group ?? []) links.set(link.url, link);
+  }
+  return links.size ? [...links.values()] : undefined;
+}
+
 type Message = {
   role: "user" | "assistant";
   text: string;
@@ -330,6 +338,11 @@ function PrivateBrowserLinkCard({ link }: { link: PrivateRunLink }) {
         sandbox="allow-scripts allow-same-origin"
       />
     </div>;
+  }
+  if (link.kind === "agentcard_action") {
+    return <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-foreground/15 bg-background px-3 py-2 text-[11px] font-medium text-foreground transition-colors hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+      {link.label}
+    </a>;
   }
   return <div className="max-w-xl rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
     <div className="flex items-start gap-2">
@@ -1531,6 +1544,12 @@ export function ChatPage() {
           });
         } else if (typed.type === "run.delta") {
           setMessages((current) => current.map((item, index) => index === current.length - 1 ? { ...item, ...appendRunActivityEvent(item, { id: `delta-${typed.runId}-${item.activityEvents?.length ?? 0}`, type: "run.delta", at: (item.activityEvents?.at(-1)?.at ?? Date.now()) + 0.001, text: typed.text }), text: item.text + typed.text, pending: true } : item));
+        } else if (typed.type === "run.private_link") {
+          updateLastAssistant((item) => ({
+            runId: typed.runId,
+            privateLinks: mergePrivateRunLinks(item.privateLinks, [typed.link]),
+            pending: true,
+          }));
         } else if (typed.type === "run.tool_started") {
           updateLastAssistant({ pending: true, statusText: undefined, tool: typed.toolSlug });
         } else if (typed.type === "run.tool_activity") {
@@ -1565,7 +1584,7 @@ export function ChatPage() {
           const userHistoryContent = `${typed.run.input || "Attached file(s)"}${typed.run.attachments?.length ? `\n[Attachments: ${typed.run.attachments.map((file) => file.name).join(", ")}]` : ""}`;
           setMessages((current) => current.map((item, index) => {
             if (index === current.length - 2 && item.role === "user") return { ...item, historyCommitted: true, historyContent: userHistoryContent };
-            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, statusUpdates: runStatusUpdates(typed.run), activityEvents: runActivityEvents(typed.run), timeline: runTimeline(typed.run), progress: progressFromRun(typed.run), activities: runActivities(typed.run).length ? runActivities(typed.run) : item.activities, subagentActivities: runSubagentActivities(typed.run).length ? runSubagentActivities(typed.run) : item.subagentActivities, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, privateLinks: (typed.run as Run & { privateLinks?: PrivateRunLink[] }).privateLinks, pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
+            if (index === current.length - 1 && item.role === "assistant") return { ...item, text: output, statusUpdates: runStatusUpdates(typed.run), activityEvents: runActivityEvents(typed.run), timeline: runTimeline(typed.run), progress: progressFromRun(typed.run), activities: runActivities(typed.run).length ? runActivities(typed.run) : item.activities, subagentActivities: runSubagentActivities(typed.run).length ? runSubagentActivities(typed.run) : item.subagentActivities, artifacts: runArtifacts.length ? runArtifacts : linkedArtifacts.length ? linkedArtifacts : createdArtifacts, images: runImages, privateLinks: mergePrivateRunLinks(item.privateLinks, typed.run.privateLinks), pending: false, statusText: undefined, tool: undefined, failure: undefined, historyCommitted: true, historyContent: output };
             return item;
           }));
         } else if (typed.type === "run.approval_required") {
@@ -1786,7 +1805,7 @@ export function ChatPage() {
               {attentionCandidate ? <AttentionCandidateCard candidate={attentionCandidate} busyAction={attentionActionBusy} onAction={(action) => void activateAttentionAction(action)} /> : null}
               {account?.approvals?.filter((approval) => !messages.some((message) => message.approval?.id === approval.id)).map((approval) => <div key={approval.id} className="approval-card mx-auto w-full max-w-2xl" role="alert">
                 <div className="approval-card-header"><span className="approval-card-icon"><TriggerLogoGroup text={approval.toolSlug} slugs={[approval.toolSlug]} size={26} /></span><div className="min-w-0 flex-1"><p className="approval-card-eyebrow"><ShieldCheck size={12} aria-hidden="true" /> Approval required</p><h3 className="approval-card-title">Review before Chusky continues</h3></div><span className="approval-card-risk">Owner decision</span></div>
-                <p className="approval-card-request">{approval.request || `Chusky is waiting to run ${approval.toolSlug}.`}</p>
+                <p className="approval-card-request">{approval.request || `Chusky is waiting to use ${triggerProviderBrand(approval.toolSlug).name}.`}</p>
                 <div className="approval-card-meta"><span>{triggerProviderBrand(approval.toolSlug).name}</span>{approval.missionId ? <span>Mission {approval.missionId.slice(0, 8)}</span> : null}{formatApprovalExpiry(approval.expiresAt) ? <span>Expires {formatApprovalExpiry(approval.expiresAt)}</span> : null}</div>
                 <details className="approval-card-details"><summary>What will be affected?</summary><p>The action is bound to <strong>{triggerProviderBrand(approval.toolSlug).name}</strong> and will only execute after you approve this exact request. If the scope is unclear, deny it and ask Chusky to explain.</p></details>
                 <div className="approval-card-actions"><button type="button" disabled={Boolean(globalApprovalBusy)} onClick={() => void decideGlobalApproval(approval.id, "approve")} className="approval-primary">{globalApprovalBusy === approval.id ? "Updating…" : "Approve action"}</button><button type="button" disabled={Boolean(globalApprovalBusy)} onClick={() => void decideGlobalApproval(approval.id, "deny")} className="approval-secondary">Deny</button></div>
@@ -1815,7 +1834,7 @@ export function ChatPage() {
                     {item.role === "assistant" && item.privateLinks?.length ? <div className="mt-3 space-y-2">{item.privateLinks.map((link) => <PrivateBrowserLinkCard key={link.url} link={link} />)}</div> : null}
                     {item.attachments?.length ? <div className="mt-2 flex flex-wrap gap-2">{item.attachments.map((file) => <SentAttachment key={file.id} file={file} />)}</div> : null}
                     {item.role === "assistant" && item.approvalState === "accepted" ? <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-700 dark:text-emerald-300" role="status"><LoaderCircle size={11} className="animate-spin motion-reduce:animate-none" /> Approval accepted · executing</div> : null}
-                    {item.approval && <div className="approval-card mt-4"><div className="approval-card-header"><span className="approval-card-icon"><TriggerLogoGroup text={item.approval.toolSlug} slugs={[item.approval.toolSlug]} size={26} /></span><div className="min-w-0 flex-1"><p className="approval-card-eyebrow"><ShieldCheck size={12} aria-hidden="true" /> Approval required</p><h3 className="approval-card-title">Review before Chusky continues</h3></div></div><p className="approval-card-request">{item.approval.request || `Chusky is waiting to run ${item.approval.toolSlug}.`}</p><div className="approval-card-meta"><span>{triggerProviderBrand(item.approval.toolSlug).name}</span>{formatApprovalExpiry(item.approval.expiresAt) ? <span>Expires {formatApprovalExpiry(item.approval.expiresAt)}</span> : null}</div><div className="approval-card-actions"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="approval-primary">{item.approval.deciding ? "Updating…" : "Approve action"}</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="approval-secondary">Deny</button></div></div>}
+                    {item.approval && <div className="approval-card mt-4"><div className="approval-card-header"><span className="approval-card-icon"><TriggerLogoGroup text={item.approval.toolSlug} slugs={[item.approval.toolSlug]} size={26} /></span><div className="min-w-0 flex-1"><p className="approval-card-eyebrow"><ShieldCheck size={12} aria-hidden="true" /> Approval required</p><h3 className="approval-card-title">Review before Chusky continues</h3></div></div><p className="approval-card-request">{item.approval.request || `Chusky is waiting to use ${triggerProviderBrand(item.approval.toolSlug).name}.`}</p><div className="approval-card-meta"><span>{triggerProviderBrand(item.approval.toolSlug).name}</span>{formatApprovalExpiry(item.approval.expiresAt) ? <span>Expires {formatApprovalExpiry(item.approval.expiresAt)}</span> : null}</div><div className="approval-card-actions"><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "approve")} className="approval-primary">{item.approval.deciding ? "Updating…" : "Approve action"}</button><button type="button" disabled={item.approval.deciding} onClick={() => void decideApproval(item.approval!.id, "deny")} className="approval-secondary">Deny</button></div></div>}
                     {item.text ? <div className={`absolute -bottom-4 right-2 z-10 flex items-center gap-0 rounded-lg border border-foreground/10 bg-background p-0.5 text-muted-foreground shadow-sm transition-opacity ${activeMessageIndex === index ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"}`} onClick={(event) => event.stopPropagation()}>
                       {item.role === "user" ? <>
                         <button type="button" onClick={() => void copyMessage(index, visibleUserText)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-foreground/5 hover:text-foreground" aria-label={copiedMessageIndex === index ? "Message copied" : "Copy message"} title={copiedMessageIndex === index ? "Copied" : "Copy"}>{copiedMessageIndex === index ? <Check size={12} /> : <Copy size={12} />}</button>

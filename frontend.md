@@ -64,9 +64,12 @@ history or connection state.
 
 - `components/app/chat-page.tsx` has bordered, rounded message bubbles, a
   rounded composer, and an upward-arrow send button.
-- Read-only private browser live views render directly in chat without extra
-  copy. Human handoff links remain separate and explain the required action.
-  Camofox viewer links expire after 10 minutes.
+- Read-only private browser live views render directly in chat as soon as the
+  viewer link is issued, without extra copy. Human handoff links remain separate
+  and explain the required action. Browser viewer links expire after 10 minutes.
+- AgentCard enrollment, merchant, checkout, and payment-approval links arrive as
+  private owner-only action buttons; they are not included in the model's saved
+  conversation text.
 - The chat workspace keeps a compact saved-chat rail with explicit **New chat**
   and **View all conversations** actions. Starting a chat creates a new durable
   thread; it does not replace or clear the previous thread. The first message
@@ -170,7 +173,10 @@ empty state; it does not fill resource pages with demo records.
 - `/app/memory` — saved memories and preferences
 - `/app/scratchpad` — private temporary notes
 - `/app/triggers` — external app triggers
-- `/app/capabilities?tab=workspace` — private Daytona workspace information and usage (the legacy `/app/workspace` URL redirects here)
+- `/app/capabilities?tab=workspace` — private Computer workspace information and usage (the legacy `/app/workspace` URL redirects here)
+
+The dashboard uses **Browser** and **Computer** as product-facing names. Internal
+tool slugs and API fields retain their stable provider identifiers.
 - `/app/devices` — connected CLI/device sessions
 - `/app/settings` — account and product settings
 - `/app/calls` — approval-gated Twilio or Bland call requests, provider readiness, and safe call outcomes

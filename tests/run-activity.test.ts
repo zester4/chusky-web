@@ -118,6 +118,26 @@ test("tool calls with the same label remain linked to their own parent call IDs"
   ]);
 });
 
+test("native browser and computer activity uses product-facing names", () => {
+  assert.equal(activityTitle(activity("browser", "started", 1, {
+    toolSlug: "CHUCK_CAMOFOX_OPEN",
+    message: "",
+  })), "Browser · Open");
+  assert.equal(activityTitle(activity("browser-label", "started", 2, {
+    toolSlug: "CHUCK_CAMOFOX_OPEN",
+    actionLabel: "Camofox · Open page",
+  })), "Browser · Open page");
+  assert.equal(activityTitle(activity("computer", "started", 2, {
+    toolSlug: "CHUCK_DAYTONA_COMPUTER",
+    message: "",
+  })), "Computer");
+  assert.equal(activityDetailLine(activity("computer-detail", "completed", 3, {
+    toolSlug: "CHUCK_DAYTONA_PTY",
+    message: "",
+    summary: "Command ran in Daytona",
+  })), "Command ran in Computer");
+});
+
 test("restored Composio batch activity keeps app labels and honest unmatched outcomes", () => {
   const started = activity("batch-start", "started", 1, {
     callId: "batch-call",

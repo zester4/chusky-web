@@ -104,6 +104,10 @@ function normalize(value: string): string {
 }
 
 export function triggerProviderBrand(slug: string): TriggerProviderBrand {
+  const nativeSlug = slug.replace(/^CHUCK_/i, "");
+  if (/^(?:CAMOFOX|BROWSER)(?:_|$)/i.test(nativeSlug)) return { name: "Browser" };
+  if (/^(?:DAYTONA|COMPUTER)(?:_|$)/i.test(nativeSlug)) return { name: "Computer" };
+  if (/^AGENTCARD(?:_|$)/i.test(nativeSlug)) return { name: "AgentCard" };
   const normalized = normalize(slug);
   const definition = LOGO_DEFINITIONS.find(({ aliases }) => aliases.some((alias) => normalized.startsWith(normalize(alias))));
   if (definition) return { name: definition.name, logo: definition.logo };
