@@ -404,7 +404,7 @@ function ActivityToolGroup({ activities, subagentActivities, toolkitCatalogue, p
   if (activities.length <= 1) return <ActivityDetailList activities={activities} subagentActivities={subagentActivities} toolkitCatalogue={toolkitCatalogue} pending={pending} />;
   const active = activities.some((activity) => pending && activity.status === "started");
   const hasAttention = activities.some((activity) => activity.status === "failed" || activity.status === "approval_required");
-  return <details className="chat-tool-group-disclosure" open>
+  return <details className="chat-tool-group-disclosure" open={active || hasAttention}>
     <summary className="chat-tool-group-summary">
       <ActivityGroupBrand activities={activities} />
       <span className="chat-tool-group-title" title={activityGroupSummary(activities)}>{activityGroupSummary(activities)}</span>
@@ -1740,14 +1740,12 @@ export function ChatPage() {
     else void send();
   };
 
-  const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
-  const visibleProviders = [...new Set(messages.flatMap((message) => message.activities?.length ? presentToolActivities(message.activities).map((activity) => lookupActivityToolkit(activity, toolkitCatalogue).name) : []).filter((name): name is string => Boolean(name)))].slice(0, 5);
 
   return (
     <div className="chat-page -mx-2.5 -my-4 flex h-[calc(100svh-3rem)] max-h-[calc(100svh-3rem)] min-h-0 min-w-0 flex-col overflow-hidden overscroll-none bg-background sm:-mx-4 sm:-my-6 sm:h-[calc(100svh-3.5rem)] sm:max-h-[calc(100svh-3.5rem)] lg:-mx-7 lg:-my-8">
       {notice && <div className={`fixed left-1/2 top-16 z-50 flex w-[min(calc(100%-1rem),32rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border px-3 py-2 text-[11px] shadow-lg ${notice.kind === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`} role="alert"><span>{notice.message}</span><button type="button" onClick={() => setNotice(undefined)} className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss notification"><X size={13} /></button></div>}
 
-      <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_250px]">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="flex min-h-0 min-w-0 flex-col">
           <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col px-1.5 py-2 sm:px-5 sm:py-6 lg:px-8">
             <div ref={timelineRef} onScroll={(event) => { const element = event.currentTarget; stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 160; }} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1 pb-2">
@@ -1851,24 +1849,6 @@ export function ChatPage() {
           </div>
         </div>
 
-        <aside className="hidden min-h-0 overflow-y-auto border-l border-foreground/10 bg-background xl:block">
-          <div className="border-b border-foreground/10 px-5 py-5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Work context</p>
-            <h2 className="mt-3 font-display text-2xl tracking-tight">Everything close at hand.</h2>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">The conversation, its connected sources, and the current run state stay visible beside your work.</p>
-          </div>
-          <div className="space-y-6 p-5">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg border border-foreground/10 bg-foreground/[0.025] p-2.5"><p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Model</p><p className="mt-1 truncate text-xs font-medium" title={runModel || account?.model || "Not selected"}>{runModel || account?.model || "Not selected"}</p></div>
-              <div className="rounded-lg border border-foreground/10 bg-foreground/[0.025] p-2.5"><p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Artifacts</p><p className="mt-1 text-xs font-medium">{artifactCatalog.length}</p></div>
-              <div className="rounded-lg border border-foreground/10 bg-foreground/[0.025] p-2.5"><p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Messages</p><p className="mt-1 text-xs font-medium">{messages.filter((message) => message.role === "user").length}</p></div>
-              <div className="rounded-lg border border-foreground/10 bg-foreground/[0.025] p-2.5"><p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">State</p><p className="mt-1 text-xs font-medium">{isWorking ? "Running" : latestAssistant?.approval ? "Waiting" : "Ready"}</p></div>
-            </div>
-            {latestAssistant?.progress ? <div><p className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current run</p><div className="rounded-lg border border-foreground/10 p-3"><p className="text-xs font-semibold">{latestAssistant.progress.title}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">{latestAssistant.progress.detail}</p><div className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/10"><span className="block h-full rounded-full bg-chusky-amber" style={{ width: `${Math.round((latestAssistant.progress.progress ?? (isWorking ? 0.35 : 1)) * 100)}%` }} /></div></div></div> : null}
-            <div><p className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Connected sources</p><div className="space-y-1.5">{account?.channels.length ? account.channels.map((channel) => { const brand = triggerProviderBrand(channel.provider); const displayName = channel.provider === "sendblue" ? brand.name : channel.displayName || brand.name; return <div key={`${channel.provider}-${channel.externalUserId}`} className="flex items-center justify-between rounded-lg border border-foreground/10 px-3 py-2.5 text-xs"><span className="flex min-w-0 items-center gap-2"><TriggerLogoGroup text={channel.provider} slugs={[channel.provider]} size={20} /><span className="truncate">{displayName}</span></span><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /></div>; }) : <p className="rounded-lg border border-dashed border-foreground/15 px-3 py-3 text-xs leading-5 text-muted-foreground">No verified channels yet. Chusky can still work in this private conversation.</p>}</div>{visibleProviders.length ? <p className="mt-2 text-[11px] leading-5 text-muted-foreground">Used in this thread: {visibleProviders.join(", ")}</p> : null}</div>
-            <div className="border-t border-foreground/10 pt-5"><p className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Safety layer</p><div className="space-y-3 text-xs leading-5 text-muted-foreground"><p className="flex gap-2"><ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-600" /> Approvals stay one-time and server-bound.</p><p className="flex gap-2"><CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-600" /> Files are verified before the agent can read them.</p><p className="flex gap-2"><CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-600" /> A live run can be stopped and recovered.</p></div></div>
-          </div>
-        </aside>
       </div>
   </div>
 );

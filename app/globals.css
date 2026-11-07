@@ -519,8 +519,9 @@
 
   .approval-card {
     overflow: hidden;
+    max-width: 42rem;
     border: 1px solid color-mix(in srgb, var(--chusky-amber) 36%, var(--foreground));
-    border-radius: 1rem;
+    border-radius: 0.85rem;
     background: color-mix(in srgb, var(--chusky-amber) 7%, var(--card));
     box-shadow: var(--depth-surface-shadow);
     color: var(--foreground);
@@ -576,9 +577,13 @@
   }
 
   .approval-card-request {
+    overflow: hidden;
     padding: 0 1rem;
-    font-size: 0.8125rem;
-    line-height: 1.45rem;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    line-height: 1.15rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .approval-card-meta {
@@ -618,15 +623,15 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     border-top: 1px solid color-mix(in srgb, var(--chusky-amber) 18%, transparent);
-    padding: 0.8rem 1rem;
+    padding: 0.6rem 1rem;
   }
 
   .approval-primary,
   .approval-secondary {
-    min-height: 2.25rem;
-    border-radius: 0.65rem;
-    padding: 0.45rem 0.8rem;
-    font-size: 0.75rem;
+    min-height: 2rem;
+    border-radius: 0.55rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
   }
