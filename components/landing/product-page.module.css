@@ -72,6 +72,23 @@
 .accessBox dd { color: var(--muted-foreground); }
 .accessBox .primaryAction { width: 100%; margin-top: 20px; }
 .accessBox > p:last-child { margin-top: 16px; color: var(--muted-foreground); }
+.pricingGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.pricingPlan { display: flex; min-width: 0; flex-direction: column; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--background); }
+.recommendedPlan { border-color: var(--foreground); }
+.pricingPlanHeader { display: flex; min-height: 76px; justify-content: space-between; gap: 12px; }
+.pricingPlan h2 { font-family: var(--font-instrument-serif); font-size: 30px; font-weight: 400; line-height: 1.1; }
+.pricingPrice { margin-top: 12px; color: var(--muted-foreground); font-size: 14px; }
+.pricingPrice span { color: var(--foreground); font-size: 34px; font-weight: 500; letter-spacing: -.04em; }
+.recommendedBadge { align-self: flex-start; padding: 6px 9px; border-radius: 999px; background: var(--foreground); color: var(--background); font-size: 10px; font-weight: 500; white-space: nowrap; }
+.pricingLimits { margin-top: 24px; border-top: 1px solid var(--border); list-style: none; }
+.pricingLimits li { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 8px; min-height: 48px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.pricingLimits li > svg { color: var(--muted-foreground); }
+.pricingLimits li > span { color: var(--muted-foreground); }
+.pricingLimits li > strong { font-weight: 500; text-align: right; }
+.pricingAction { display: flex; min-height: 46px; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; font-weight: 500; }
+.pricingAction:hover { background: var(--muted); }
+.recommendedPlan .pricingAction { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+.recommendedPlan .pricingAction:hover { opacity: .84; }
 .guideGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; border-top: 1px solid var(--border); }
 .guideLink { display: grid; grid-template-columns: 24px 1fr 20px; align-items: start; gap: 20px; padding: 28px 0; border-bottom: 1px solid var(--border); }
 .guideLink > svg { margin-top: 6px; }
@@ -113,6 +130,7 @@
   .description { margin-top: 20px; }
   .sectionBody { margin-top: 28px; }
   .sectionBody > div:has(> .contentCard) { grid-template-columns: 1fr; gap: 16px; }
+  .pricingGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .contentCard { padding: 24px 0; }
   .featureRow { grid-template-columns: 1fr; gap: 12px; padding-block: 28px; }
   .featureRow h3 { font-size: 30px; }
@@ -121,8 +139,9 @@
   .integrationEntries { grid-template-columns: 1fr 1fr; }
   .appEntry { padding-block: 24px; }
   .accessBox { padding: 24px; }
+  .pricingPlan { padding: 20px; }
   .entryPoint { grid-template-columns: 1fr; gap: 20px; }
   .codePanel pre { padding: 20px; font-size: 11px; }
 }
-@media (max-width: 420px) { .integrationEntries { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .integrationEntries, .pricingGrid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .shell *, .shell *::before, .shell *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }

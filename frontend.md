@@ -149,7 +149,7 @@ The existing public pages remain available:
 - `/features` — feature overview
 - `/how-it-works` — product flow
 - `/developers` — developer information
-- `/pricing` — pricing page
+- `/pricing` — monthly Hobby, Starter, Business, and Growth plans with published usage limits
 - `/changelog` — dated, user-facing product update history
 - `/start-creating` — call to action / signup entry
 - `/sign-in` — sign-in entry page
